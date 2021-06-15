@@ -7,7 +7,6 @@ from django.conf import settings
 from django.test import TestCase
 
 from access.config import ConfigParser
-from util.shell import invoke_script
 
 
 class ConfigTestCase(TestCase):

@@ -1,22 +1,19 @@
 from itertools import zip_longest
-from django.conf import settings
+import urllib.parse
+
+from django.http import HttpRequest
 from django.urls import reverse
 
 
-def url_to_exercise(request, course_key, exercise_key):
+def url_to_model(request: HttpRequest, course_key: str, exercise_key: str, parameter: str):
     return request.build_absolute_uri(
-        reverse('exercise', args=[course_key, exercise_key]))
-
-
-def url_to_model(request, course_key, exercise_key, parameter=None):
-    return request.build_absolute_uri(
-        reverse('model', args=[course_key, exercise_key, parameter or ''])
+        reverse('model', args=[course_key, exercise_key, parameter])
     )
 
 
-def url_to_template(request, course_key, exercise_key, parameter=None):
+def url_to_template(request: HttpRequest, course_key: str, exercise_key: str, parameter: str):
     return request.build_absolute_uri(
-        reverse('exercise_template', args=[course_key, exercise_key, parameter or ''])
+        reverse('exercise_template', args=[course_key, exercise_key, parameter])
     )
 
 
@@ -60,17 +57,20 @@ def exercise(request, course, exercise_root, of):
         of['description'] = exercise.get('description', '')
     if 'url' in exercise:
         of['url'] = exercise['url']
+
+    if 'exercise_info' in exercise:
+        of['exercise_info'] = exercise['exercise_info']
     else:
-        of['url'] = url_to_exercise(request, course['key'], exercise['key'])
+        # DEPRECATED: exercise_info should already have the required data
+        # it is not gitmanager's job to fill it
+        form, i18n = form_fields(languages, exercises)
+        of['exercise_info'] = {
+            'form_spec': form,
+            'form_i18n': i18n,
+        }
 
-    form, i18n = form_fields(languages, exercises)
-    of['exercise_info'] = {
-        'form_spec': form,
-        'form_i18n': i18n,
-    }
-
-    if 'radar_info' in exercise:
-        of['exercise_info']['radar'] = exercise['radar_info']
+        if 'radar_info' in exercise:
+            of['exercise_info']['radar'] = exercise['radar_info']
 
     if 'model_answer' in exercise:
         of['model_answer'] = exercise['model_answer']
@@ -80,10 +80,25 @@ def exercise(request, course, exercise_root, of):
             url_to_model, request, course['key'], exercise['key']
         )
     elif exercise.get('view_type', None) == 'access.types.stdsync.createForm':
-        model_url = url_to_model(
-            request, course['key'], exercise['key']
-        )
-        if not exercise.get('show_model_answer', True):
+        # DEPRECATED: model_answer should already have the required data it is
+        # not gitmanager's job to know what 'access.types.stdsync.createForm' is
+
+        # build an url to the grader
+        if 'url' in of:
+            parsed_exercise_url = urllib.parse.urlparse(of['url'])
+            model_url = url_to_model(
+                request, course['key'], exercise['key'], ''
+            )
+            model_url = urllib.parse.urlparse(model_url)._replace(
+                    scheme=parsed_exercise_url.scheme,
+                    netloc=parsed_exercise_url.netloc
+                ).geturl()
+        else:
+            model_url = ''
+
+        if not model_url:
+            of['model_answer'] = ''
+        elif not exercise.get('show_model_answer', True):
             # Set the empty string here so that an existing value may be
             # removed from the A+ database when the course is imported there.
             of['model_answer'] = ''

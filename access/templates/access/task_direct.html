@@ -1,8 +1,0 @@
-{% for entry in result.tests %}
-{% if entry.err %}
-<pre class="alert alert-danger">
-    {{ entry.err|safe }}
-</pre>
-{% endif %}
-{{ entry.out|safe }}
-{% endfor %}

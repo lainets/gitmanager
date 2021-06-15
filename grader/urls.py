@@ -6,9 +6,8 @@ from django.urls import include, path
 
 urlpatterns = []
 
-if 'gitmanager' in settings.INSTALLED_APPS:
-    import gitmanager.urls
-    urlpatterns.append(path('gitmanager/', include(gitmanager.urls)))
+import gitmanager.urls
+urlpatterns.append(path('gitmanager/', include(gitmanager.urls)))
 
 import access.urls
 urlpatterns.append(path('', include(access.urls)))

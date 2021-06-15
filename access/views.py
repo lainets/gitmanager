@@ -1,26 +1,12 @@
 from django.shortcuts import render
-from django.http.response import HttpResponse, JsonResponse, Http404, HttpResponseForbidden
-from django.utils import timezone
+from django.http.response import HttpResponse, JsonResponse, Http404
 from django.utils import translation
-from django.core.exceptions import ImproperlyConfigured
 from django.urls import reverse
-from django.conf import settings
 import copy
 import os
-import json
 
-from access.config import DEFAULT_LANG, ConfigError, config
+from access.config import config
 from util import export
-from util.files import (
-    clean_submission_dir,
-    read_and_remove_submission_meta,
-    write_submission_meta,
-)
-from util.http import post_data
-from util.importer import import_named
-from util.monitored_dict import MonitoredDict
-from util.personalized import read_generated_exercise_file
-from util.templates import template_to_str
 
 
 def index(request):
@@ -35,7 +21,6 @@ def index(request):
         })
     return render(request, 'access/ready.html', {
         "courses": courses,
-        "manager": 'gitmanager' in settings.INSTALLED_APPS,
     })
 
 
@@ -58,62 +43,18 @@ def course(request, course_key):
         'plus_config_url': request.build_absolute_uri(reverse(
             'aplus-json', args=[course['key']])),
     }
-    if "gitmanager" in settings.INSTALLED_APPS:
-        render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
+
+    render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     return render(request, 'access/course.html', render_context)
 
 
-def exercise(request, course_key, exercise_key):
-    '''
-    Presents the exercise and accepts answers to it.
-    '''
-    post_url = request.GET.get('post_url', None)
-    lang = request.POST.get('__grader_lang', None) or request.GET.get('lang', None)
-    (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
-
-    # Try to call the configured view.
-    try:
-        return import_named(course, exercise['view_type'])(request, course, exercise, post_url)
-    except ConfigError as error:
-        return render(request, 'access/exercise_config_error.html', {
-            'course': course,
-            'exercise': exercise,
-            'config_error': str(error),
-            'result': {
-                'error': True,
-            },
-        })
-
-
-def exercise_ajax(request, course_key, exercise_key):
-    '''
-    Receives an AJAX request for an exercise.
-    '''
-    lang = request.GET.get('lang', None)
-    (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
-
-    if course is None or exercise is None or 'ajax_type' not in exercise:
-        raise Http404()
-
-    # jQuery does not send "requested with" on cross domain requests
-    #if not request.is_ajax():
-    #    return HttpResponse('Method not allowed', status=405)
-
-    response = import_named(course, exercise['ajax_type'])(request, course, exercise)
-
-    # No need to control domain as valid submission_url is required to submit.
-    response['Access-Control-Allow-Origin'] = '*'
-    return response
-
-
-def exercise_model(request, course_key, exercise_key, parameter=None):
+def exercise_model(request, course_key, exercise_key, parameter):
     '''
     Presents a model answer for an exercise.
     '''
     lang = request.GET.get('lang', None)
     (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
 
-    response = None
     path = None
 
     if 'model_files' in exercise:
@@ -129,30 +70,21 @@ def exercise_model(request, course_key, exercise_key, parameter=None):
         try:
             with open(os.path.join(course['dir'], path)) as f:
                 content = f.read()
-        except FileNotFoundError:
-            pass
+        except FileNotFoundError as error:
+            raise Http404("Model file missing") from error
         else:
-            response = HttpResponse(content, content_type='text/plain')
-    else:
-        try:
-            response = import_named(course, exercise['view_type'] + "Model")(request, course, exercise, parameter)
-        except ImportError:
-            pass
+            return HttpResponse(content, content_type='text/plain')
 
-    if response:
-        return response
-    else:
-        raise Http404()
+    raise Http404()
 
 
-def exercise_template(request, course_key, exercise_key, parameter=None):
+def exercise_template(request, course_key, exercise_key, parameter):
     '''
     Presents the exercise template.
     '''
     lang = request.GET.get('lang', None)
     (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
 
-    response = None
     path = None
 
     if 'template_files' in exercise:
@@ -170,17 +102,9 @@ def exercise_template(request, course_key, exercise_key, parameter=None):
                 content = f.read()
         except FileNotFoundError as error:
             raise Http404("Template file missing") from error
-        response = HttpResponse(content, content_type='text/plain')
-    else:
-        try:
-            response = import_named(course, exercise['view_type'] + "Template")(request, course, exercise, parameter)
-        except ImportError:
-            pass
+        return HttpResponse(content, content_type='text/plain')
 
-    if response:
-        return response
-    else:
-        raise Http404()
+    raise Http404()
 
 
 def aplus_json(request, course_key):
@@ -239,54 +163,8 @@ def aplus_json(request, course_key):
             modules.append(mf)
     data["modules"] = modules
 
-    if "gitmanager" in settings.INSTALLED_APPS:
-        data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
+    data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     return JsonResponse(data)
-
-
-def test_result(request):
-    '''
-    Accepts and displays a result from a test submission.
-    '''
-    file_path = os.path.join(settings.SUBMISSION_PATH, 'test-result')
-
-    if request.method == 'POST':
-        vals = request.POST.copy()
-        vals['time'] = str(timezone.now())
-        with open(file_path, 'w') as f:
-            f.write(json.dumps(vals))
-        return JsonResponse({ "success": True })
-
-    result = None
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
-            result = f.read()
-    return HttpResponse(result or 'No test result received yet.')
-
-
-def generated_exercise_file(request, course_key, exercise_key, exercise_instance, filename):
-    '''
-    Delivers a generated file of the exercise instance.
-    '''
-    # Fetch the corresponding exercise entry from the config.
-    (course, exercise) = config.exercise_entry(course_key, exercise_key)
-    if course is None or exercise is None:
-        raise Http404()
-    if "generated_files" in exercise:
-        import magic
-        for gen_file_conf in exercise["generated_files"]:
-            if gen_file_conf["file"] == filename:
-                if gen_file_conf.get("allow_download", False):
-                    file_content = read_generated_exercise_file(course, exercise,
-                                                                exercise_instance, filename)
-                    response = HttpResponse(file_content,
-                                            content_type=magic.from_buffer(file_content, mime=True))
-                    response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
-                    return response
-                else:
-                    # hide file existence with 404
-                    raise Http404()
-    raise Http404()
 
 
 def _get_course_exercise_lang(course_key, exercise_key, lang_code):
@@ -357,61 +235,3 @@ def _type_dict(dict_item, dict_types):
     if "type" in base:
         del base["type"]
     return base
-
-
-def container_post(request):
-    '''
-    Proxies the grading result from inside container to A+
-    '''
-    sid = request.POST.get("sid", None)
-    if not sid:
-        return HttpResponseForbidden("Missing sid")
-
-    meta = read_and_remove_submission_meta(sid)
-    if meta is None:
-        return HttpResponseForbidden("Invalid sid")
-    #clean_submission_dir(meta["dir"])
-
-
-    data = {
-        "points": int(request.POST.get("points", 0)),
-        "max_points": int(request.POST.get("max_points", 1)),
-    }
-    for key in ["error", "grading_data"]:
-        if key in request.POST:
-            data[key] = request.POST[key]
-    if "error" in data and data["error"].lower() in ("no", "false"):
-        del data["error"]
-
-    feedback = request.POST.get("feedback", "")
-    # Fetch the corresponding exercise entry from the config.
-    lang = meta["lang"]
-    (course, exercise) = config.exercise_entry(meta["course_key"], meta["exercise_key"], lang=lang)
-    if "feedback_template" in exercise:
-        # replace the feedback with a rendered feedback template if the exercise is configured to do so
-        # it is not feasible to support all of the old feedback template variables that runactions.py
-        # used to have since the grading actions are not configured in the exercise YAML file anymore
-        required_fields = { 'points', 'max_points', 'error', 'out' }
-        result = MonitoredDict({
-            "points": data["points"],
-            "max_points": data["max_points"],
-            "out": feedback,
-            "error": data.get("error", False),
-            "title": exercise.get("title", ""),
-        })
-        translation.activate(lang)
-        feedback = template_to_str(course, exercise, None, exercise["feedback_template"], result=result)
-        if result.accessed.isdisjoint(required_fields):
-            alert = template_to_str(
-                course, exercise, None,
-                "access/feedback_template_did_not_use_result_alert.html")
-            feedback = alert + feedback
-        # Make unicode results ascii.
-        feedback = feedback.encode("ascii", "xmlcharrefreplace")
-
-    data["feedback"] = feedback
-
-    if not post_data(meta["url"], data):
-        write_submission_meta(sid, meta)
-        return HttpResponse("Failed to deliver results", status=502)
-    return HttpResponse("Ok")

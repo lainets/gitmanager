@@ -11,7 +11,6 @@ BASE_DIR = dirname(dirname(abspath(__file__)))
 ##########################################################################
 DEBUG = False
 SECRET_KEY = None
-AJAX_KEY = None
 ADMINS = (
     # ('Your Name', 'your_email@domain.com'),
 )
@@ -29,9 +28,6 @@ INSTALLED_APPS = (
     'staticfileserver', # override for runserver command, thus this needs to be before django contrib one
     'django.contrib.staticfiles',
     'access',
-)
-ADD_APPS = (
-    #'gitmanager',
 )
 
 MIDDLEWARE = [
@@ -128,10 +124,6 @@ STATIC_ROOT = join(BASE_DIR, 'static')
 #MEDIA_ROOT = join(BASE_DIR, 'media')
 
 
-# Task queue settings
-##########################################################################
-CONTAINER_SCRIPT = join(BASE_DIR, "scripts/docker-run.sh")
-
 # HTTP
 DEFAULT_EXPIRY_MINUTES = 15
 
@@ -146,10 +138,6 @@ COURSES_PATH = join(BASE_DIR, 'courses')
 # Exercise files submission path:
 # Django process requires write access to this directory.
 SUBMISSION_PATH = join(BASE_DIR, 'uploads')
-
-# Personalized exercises and user files are kept here.
-# Django process requires write access to this directory.
-PERSONALIZED_CONTENT_PATH = join(BASE_DIR, 'exercises-meta')
 
 # Logging
 # https://docs.djangoproject.com/en/1.7/topics/logging/
@@ -206,11 +194,6 @@ ENV_SETTINGS_PREFIX = environ.get('ENV_SETTINGS_PREFIX', 'GRADER_')
 update_settings_from_environment(__name__, ENV_SETTINGS_PREFIX)
 
 update_secret_from_file(__name__, environ.get('GRADER_SECRET_KEY_FILE', 'secret_key'))
-update_secret_from_file(__name__, environ.get('GRADER_AJAX_KEY_FILE', 'ajax_key'), setting='AJAX_KEY')
-assert AJAX_KEY, "Secure random string is required in AJAX_KEY"
-
-# update INSTALLED_APPS
-INSTALLED_APPS = INSTALLED_APPS + ADD_APPS
 
 # Drop x-frame policy when debugging
 if DEBUG:
