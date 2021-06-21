@@ -1,5 +1,5 @@
 from django.db import models
-
+from enum import Enum
 
 class CourseRepo(models.Model):
     '''
@@ -26,6 +26,14 @@ class CourseRepo(models.Model):
         ordering = ['key']
 
 
+class UpdateStatus(Enum):
+    PENDING="PENDING"
+    RUNNING="RUNNING"
+    SUCCESS="SUCCESS"
+    FAILED="FAILED"
+    SKIPPED="SKIPPED"
+
+
 class CourseUpdate(models.Model):
     '''
     An update to course repo from the origin.
@@ -34,7 +42,7 @@ class CourseUpdate(models.Model):
     request_ip = models.CharField(max_length=40)
     request_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(auto_now=True)
-    updated = models.BooleanField(default=False)
+    status = models.CharField(max_length=10, default=UpdateStatus.PENDING, choices=[(tag, tag.value) for tag in UpdateStatus])
     log = models.TextField(default='')
 
     class META:

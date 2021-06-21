@@ -10,7 +10,7 @@ from django.conf import settings
 from huey.contrib.djhuey import db_task, lock_task
 
 from access.config import config
-from .models import CourseRepo, CourseUpdate
+from .models import CourseRepo, CourseUpdate, UpdateStatus
 
 
 logger = logging.getLogger("grader.gitmanager")
@@ -120,7 +120,7 @@ def push_event(course_key: str):
     for update in updates:
         update.delete()
     # get pending updates
-    updates = CourseUpdate.objects.filter(course_repo=repo, updated=False).order_by("request_time").all()
+    updates = CourseUpdate.objects.filter(course_repo=repo, status=UpdateStatus.PENDING).order_by("request_time").all()
 
     updates = list(updates)
     if len(updates) == 0:
@@ -128,10 +128,12 @@ def push_event(course_key: str):
 
     # skip all but the most recent update
     for update in updates[:-1]:
-        update.updated = True
+        update.status = UpdateStatus.SKIPPED
         update.save()
 
     update = updates[-1]
+    update.status = UpdateStatus.RUNNING
+    update.save()
 
     path = os.path.join(settings.COURSES_PATH, course_key)
     try:
@@ -166,14 +168,18 @@ def push_event(course_key: str):
             if src_path.exists() or src_path.is_symlink():
                 src_path.unlink()
             src_path.symlink_to(Path(path, static_dir))
+
+        # all went well
+        update.status = UpdateStatus.SUCCESS
     except:
         update.log += "\n" + traceback.format_exc()
         raise
     finally:
-        update.updated = True
+        if update.status != UpdateStatus.SUCCESS:
+            update.status = UpdateStatus.FAILED
         update.save()
 
-    if build_status:
+    if update.status == UpdateStatus.SUCCESS:
         pass
         # TODO: ? reload uwsgi processes
 

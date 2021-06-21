@@ -6,7 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .forms import CourseRepoForm
-from .models import CourseRepo
+from .models import CourseRepo, UpdateStatus
 from .builder import push_event
 
 logger = logging.getLogger("grader.gitmanager")
@@ -55,8 +55,9 @@ def build_log_json(request, key):
         'build_log': latest_update.log_nl(),
         'request_ip': latest_update.request_ip,
         'request_time': latest_update.request_time,
-        'updated': latest_update.updated,
-        'updated_time': latest_update.updated_time
+        'updated': latest_update.status != UpdateStatus.PENDING,
+        'updated_time': latest_update.updated_time,
+        'status': latest_update.status,
     })
 
 

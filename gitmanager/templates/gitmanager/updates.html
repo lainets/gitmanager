@@ -25,16 +25,18 @@
 	<tr>
 		<th>Request IP</th>
 		<th>Created</th>
+		<th>Status</th>
 		<th>Updated</th>
 	</tr>
 	{% for update in updates %}
 	<tr>
 		<td>{{ update.request_ip }}</td>
 		<td>{{ update.request_time }}</td>
+		<td>{{ update.status }}</td>
 		<td>{% if update.updated %}{{ update.updated_time }}{% endif %}</td>
 	</tr>
 	<tr>
-		<td colspan="3">
+		<td colspan="4">
 			<pre>{{ update.log_nl }}</pre>
 		</td>
 	</tr>
