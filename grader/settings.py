@@ -3,6 +3,7 @@
 # You should create local_settings.py and override any settings there.
 # You can copy local_settings.example.py and start from there.
 ##
+from os import environ
 from os.path import abspath, dirname, join
 BASE_DIR = dirname(dirname(abspath(__file__)))
 
@@ -16,6 +17,7 @@ ADMINS = (
 )
 #SERVER_EMAIL = 'root@'
 ALLOWED_HOSTS = ["*"]
+SSH_KEY_PATH=join(environ['HOME'], ".ssh/id_ecdsa")
 
 # course builder settings
 BUILD_IN_CONTAINER=True
@@ -37,7 +39,7 @@ INSTALLED_APPS = (
     'staticfileserver', # override for runserver command, thus this needs to be before django contrib one
     'django.contrib.staticfiles',
     'access',
-    'gitmanager',
+    'gitmanager.apps.Config',
     'huey.contrib.djhuey',
 )
 
@@ -196,7 +198,6 @@ HUEY = {
 
 
 ###############################################################################
-from os import environ
 from r_django_essentials.conf import *
 
 # get settings values from other sources

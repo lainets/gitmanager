@@ -11,6 +11,8 @@ settings_local.py
 local_settings.py
 grader/local_settings.py
 grader/secret_key.py
+.ssh/*
+!.ssh/.keep
 
 static/*
 courses/*
