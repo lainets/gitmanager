@@ -41,7 +41,7 @@ class CourseUpdate(models.Model):
     course_repo = models.ForeignKey(CourseRepo, on_delete=models.CASCADE, related_name='updates')
     request_ip = models.CharField(max_length=40)
     request_time = models.DateTimeField(auto_now_add=True)
-    updated_time = models.DateTimeField(auto_now=True)
+    updated_time = models.DateTimeField(default=None, null=True, blank=True)
     status = models.CharField(max_length=10, default=UpdateStatus.PENDING, choices=[(tag, tag.value) for tag in UpdateStatus])
     log = models.TextField(default='')
 

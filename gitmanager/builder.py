@@ -7,6 +7,7 @@ import traceback
 from typing import List, Tuple
 
 from django.conf import settings
+from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
 from access.config import config
@@ -177,6 +178,7 @@ def push_event(course_key: str):
     finally:
         if update.status != UpdateStatus.SUCCESS:
             update.status = UpdateStatus.FAILED
+        update.updated_time = Now()
         update.save()
 
     if update.status == UpdateStatus.SUCCESS:
