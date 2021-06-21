@@ -28,6 +28,8 @@ INSTALLED_APPS = (
     'staticfileserver', # override for runserver command, thus this needs to be before django contrib one
     'django.contrib.staticfiles',
     'access',
+    'gitmanager',
+    'huey.contrib.djhuey',
 )
 
 MIDDLEWARE = [
@@ -173,7 +175,9 @@ LOGGING = {
   },
 }
 
-
+HUEY = {
+    'results': False,  # Whether to store return values of tasks
+}
 
 
 

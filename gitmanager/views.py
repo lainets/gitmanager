@@ -1,6 +1,5 @@
 import json
 import logging
-import os, tempfile
 from django.conf import settings
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
@@ -8,11 +7,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from .forms import CourseRepoForm
 from .models import CourseRepo
-
+from .builder import push_event
 
 logger = logging.getLogger("grader.gitmanager")
-clean_flag = os.path.join(tempfile.gettempdir(), "mooc-grader-manager-clean")
-clean_flag_new = os.path.join(tempfile.gettempdir(), "mooc-grader-manager-clean-new-sphinx")
 
 
 def repos(request):
@@ -91,18 +88,12 @@ def hook(request, key):
                 status=400,
             )
 
-        if repo.updates.filter(updated=False).count() == 0:
-            repo.updates.create(
-                course_repo=repo,
-                request_ip=get_client_ip(request)
-            )
+        repo.updates.create(
+            course_repo=repo,
+            request_ip=get_client_ip(request)
+        )
 
-        # Remove clean flag for the cronjob.
-        flag_file = clean_flag
-        if repo.sphinx_version == CourseRepo.SPHINX_VERSION_NEW:
-            flag_file = clean_flag_new
-        if os.path.exists(flag_file):
-            os.remove(flag_file)
+        push_event(key)
 
     if request.META.get('HTTP_REFERER'):
         return redirect('manager-updates', repo.key)
