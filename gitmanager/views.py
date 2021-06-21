@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .forms import CourseForm
 from .models import Course, UpdateStatus
 from .builder import push_event
+from .apps import ssh_key
 
 logger = logging.getLogger("grader.gitmanager")
 
@@ -15,6 +16,7 @@ logger = logging.getLogger("grader.gitmanager")
 def courses(request):
     return render(request, 'gitmanager/courses.html', {
         'courses': Course.objects.all(),
+        'ssh_key': ssh_key,
     })
 
 

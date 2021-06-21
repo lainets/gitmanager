@@ -6,6 +6,11 @@
 <div class="page-header">
   <h1>Cloned course repositories</h1>
 </div>
+<div class="panel panel-default">
+  <div class="panel-heading">SSH key (add this as a deploy key to the course repository)</div>
+  <div class="panel-body" style="overflow-wrap: anywhere;">{{ ssh_key }}</div>
+</div>
+<hr/>
 <p>
   <a href="{% url 'manager-edit' %}" class="btn btn-default btn-sm">Add new</a>
 </p>
