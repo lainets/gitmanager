@@ -43,13 +43,8 @@ class CourseUpdate(models.Model):
     request_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(default=None, null=True, blank=True)
     status = models.CharField(max_length=10, default=UpdateStatus.PENDING, choices=[(tag, tag.value) for tag in UpdateStatus])
-    log = models.TextField(default='')
+    log = models.TextField(default=None, null=True, blank=True)
 
     class META:
         ordering = ['-request_time']
 
-    def log_nl(self):
-        log = self.log
-        if isinstance(log, bytes):
-            log = log.decode('utf-8')
-        return log.replace('\\n', '\n').replace('\\t', '\t')

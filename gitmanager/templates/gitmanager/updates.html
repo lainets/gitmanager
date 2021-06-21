@@ -29,17 +29,19 @@
 		<th>Updated</th>
 	</tr>
 	{% for update in updates %}
-	<tr>
-		<td>{{ update.request_ip }}</td>
-		<td>{{ update.request_time }}</td>
-		<td>{{ update.status }}</td>
-		<td>{% if update.updated_time %}{{ update.updated_time }}{% endif %}</td>
-	</tr>
-	<tr>
-		<td colspan="4">
-			<pre>{{ update.log_nl }}</pre>
-		</td>
-	</tr>
+		<tr>
+			<td>{{ update.request_ip }}</td>
+			<td>{{ update.request_time }}</td>
+			<td>{{ update.status }}</td>
+			<td>{% if update.updated_time %}{{ update.updated_time }}{% endif %}</td>
+		</tr>
+		{% if update.log %}
+			<tr>
+				<td colspan="4">
+					<pre>{{ update.log }}</pre>
+				</td>
+			</tr>
+		{% endif %}
 	{% endfor %}
 </table>
 {% endblock %}

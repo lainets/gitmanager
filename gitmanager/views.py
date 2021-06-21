@@ -52,7 +52,7 @@ def build_log_json(request, key):
         return JsonResponse({})
     latest_update = repo.updates.order_by("-updated_time")[0]
     return JsonResponse({
-        'build_log': latest_update.log_nl(),
+        'build_log': latest_update.log,
         'request_ip': latest_update.request_ip,
         'request_time': latest_update.request_time,
         'updated': latest_update.status != UpdateStatus.PENDING,
