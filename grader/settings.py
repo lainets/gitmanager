@@ -16,6 +16,15 @@ ADMINS = (
 )
 #SERVER_EMAIL = 'root@'
 ALLOWED_HOSTS = ["*"]
+
+# course builder settings
+BUILD_IN_CONTAINER=True
+DEFAULT_IMAGE="apluslms/compile-rst:1.6"
+TMP_DIR = "/tmp/gitmanager"
+# if the app runs inside docker, TMP_DIR must be mounted to a directory on the host
+# set HOST_TMP_DIR to be that directory. This is so that we can call docker and
+# mount said directoty to the build container
+HOST_TMP_DIR = None
 ##########################################################################
 
 

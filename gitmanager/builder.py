@@ -10,16 +10,11 @@ from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
-from access.config import config
+from access.config import config, META
 from .models import CourseRepo, CourseUpdate, UpdateStatus
 
 
 logger = logging.getLogger("grader.gitmanager")
-installed_sphinx_version=subprocess.run(["sphinx-build", "--version"], stdout=subprocess.PIPE, encoding='utf8').stdout.strip().split(" ")[-1]
-if installed_sphinx_version == "1.6.7":
-    installed_sphinx_version='old'
-else:
-    installed_sphinx_version='new'
 
 
 def read_static_dir(course_key: str) -> str:
@@ -84,7 +79,34 @@ def pull(path: str, origin: str, branch: str) -> Tuple[bool, str]:
         return success, "------------\nFailed to clone repository\n------------\n\n" + log
 
 
-def build(path: str) -> Tuple[bool, str]:
+def container_build(path: Path, host_path: Path, course_key: str) -> Tuple[bool, str]:
+    log = ""
+
+    meta = config.course_meta(course_key)
+
+    build_image = settings.DEFAULT_IMAGE
+    if meta and "build_image" in meta:
+        build_image = meta["build_image"]
+        log += "Using build image: " + build_image + "\n\n"
+    elif meta:
+        log += f"No build_image in {META}, using the default: {build_image}\n\n"
+    else:
+        log += f"No {META} file, using the default build image: {build_image}\n\n"
+
+    process = subprocess.run([
+                settings.CONTAINER_SCRIPT,
+                build_image,
+                str(path.resolve()),
+                str(host_path.resolve()),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding='utf8'
+        )
+    return process.returncode == 0, log + process.stdout
+
+
+def local_build(path: str) -> Tuple[bool, str]:
     log = ""
     success = True
     def run(command, **kwargs):
@@ -105,6 +127,13 @@ def build(path: str) -> Tuple[bool, str]:
     return success, log
 
 
+def build(path: Path, host_path: Path, course_key: str) -> Tuple[bool, str]:
+    if settings.BUILD_IN_CONTAINER:
+        return container_build(path, host_path, course_key)
+    else:
+        return local_build(str(path))
+
+
 # lock_task to make sure that two updates don't happen at the same
 # time. Would be better to lock it for each repo separately but it isn't really
 # needed
@@ -114,8 +143,7 @@ def push_event(course_key: str):
     logger.debug(f"push_event: {course_key}")
 
     repo = CourseRepo.objects.get(key=course_key)
-    if repo.sphinx_version != installed_sphinx_version:
-        return
+
     # delete all but latest 10 updates
     updates = CourseUpdate.objects.filter(course_repo=repo).order_by("-request_time")[10:]
     for update in updates:
@@ -142,7 +170,8 @@ def push_event(course_key: str):
         if not pull_status:
             return
 
-        tmp_path = Path("/tmp/courses", course_key)
+        tmp_path = Path(settings.TMP_DIR, course_key)
+        host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
 
         # copy the course material to a tmp folder
         if tmp_path.is_dir():
@@ -152,7 +181,7 @@ def push_event(course_key: str):
         shutil.copytree(path, tmp_path, symlinks=True)
 
         # build in tmp folder
-        build_status, build_log = build(path)
+        build_status, build_log = build(tmp_path, host_tmp_path, course_key)
         update.log += "\n" + build_log
         if not build_status:
             return

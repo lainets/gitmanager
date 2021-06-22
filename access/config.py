@@ -159,6 +159,17 @@ class ConfigParser:
         # Fallback to any existing language version.
         return course_root["data"], list(exercise_root["data"].values())[0]
 
+    def course_meta(self, course_key):
+        # Try cached version.
+        if course_key in self._courses:
+            course_root = self._courses[course_key]
+            try:
+                if course_root["mtime"] >= os.path.getmtime(course_root["file"]):
+                    return course_root["course_meta"]
+            except OSError:
+                pass
+
+        return read_meta(os.path.join(settings.COURSES_PATH, course_key, META))
 
     def _course_root(self, course_key):
         '''
@@ -180,7 +191,7 @@ class ConfigParser:
                 pass
 
         LOGGER.debug('Loading course "%s"' % (course_key))
-        meta = read_meta(os.path.join(settings.COURSES_PATH, course_key, META))
+        meta = self.course_meta(course_key)
         try:
             f = self._get_config(os.path.join(self._conf_dir(settings.COURSES_PATH, course_key, meta), INDEX))
         except ConfigError:
