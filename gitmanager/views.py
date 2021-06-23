@@ -5,52 +5,52 @@ from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .forms import CourseRepoForm
-from .models import CourseRepo, UpdateStatus
+from .forms import CourseForm
+from .models import Course, UpdateStatus
 from .builder import push_event
 
 logger = logging.getLogger("grader.gitmanager")
 
 
-def repos(request):
-    return render(request, 'gitmanager/repos.html', {
-        'repos': CourseRepo.objects.all(),
+def courses(request):
+    return render(request, 'gitmanager/courses.html', {
+        'courses': Course.objects.all(),
     })
 
 
 def edit(request, key=None):
     if key:
-        repo = get_object_or_404(CourseRepo, key=key)
-        form = CourseRepoForm(request.POST or None, instance=repo)
+        course = get_object_or_404(Course, key=key)
+        form = CourseForm(request.POST or None, instance=course)
     else:
-        repo = None
-        form = CourseRepoForm(request.POST or None)
+        course = None
+        form = CourseForm(request.POST or None)
     for name in form.fields:
         form.fields[name].widget.attrs = {'class': 'form-control'}
     if request.method == 'POST' and form.is_valid():
         form.save()
-        return redirect('manager-repos')
+        return redirect('manager-courses')
     return render(request, 'gitmanager/edit.html', {
-        'repo': repo,
+        'course': course,
         'form': form,
     })
 
 
 def updates(request, key):
-    repo = get_object_or_404(CourseRepo, key=key)
+    course = get_object_or_404(Course, key=key)
     return render(request, 'gitmanager/updates.html', {
-        'repo': repo,
-        'updates': repo.updates.order_by('-request_time').all(),
+        'course': course,
+        'updates': course.updates.order_by('-request_time').all(),
         'hook': request.build_absolute_uri(reverse('manager-hook', args=[key])),
     })
 
 
 def build_log_json(request, key):
     try:
-        repo = CourseRepo.objects.get(key=key)
-    except CourseRepo.DoesNotExist:
+        course = Course.objects.get(key=key)
+    except Course.DoesNotExist:
         return JsonResponse({})
-    latest_update = repo.updates.order_by("-updated_time")[0]
+    latest_update = course.updates.order_by("-updated_time")[0]
     return JsonResponse({
         'build_log': latest_update.log,
         'request_ip': latest_update.request_ip,
@@ -69,7 +69,7 @@ def get_client_ip(request):
 
 
 def hook(request, key):
-    repo = get_object_or_404(CourseRepo, key=key)
+    course = get_object_or_404(Course, key=key)
 
     if request.method == 'POST':
         branch = None
@@ -83,20 +83,20 @@ def hook(request, key):
                 branch = data.get('ref', '')
                 branch = branch[11:] if branch.startswith('refs/heads/') else None
 
-        if branch is not None and branch != repo.git_branch:
+        if branch is not None and branch != course.git_branch:
             return HttpResponse(
-                "ignored. update to '{}', but expected '{}'".format(branch, repo.git_branch),
+                "ignored. update to '{}', but expected '{}'".format(branch, course.git_branch),
                 status=400,
             )
 
-        repo.updates.create(
-            course_repo=repo,
+        course.updates.create(
+            course=course,
             request_ip=get_client_ip(request)
         )
 
         push_event(key)
 
     if request.META.get('HTTP_REFERER'):
-        return redirect('manager-updates', repo.key)
+        return redirect('manager-updates', course.key)
 
     return HttpResponse('ok')

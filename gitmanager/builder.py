@@ -11,7 +11,7 @@ from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
 from access.config import config, META
-from .models import CourseRepo, CourseUpdate, UpdateStatus
+from .models import Course, CourseUpdate, UpdateStatus
 
 
 logger = logging.getLogger("grader.gitmanager")
@@ -142,14 +142,14 @@ def build(path: Path, host_path: Path, course_key: str) -> Tuple[bool, str]:
 def push_event(course_key: str):
     logger.debug(f"push_event: {course_key}")
 
-    repo = CourseRepo.objects.get(key=course_key)
+    course: Course = Course.objects.get(key=course_key)
 
     # delete all but latest 10 updates
-    updates = CourseUpdate.objects.filter(course_repo=repo).order_by("-request_time")[10:]
+    updates = CourseUpdate.objects.filter(course=course).order_by("-request_time")[10:]
     for update in updates:
         update.delete()
     # get pending updates
-    updates = CourseUpdate.objects.filter(course_repo=repo, status=UpdateStatus.PENDING).order_by("request_time").all()
+    updates = CourseUpdate.objects.filter(course=course, status=UpdateStatus.PENDING).order_by("request_time").all()
 
     updates = list(updates)
     if len(updates) == 0:
@@ -166,7 +166,7 @@ def push_event(course_key: str):
 
     path = os.path.join(settings.COURSES_PATH, course_key)
     try:
-        pull_status, update.log = pull(path, repo.git_origin, repo.git_branch)
+        pull_status, update.log = pull(path, course.git_origin, course.git_branch)
         if not pull_status:
             return
 

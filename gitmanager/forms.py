@@ -1,12 +1,12 @@
 from django import forms
 
-from .models import CourseRepo
+from .models import Course
 
 
-class CourseRepoForm(forms.ModelForm):
+class CourseForm(forms.ModelForm):
 
     class Meta:
-        model = CourseRepo
+        model = Course
         fields = [
             'key',
             'git_origin',

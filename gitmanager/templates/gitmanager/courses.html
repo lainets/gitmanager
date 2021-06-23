@@ -16,13 +16,13 @@
     <th>Branch</th>
     <th>Hook</th>
     <th>&nbsp;</th>
-  {% for repo in repos %}
+  {% for course in courses %}
   <tr>
-    <td><a href="{% url 'manager-updates' repo.key %}">{{ repo.key }}</a></td>
-    <td>{{ repo.git_origin }}</td>
-    <td>{{ repo.git_branch }}</td>
-    <td>{% if repo.update_hook %}x{% endif %}</td>
-    <td><a href="{% url 'manager-edit' repo.key %}" class="btn btn-default btn-sm">Edit</a></td>
+    <td><a href="{% url 'manager-updates' course.key %}">{{ course.key }}</a></td>
+    <td>{{ course.git_origin }}</td>
+    <td>{{ course.git_branch }}</td>
+    <td>{% if course.update_hook %}x{% endif %}</td>
+    <td><a href="{% url 'manager-edit' course.key %}" class="btn btn-default btn-sm">Edit</a></td>
   </tr>
   {% endfor %}
 </table>

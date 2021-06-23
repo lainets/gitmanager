@@ -1,11 +1,11 @@
 {% extends 'grader_frame.html' %}
 
-{% block title %}{{ block.super }} :: Manager, Edit {{ repo.key }}{% endblock %}
+{% block title %}{{ block.super }} :: Manager, Edit {{ course.key }}{% endblock %}
 
 {% block body %}
 <div class="page-header">
   <h1>
-    {% if repo %}Edit {{ repo.key }} repository settings{% else %}Add new course repository{% endif %}
+    {% if course %}Edit {{ course.key }} repository settings{% else %}Add new course{% endif %}
   </h1>
 </div>
 <form method="post">
@@ -21,6 +21,6 @@
   </div>
   {% endfor %}
   <input type="submit" value="Save" class="btn btn-primary">
-  <a href="{% url 'manager-repos' %}" class="btn btn-warning">Cancel</a>
+  <a href="{% url 'manager-courses' %}" class="btn btn-warning">Cancel</a>
 </form>
 {% endblock %}

@@ -1,19 +1,19 @@
 {% extends 'grader_frame.html' %}
 
-{% block title %}{{ block.super }} :: Manager, Updates {{ repo.key }}{% endblock %}
+{% block title %}{{ block.super }} :: Manager, Updates {{ course.key }}{% endblock %}
 
 {% block body %}
 <div class="page-header">
-	<h1>Update {{ repo.key }}</h1>
+	<h1>Update {{ course.key }}</h1>
 </div>
 <p>
-	Origin: {{ repo.git_origin }} {{ repo.git_branch }}
-	{% if repo.update_hook %}
-	<br />Hooks forward: {{ repo.update_hook }}
+	Origin: {{course.git_origin }} {{ course.git_branch }}
+	{% if course.update_hook %}
+	<br />Hooks forward: {{ course.update_hook }}
 	{% endif %}
 </p>
 <p>
-<form method="post" action="{% url 'manager-hook' repo.key %}" class="form-inline">
+<form method="post" action="{% url 'manager-hook' course.key %}" class="form-inline">
 	<div class="form-group">
 		<label>Hook</label>
 		<input type="text" class="form-control" value="{{ hook }}" size="60" readonly>

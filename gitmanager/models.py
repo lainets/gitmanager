@@ -1,7 +1,7 @@
 from django.db import models
 from enum import Enum
 
-class CourseRepo(models.Model):
+class Course(models.Model):
     '''
     A course repository served out for learning environments.
     '''
@@ -27,7 +27,7 @@ class CourseUpdate(models.Model):
     '''
     An update to course repo from the origin.
     '''
-    course_repo = models.ForeignKey(CourseRepo, on_delete=models.CASCADE, related_name='updates')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='updates')
     request_ip = models.CharField(max_length=40)
     request_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(default=None, null=True, blank=True)
