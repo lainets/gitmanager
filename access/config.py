@@ -1,6 +1,6 @@
 '''
 The exercises and classes are configured in json/yaml.
-Each directory inside courses/ holding an index.json/yaml is a course.
+Courses are listed in the database.
 '''
 from django.conf import settings
 from django.template import loader as django_template_loader
@@ -11,6 +11,7 @@ import copy
 from util.dict import iterate_kvp_with_dfs, get_rst_as_html
 from util.files import read_meta
 from util.static import symbolic_link
+from gitmanager.models import Course
 
 
 META = "apps.meta"
@@ -69,12 +70,13 @@ class ConfigParser:
         if self._dir_mtime < t:
             self._courses.clear()
             self._dir_mtime = t
+
             LOGGER.debug('Recreating course list.')
-            for item in os.listdir(settings.COURSES_PATH):
+            for course in Course.objects.all():
                 try:
-                    self._course_root(item)
+                    self._course_root(course.key)
                 except ConfigError:
-                    LOGGER.exception("Failed to load course: %s", item)
+                    LOGGER.exception("Failed to load course: %s", course.key)
                     continue
 
         # Pick course data into list.
