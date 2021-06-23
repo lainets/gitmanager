@@ -171,7 +171,7 @@ class ConfigParser:
             except OSError:
                 pass
 
-        return read_meta(os.path.join(settings.COURSES_PATH, course_key, META))
+        return read_meta(os.path.join(Course.path_to(course_key), META))
 
     def _course_root(self, course_key):
         '''
@@ -195,7 +195,7 @@ class ConfigParser:
         LOGGER.debug('Loading course "%s"' % (course_key))
         meta = self.course_meta(course_key)
         try:
-            f = self._get_config(os.path.join(self._conf_dir(settings.COURSES_PATH, course_key, meta), INDEX))
+            f = self._get_config(os.path.join(self._conf_dir(course_key, meta), INDEX))
         except ConfigError:
             return None
 
@@ -207,7 +207,7 @@ class ConfigParser:
         self._check_fields(f, data, ["name"])
         data["key"] = course_key
         data["mtime"] = t
-        data["dir"] = self._conf_dir(settings.COURSES_PATH, course_key, {})
+        data["dir"] = Course.path_to(course_key)
 
         if "static_url" not in data:
             data["static_url"] = "{}{}{}/".format(
@@ -290,12 +290,12 @@ class ConfigParser:
         if file_name.startswith("/"):
             f, t, data = self.load_exercise(
                 file_name[1:],
-                self._conf_dir(settings.COURSES_PATH, course_root["data"]["key"], {})
+                self._conf_dir(course_root["data"]["key"], {})
             )
         else:
             f, t, data = self.load_exercise(
                 file_name,
-                self._conf_dir(settings.COURSES_PATH, course_root["data"]["key"], course_root["meta"])
+                self._conf_dir(course_root["data"]["key"], course_root["meta"])
             )
         if not data:
             return None
@@ -332,22 +332,20 @@ class ConfigParser:
                 raise ConfigError('Required field "%s" missing from "%s"' % (name, file_name))
 
 
-    def _conf_dir(self, directory, course_key, meta):
+    def _conf_dir(self, course_key, meta):
         '''
         Gets configuration directory for the course.
 
-        @type directory: C{str}
-        @param directory: courses directory
         @type course_key: C{str}
-        @param course_key: course key (directory name)
+        @param course_key: course key
         @type meta: C{dict}
         @param meta: course meta data
         @rtype: C{str}
         @return: path to the course config directory
         '''
         if 'grader_config' in meta:
-            return os.path.join(directory, course_key, meta['grader_config'])
-        return os.path.join(directory, course_key)
+            return os.path.join(Course.path_to(course_key), meta['grader_config'])
+        return Course.path_to(course_key)
 
 
     def _get_config(self, path):

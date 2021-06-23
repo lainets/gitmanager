@@ -1,6 +1,5 @@
 from io import StringIO
 import logging
-import os.path
 from pathlib import Path
 import shutil
 import subprocess
@@ -169,7 +168,7 @@ def push_event(course_key: str):
     update.status = UpdateStatus.RUNNING
     update.save()
 
-    path = os.path.join(settings.COURSES_PATH, course_key)
+    path = course.path
 
     log_stream = StringIO()
     log_handler = logging.StreamHandler(log_stream)
