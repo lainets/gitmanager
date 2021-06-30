@@ -5,7 +5,7 @@ from django.urls import reverse
 import copy
 import os
 
-from access.config import config
+from access.config import CourseConfig as config
 from util import export
 
 
@@ -13,14 +13,14 @@ def index(request):
     '''
     Signals that the grader is ready and lists available courses.
     '''
-    courses = config.courses()
+    course_configs = config.all()
     if request.is_ajax():
         return JsonResponse({
             "ready": True,
-            "courses": _filter_fields(courses, ["key", "name"])
+            "courses": _filter_fields(course_configs, ["key", "name"])
         })
     return render(request, 'access/ready.html', {
-        "courses": courses,
+        "courses": course_configs,
     })
 
 

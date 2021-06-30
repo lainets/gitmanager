@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from access.views import config
+from access.config import CourseConfig as config
 
 class Command(BaseCommand):
     args = "<course_key</exercise_key>>"
@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
         # Check all.
         else:
-            for course in config.courses():
+            for course in config.all():
                 self.stdout.write("Configuration syntax ok for: %s" % (course["key"]))
                 (_course, exercises) = config.exercises(course["key"])
                 for exercise in exercises:

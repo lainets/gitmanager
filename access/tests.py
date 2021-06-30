@@ -6,7 +6,7 @@ import time, os
 from django.conf import settings
 from django.test import TestCase
 
-from access.config import ConfigParser
+from access.config import CourseConfig
 
 
 class ConfigTestCase(TestCase):
@@ -23,12 +23,12 @@ class ConfigTestCase(TestCase):
 
     def setUp(self):
         settings.COURSES_PATH = os.path.join(os.path.dirname(__file__), 'test_data')
-        self.config = ConfigParser()
+        self.config = CourseConfig
 
     def get_course_key(self):
-        courses = self.config.courses()
-        self.assertGreater(len(courses), 0, "No courses configured")
-        return courses[0]['key']
+        course_configs = self.config.all()
+        self.assertGreater(len(course_configs), 0, "No courses configured")
+        return course_configs[0]['key']
 
     def test_rst_parsing(self):
         from access.config import get_rst_as_html

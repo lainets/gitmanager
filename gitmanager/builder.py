@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
-from access.config import config, META
+from access.config import CourseConfig as config, META
 from .models import Course, CourseUpdate, UpdateStatus
 
 
