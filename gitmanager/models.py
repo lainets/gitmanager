@@ -7,7 +7,7 @@ class Course(models.Model):
     '''
 
     key = models.SlugField(unique=True)
-    git_origin = models.CharField(max_length=255)
+    git_origin = models.CharField(blank=True, max_length=255)
     git_branch = models.CharField(max_length=40)
     update_hook = models.URLField(blank=True)
 

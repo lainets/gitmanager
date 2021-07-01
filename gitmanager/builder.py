@@ -165,10 +165,15 @@ def push_event(course_key: str):
     update.save()
 
     path = os.path.join(settings.COURSES_PATH, course_key)
+    update.log = ""
     try:
-        pull_status, update.log = pull(path, course.git_origin, course.git_branch)
-        if not pull_status:
-            return
+        if course.git_origin:
+            pull_status, pull_log = pull(path, course.git_origin, course.git_branch)
+            update.log += pull_log + "\n"
+            if not pull_status:
+                return
+        else:
+            update.log += f"Course origin not set: skipping git update\n"
 
         tmp_path = Path(settings.TMP_DIR, course_key)
         host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
@@ -182,7 +187,7 @@ def push_event(course_key: str):
 
         # build in tmp folder
         build_status, build_log = build(tmp_path, host_tmp_path, course_key)
-        update.log += "\n" + build_log
+        update.log += build_log + "\n"
         if not build_status:
             return
 
@@ -202,7 +207,7 @@ def push_event(course_key: str):
         # all went well
         update.status = UpdateStatus.SUCCESS
     except:
-        update.log += "\n" + traceback.format_exc()
+        update.log += traceback.format_exc() + "\n"
         raise
     finally:
         if update.status != UpdateStatus.SUCCESS:
