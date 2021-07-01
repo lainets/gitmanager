@@ -148,7 +148,7 @@ def aplus_json(request, course_key):
         for o in [o for o in parent["children"] if "key" in o]:
             of = _type_dict(o, course.data.get("exercise_types", {}))
             if "config" in of:
-                exercise = course.exercise_config(str(of["key"]), '_root')
+                exercise = course.exercise_config(str(of["key"]))
                 of = export.exercise(request, course, exercise, of)
             elif "static_content" in of:
                 of = export.chapter(request, course, of)
@@ -175,7 +175,7 @@ def _get_course_exercise_lang(course_key, exercise_key, lang_code):
     cconfig = config.get(course_key)
     if cconfig is None:
         raise Http404()
-    exercise = cconfig.exercise_config(exercise_key, lang=lang_code)
+    exercise = cconfig.exercise_data(exercise_key, lang=lang_code)
     if exercise is None:
         raise Http404()
     if not lang_code:

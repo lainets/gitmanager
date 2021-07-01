@@ -48,7 +48,7 @@ def exercise(request, course, exercise_root, of):
     match the exercise structure in other languages.
     """
     of.pop('config')
-    languages,exercises = zip(*exercise_root.items())
+    languages,exercises = zip(*exercise_root.data.items())
     exercise = exercises[0]
 
     if not 'title' in of and not 'name' in of:

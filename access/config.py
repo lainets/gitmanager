@@ -39,6 +39,51 @@ class ConfigError(Exception):
 
 
 @dataclass
+class ExerciseConfig:
+    course: CourseConfig
+    file: str
+    mtime: float
+    ptime: float
+    data: dict
+
+
+    def data_for_language(self, lang: Optional[str] = None) -> dict:
+        if lang == '_root':
+            return self.data
+
+        # Try to find version for requested or configured language.
+        for lang in (lang, self.course.lang):
+            if lang in self.data:
+                data = self.data[lang]
+                data["lang"] = lang
+                return data
+
+        # Fallback to any existing language version.
+        return list(self.data.values())[0]
+
+
+    @staticmethod
+    def load(exercise_key, course_dir):
+        '''
+        Default loader to find and parse file.
+
+        @type course_root: C{dict}
+        @param course_root: a course root dictionary
+        @type exercise_key: C{str}
+        @param exercise_key: an exercise key
+        @type course_dir: C{str}
+        @param course_dir: a path to the course root directory
+        @rtype: C{str}, C{dict}
+        @return: exercise config file path, modified time and data dict
+        '''
+        config_file = ConfigParser.get_config(os.path.join(course_dir, exercise_key))
+        data = ConfigParser.parse(config_file)
+        if "include" in data:
+            data = ConfigParser._include(data, config_file, course_dir)
+        return config_file, os.path.getmtime(config_file), data
+
+
+@dataclass
 class CourseConfig:
     # class variables
     # variables marked ClassVar do not get a field in the dataclass
@@ -51,7 +96,7 @@ class CourseConfig:
     ptime: float
     data: Dict[str, dict]
     lang: str
-    exercises: Dict[str, dict]
+    exercises: Dict[str, ExerciseConfig]
 
 
     def __getitem__(self, key: str):
@@ -91,11 +136,11 @@ class CourseConfig:
 
 
     @staticmethod
-    def course_and_exercise_configs(course_key, exercise_key, lang=None) -> Tuple[Optional[CourseConfig], Optional[dict]]:
+    def course_and_exercise_configs(course_key: str, exercise_key: str) -> Tuple[Optional[CourseConfig], Optional[ExerciseConfig]]:
         course = CourseConfig.get(course_key)
         if course is None:
             return course, None
-        exercise = course.exercise_config(exercise_key, lang)
+        exercise = course.exercise_config(exercise_key)
         return course, exercise
 
 
@@ -109,7 +154,7 @@ class CourseConfig:
         # Pick exercise data into list.
         exercise_list = []
         for exercise_key in self.data["exercises"]:
-            exercise = self.exercise_config(exercise_key)
+            exercise = self.exercise_data(exercise_key)
             if exercise is None:
                 raise ConfigError('Invalid exercise key "%s" listed in "%s"'
                     % (exercise_key, self.file))
@@ -117,7 +162,7 @@ class CourseConfig:
         return exercise_list
 
 
-    def exercise_config(self, exercise_key, lang=None) -> Optional[dict]:
+    def exercise_data(self, exercise_key: str, lang: Optional[str] = None) -> Optional[dict]:
         '''
         Gets exercise config for its key.
 
@@ -126,25 +171,68 @@ class CourseConfig:
         @rtype: C{tuple}
         @return: exercise configuration or None
         '''
+        exercise = self.exercise_config(exercise_key)
+        if exercise is None:
+            return None
+
+        return exercise.data_for_language(lang)
+
+
+    def exercise_config(self, exercise_key) -> Optional[ExerciseConfig]:
+        '''
+        Gets exercise dictionary root (meta and data).
+
+        @type course_root: C{dict}
+        @param course_root: a course root dictionary
+        @type exercise_key: C{str}
+        @param exercise_key: an exercise key
+        @rtype: C{dict}
+        @return: exercise root or None
+        '''
         if exercise_key not in self.data["exercises"]:
             return None
 
-        exercise_root = self._exercise_root(exercise_key)
-        if not exercise_root or not exercise_root["data"]:
+        # Try cached version.
+        if exercise_key in self.exercises:
+            exercise_root = self.exercises[exercise_key]
+            try:
+                if exercise_root.mtime >= os.path.getmtime(exercise_root.file):
+                    return exercise_root
+            except OSError:
+                pass
+
+        LOGGER.debug('Loading exercise "%s/%s"', self.data["key"], exercise_key)
+        file_name = exercise_key
+        if "config_files" in self.data:
+            file_name = self.data["config_files"].get(exercise_key, exercise_key)
+        if file_name.startswith("/"):
+            f, t, data = ExerciseConfig.load(
+                file_name[1:],
+                CourseConfig._conf_dir(self.data["key"], {})
+            )
+        else:
+            f, t, data = ExerciseConfig.load(
+                file_name,
+                CourseConfig._conf_dir(self.data["key"], self.meta)
+            )
+        if not data:
             return None
 
-        if lang == '_root':
-            return exercise_root["data"]
+        # Process key modifiers and create language versions of the data.
+        data = ConfigParser.process_tags(data, self.lang)
+        for version in data.values():
+            ConfigParser.check_fields(f, version, ["title", "view_type"])
+            version["key"] = exercise_key
+            version["mtime"] = t
 
-        # Try to find version for requested or configured language.
-        for lang in (lang, self.lang):
-            if lang in exercise_root["data"]:
-                exercise = exercise_root["data"][lang]
-                exercise["lang"] = lang
-                return exercise
-
-        # Fallback to any existing language version.
-        return list(exercise_root["data"].values())[0]
+        self.exercises[exercise_key] = exercise_root = ExerciseConfig(
+            course = self,
+            file = f,
+            mtime = t,
+            ptime = time.time(),
+            data = data,
+        )
+        return exercise_root
 
 
     @staticmethod
@@ -242,60 +330,6 @@ class CourseConfig:
         return config
 
 
-    def _exercise_root(self, exercise_key):
-        '''
-        Gets exercise dictionary root (meta and data).
-
-        @type course_root: C{dict}
-        @param course_root: a course root dictionary
-        @type exercise_key: C{str}
-        @param exercise_key: an exercise key
-        @rtype: C{dict}
-        @return: exercise root or None
-        '''
-
-        # Try cached version.
-        if exercise_key in self.exercises:
-            exercise_root = self.exercises[exercise_key]
-            try:
-                if exercise_root["mtime"] >= os.path.getmtime(exercise_root["file"]):
-                    return exercise_root
-            except OSError:
-                pass
-
-        LOGGER.debug('Loading exercise "%s/%s"', self.data["key"], exercise_key)
-        file_name = exercise_key
-        if "config_files" in self.data:
-            file_name = self.data["config_files"].get(exercise_key, exercise_key)
-        if file_name.startswith("/"):
-            f, t, data = CourseConfig.load_exercise(
-                file_name[1:],
-                CourseConfig._conf_dir(self.data["key"], {})
-            )
-        else:
-            f, t, data = CourseConfig.load_exercise(
-                file_name,
-                CourseConfig._conf_dir(self.data["key"], self.meta)
-            )
-        if not data:
-            return None
-
-        # Process key modifiers and create language versions of the data.
-        data = ConfigParser.process_tags(data, self.lang)
-        for version in data.values():
-            ConfigParser.check_fields(f, version, ["title", "view_type"])
-            version["key"] = exercise_key
-            version["mtime"] = t
-
-        self.exercises[exercise_key] = exercise_root = {
-            "file": f,
-            "mtime": t,
-            "ptime": time.time(),
-            "data": data,
-        }
-        return exercise_root
-
-
     @staticmethod
     def _conf_dir(course_key, meta):
         '''
@@ -321,26 +355,6 @@ class CourseConfig:
         elif l == str:
             data['lang'] = l
         return data.get('lang', DEFAULT_LANG)
-
-    @staticmethod
-    def load_exercise(exercise_key, course_dir):
-        '''
-        Default loader to find and parse file.
-
-        @type course_root: C{dict}
-        @param course_root: a course root dictionary
-        @type exercise_key: C{str}
-        @param exercise_key: an exercise key
-        @type course_dir: C{str}
-        @param course_dir: a path to the course root directory
-        @rtype: C{str}, C{dict}
-        @return: exercise config file path, modified time and data dict
-        '''
-        config_file = ConfigParser.get_config(os.path.join(course_dir, exercise_key))
-        data = ConfigParser.parse(config_file)
-        if "include" in data:
-            data = ConfigParser._include(data, config_file, course_dir)
-        return config_file, os.path.getmtime(config_file), data
 
 
 class ConfigParser:
@@ -488,7 +502,7 @@ class ConfigParser:
 
 
     @staticmethod
-    def process_tags(data, default_lang = DEFAULT_LANG):
+    def process_tags(data: dict, default_lang: str = DEFAULT_LANG) -> Dict[str, dict]:
         '''
         Processes a data dictionary according to embedded processor flags
         and creates a data dict version for each language intercepted.
@@ -502,8 +516,7 @@ class ConfigParser:
         tags_processed = []
 
         def recursion(n, lang, collect_lang=False):
-            t = type(n)
-            if t == dict:
+            if isinstance(n, dict):
                 d = {}
                 for k in sorted(n.keys(), key=lambda x: (len(x), x)):
                     v = n[k]
@@ -519,7 +532,7 @@ class ConfigParser:
                         m = ConfigParser.PROCESSOR_TAG_REGEX.match(k)
                     d[k] = recursion(v, lang, collect_lang)
                 return d
-            elif t == list:
+            elif isinstance(n, list):
                 return [recursion(v, lang, collect_lang) for v in n]
             else:
                 return n
@@ -530,5 +543,5 @@ class ConfigParser:
             root[lang] = recursion(data, lang)
 
         LOGGER.debug('Processed %d tags.', len(tags_processed))
-        return root
+        return root # type: ignore
 
