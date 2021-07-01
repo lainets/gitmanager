@@ -24,7 +24,7 @@ def read_static_dir(course_key: str) -> str:
     '''
     Reads static_dir from course configuration.
     '''
-    course = config.course_entry(course_key)
+    course = config.get(course_key)
     if course and 'static_dir' in course:
         return course['static_dir']
     return ''

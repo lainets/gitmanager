@@ -28,20 +28,21 @@ def course(request, course_key):
     '''
     Signals that the course is ready to be graded and lists available exercises.
     '''
-    (course, exercises) = config.exercises(course_key)
-    if course is None:
+    course_config = config.get(course_key)
+    if course_config is None:
         raise Http404()
+    exercises = course_config.get_exercise_list()
     if request.is_ajax():
         return JsonResponse({
             "ready": True,
-            "course_name": course["name"],
+            "course_name": course_config["name"],
             "exercises": _filter_fields(exercises, ["key", "title"]),
         })
     render_context = {
-        'course': course,
+        'course': course_config.data,
         'exercises': exercises,
         'plus_config_url': request.build_absolute_uri(reverse(
-            'aplus-json', args=[course['key']])),
+            'aplus-json', args=[course_config['key']])),
     }
 
     render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
@@ -68,7 +69,7 @@ def exercise_model(request, course_key, exercise_key, parameter):
 
     if path:
         try:
-            with open(os.path.join(course['dir'], path)) as f:
+            with open(os.path.join(course.dir, path)) as f:
                 content = f.read()
         except FileNotFoundError as error:
             raise Http404("Model file missing") from error
@@ -98,7 +99,7 @@ def exercise_template(request, course_key, exercise_key, parameter):
 
     if path:
         try:
-            with open(os.path.join(course['dir'], path)) as f:
+            with open(os.path.join(course.dir, path)) as f:
                 content = f.read()
         except FileNotFoundError as error:
             raise Http404("Template file missing") from error
@@ -111,7 +112,7 @@ def aplus_json(request, course_key):
     '''
     Delivers the configuration as JSON for A+.
     '''
-    course = config.course_entry(course_key)
+    course = config.get(course_key)
     if course is None:
         raise Http404()
     data = _copy_fields(course, [
@@ -145,9 +146,9 @@ def aplus_json(request, course_key):
             return []
         result = []
         for o in [o for o in parent["children"] if "key" in o]:
-            of = _type_dict(o, course.get("exercise_types", {}))
+            of = _type_dict(o, course.data.get("exercise_types", {}))
             if "config" in of:
-                _, exercise = config.exercise_entry(course["key"], str(of["key"]), '_root')
+                exercise = course.exercise_config(str(of["key"]), '_root')
                 of = export.exercise(request, course, exercise, of)
             elif "static_content" in of:
                 of = export.chapter(request, course, of)
@@ -158,7 +159,7 @@ def aplus_json(request, course_key):
     modules = []
     if "modules" in course:
         for m in course["modules"]:
-            mf = _type_dict(m, course.get("module_types", {}))
+            mf = _type_dict(m, course.data.get("module_types", {}))
             mf["children"] = children_recursion(m)
             modules.append(mf)
     data["modules"] = modules
@@ -171,13 +172,16 @@ def _get_course_exercise_lang(course_key, exercise_key, lang_code):
     # Keep only "en" from "en-gb" if the long language format is used.
     if lang_code:
         lang_code = lang_code[:2]
-    (course, exercise) = config.exercise_entry(course_key, exercise_key, lang=lang_code)
-    if course is None or exercise is None:
+    cconfig = config.get(course_key)
+    if cconfig is None:
+        raise Http404()
+    exercise = cconfig.exercise_config(exercise_key, lang=lang_code)
+    if exercise is None:
         raise Http404()
     if not lang_code:
-        lang_code = course.get('lang', DEFAULT_LANG)
+        lang_code = cconfig.lang
     translation.activate(lang_code)
-    return (course, exercise, lang_code)
+    return (cconfig, exercise, lang_code)
 
 
 def _filter_fields(dict_list, pick_fields):

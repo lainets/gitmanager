@@ -2,11 +2,14 @@
 The exercises and classes are configured in json/yaml.
 Courses are listed in the database.
 '''
+from __future__ import annotations # allows typehinting a method that returns an instance of owner class
+from dataclasses import dataclass
 from django.conf import settings
 from django.template import loader as django_template_loader
 import os, time, json, yaml, re
 import logging
 import copy
+from typing import ClassVar, Dict, Optional, List, Tuple
 
 from util.dict import iterate_kvp_with_dfs, get_rst_as_html
 from util.files import read_meta
@@ -35,9 +38,30 @@ class ConfigError(Exception):
         return repr(self.value)
 
 
+@dataclass
 class CourseConfig:
-    _courses = {}
-    _dir_mtime = 0
+    # class variables
+    # variables marked ClassVar do not get a field in the dataclass
+    _courses: ClassVar[Dict[str, CourseConfig]] = {}
+    _dir_mtime: ClassVar[float] = 0
+    # instance variables
+    meta: dict
+    file: str
+    mtime: float
+    ptime: float
+    data: Dict[str, dict]
+    lang: str
+    exercises: Dict[str, dict]
+
+
+    def __getitem__(self, key: str):
+        return self.data[key]
+
+    def __setitem__(self, key: str, value):
+        self.data[key] = value
+
+    def __contains__(self, key: str):
+        return key in self.data
 
 
     @staticmethod
@@ -58,95 +82,69 @@ class CourseConfig:
             LOGGER.debug('Recreating course list.')
             for course in Course.objects.all():
                 try:
-                    CourseConfig._course_root(course.key)
+                    CourseConfig.get(course.key)
                 except ConfigError:
                     LOGGER.exception("Failed to load course: %s", course.key)
                     continue
 
-        # Pick course data into list.
-        course_list = []
-        for c in CourseConfig._courses.values():
-            course_list.append(c["data"])
-        return course_list
+        return CourseConfig._courses.values()
 
 
     @staticmethod
-    def course_entry(course_key):
+    def course_and_exercise_configs(course_key, exercise_key, lang=None) -> Tuple[Optional[CourseConfig], Optional[dict]]:
+        course = CourseConfig.get(course_key)
+        if course is None:
+            return course, None
+        exercise = course.exercise_config(exercise_key, lang)
+        return course, exercise
+
+
+    def get_exercise_list(self) -> Optional[List[dict]]:
         '''
-        Gets a course entry.
+        Gets course exercises as a list.
 
-        @type course_key: C{str}
-        @param course_key: a course key
-        @rtype: C{dict}
-        @return: course configuration or None
-        '''
-        root = CourseConfig._course_root(course_key)
-        return None if root is None else root["data"]
-
-
-    @staticmethod
-    def exercises(course_key):
-        '''
-        Gets course exercises for a course key.
-
-        @type course_key: C{str}
-        @param course_key: a course key
         @rtype: C{tuple}
-        @return: course configuration or None, listed exercise configurations or None
+        @return: listed exercise configurations or None
         '''
-        course_root = CourseConfig._course_root(course_key)
-        if course_root is None:
-            return (None, None)
-
         # Pick exercise data into list.
         exercise_list = []
-        for exercise_key in course_root["data"]["exercises"]:
-            _, exercise = CourseConfig.exercise_entry(course_root, exercise_key)
+        for exercise_key in self.data["exercises"]:
+            exercise = self.exercise_config(exercise_key)
             if exercise is None:
                 raise ConfigError('Invalid exercise key "%s" listed in "%s"'
-                    % (exercise_key, course_root["file"]))
+                    % (exercise_key, self.file))
             exercise_list.append(exercise)
-        return (course_root["data"], exercise_list)
+        return exercise_list
 
 
-    @staticmethod
-    def exercise_entry(course, exercise_key, lang=None):
+    def exercise_config(self, exercise_key, lang=None) -> Optional[dict]:
         '''
-        Gets course and exercise entries for their keys.
+        Gets exercise config for its key.
 
-        @type course: C{str|dict}
-        @param course: a course key or root dict
         @type exercise_key: C{str}
         @param exercise_key: an exercise key
         @rtype: C{tuple}
-        @return: course configuration or None, exercise configuration or None
+        @return: exercise configuration or None
         '''
-        if isinstance(course, dict):
-          course_root, course_key = course, course['data']['key']
-        else:
-          course_root, course_key = CourseConfig._course_root(course), course
+        if exercise_key not in self.data["exercises"]:
+            return None
 
-        if course_root is None:
-            return None, None
-        if exercise_key not in course_root["data"]["exercises"]:
-            return course_root["data"], None
-
-        exercise_root = CourseConfig._exercise_root(course_root, exercise_key)
-        if not exercise_root or "data" not in exercise_root or not exercise_root["data"]:
-            return course_root["data"], None
+        exercise_root = self._exercise_root(exercise_key)
+        if not exercise_root or not exercise_root["data"]:
+            return None
 
         if lang == '_root':
-            return course_root["data"], exercise_root["data"]
+            return exercise_root["data"]
 
         # Try to find version for requested or configured language.
-        for lang in (lang, course_root["lang"]):
+        for lang in (lang, self.lang):
             if lang in exercise_root["data"]:
                 exercise = exercise_root["data"][lang]
                 exercise["lang"] = lang
-                return course_root["data"], exercise
+                return exercise
 
         # Fallback to any existing language version.
-        return course_root["data"], list(exercise_root["data"].values())[0]
+        return list(exercise_root["data"].values())[0]
 
 
     @staticmethod
@@ -155,8 +153,8 @@ class CourseConfig:
         if course_key in CourseConfig._courses:
             course_root = CourseConfig._courses[course_key]
             try:
-                if course_root["mtime"] >= os.path.getmtime(course_root["file"]):
-                    return course_root["course_meta"]
+                if course_root.mtime >= os.path.getmtime(course_root.file):
+                    return course_root.meta
             except OSError:
                 pass
 
@@ -164,22 +162,22 @@ class CourseConfig:
 
 
     @staticmethod
-    def _course_root(course_key):
+    def get(course_key: str) -> Optional[CourseConfig]:
         '''
-        Gets course dictionary root (meta and data).
+        Gets course config.
 
         @type course_key: C{str}
         @param course_key: a course key
         @rtype: C{dict}
-        @return: course root or None
+        @return: course config or None
         '''
 
         # Try cached version.
         if course_key in CourseConfig._courses:
-            course_root = CourseConfig._courses[course_key]
+            config = CourseConfig._courses[course_key]
             try:
-                if course_root["mtime"] >= os.path.getmtime(course_root["file"]):
-                    return course_root
+                if config.mtime >= os.path.getmtime(config.file):
+                    return config
             except OSError:
                 pass
 
@@ -209,7 +207,7 @@ class CourseConfig:
 
         if "modules" in data:
             keys = []
-            config = {}
+            config_files = {}
             def recurse_exercises(parent):
                 if "children" in parent:
                     for exercise_vars in parent["children"]:
@@ -224,28 +222,27 @@ class CourseConfig:
                                 cfg = data["exercise_types"][exercise_vars["type"]]["config"]
                             if cfg:
                                 keys.append(exercise_key)
-                                config[exercise_key] = cfg
+                                config_files[exercise_key] = cfg
                         recurse_exercises(exercise_vars)
             for module in data["modules"]:
                 recurse_exercises(module)
             data["exercises"] = keys
-            data["config_files"] = config
+            data["config_files"] = config_files
 
-        CourseConfig._courses[course_key] = course_root = {
-            "meta": meta,
-            "file": f,
-            "mtime": t,
-            "ptime": time.time(),
-            "data": data,
-            "lang": CourseConfig._default_lang(data),
-            "exercises": {}
-        }
+        CourseConfig._courses[course_key] = config = CourseConfig(
+            meta = meta,
+            file = f,
+            mtime = t,
+            ptime = time.time(),
+            data = data,
+            lang = CourseConfig._default_lang(data),
+            exercises = {}
+        )
         symbolic_link(settings.COURSES_PATH, data)
-        return course_root
+        return config
 
 
-    @staticmethod
-    def _exercise_root(course_root, exercise_key):
+    def _exercise_root(self, exercise_key):
         '''
         Gets exercise dictionary root (meta and data).
 
@@ -258,43 +255,43 @@ class CourseConfig:
         '''
 
         # Try cached version.
-        if exercise_key in course_root["exercises"]:
-            exercise_root = course_root["exercises"][exercise_key]
+        if exercise_key in self.exercises:
+            exercise_root = self.exercises[exercise_key]
             try:
                 if exercise_root["mtime"] >= os.path.getmtime(exercise_root["file"]):
                     return exercise_root
             except OSError:
                 pass
 
-        LOGGER.debug('Loading exercise "%s/%s"', course_root["data"]["key"], exercise_key)
+        LOGGER.debug('Loading exercise "%s/%s"', self.data["key"], exercise_key)
         file_name = exercise_key
-        if "config_files" in course_root["data"]:
-            file_name = course_root["data"]["config_files"].get(exercise_key, exercise_key)
+        if "config_files" in self.data:
+            file_name = self.data["config_files"].get(exercise_key, exercise_key)
         if file_name.startswith("/"):
             f, t, data = CourseConfig.load_exercise(
                 file_name[1:],
-                CourseConfig._conf_dir(course_root["data"]["key"], {})
+                CourseConfig._conf_dir(self.data["key"], {})
             )
         else:
             f, t, data = CourseConfig.load_exercise(
                 file_name,
-                CourseConfig._conf_dir(course_root["data"]["key"], course_root["meta"])
+                CourseConfig._conf_dir(self.data["key"], self.meta)
             )
         if not data:
             return None
 
         # Process key modifiers and create language versions of the data.
-        data = ConfigParser.process_tags(data, course_root['lang'])
+        data = ConfigParser.process_tags(data, self.lang)
         for version in data.values():
             ConfigParser.check_fields(f, version, ["title", "view_type"])
             version["key"] = exercise_key
             version["mtime"] = t
 
-        course_root["exercises"][exercise_key] = exercise_root = {
+        self.exercises[exercise_key] = exercise_root = {
             "file": f,
             "mtime": t,
             "ptime": time.time(),
-            "data": data
+            "data": data,
         }
         return exercise_root
 

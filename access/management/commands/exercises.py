@@ -14,19 +14,20 @@ class Command(BaseCommand):
             else:
                 course_key = args[0]
                 exercise_key = None
-            course = config.course_entry(course_key)
+            course = config.get(course_key)
             if course is None:
                 raise CommandError("Course not found for key: %s" % (course_key))
             self.stdout.write("Configuration syntax ok for: %s" % (course_key))
 
             if exercise_key:
-                (_course, exercise) = config.exercise_entry(course_key, exercise_key)
+                (_course, exercise) = config.course_and_exercise_configs(course_key, exercise_key)
                 if exercise is None:
                     raise CommandError("Exercise not found for key: %s/%s" % (course_key, exercise_key))
                 self.stdout.write("Configuration syntax ok for: %s/%s" % (course_key, exercise_key))
 
             else:
-                (_course, exercises) = config.exercises(course_key)
+                _course = config.get(course_key)
+                exercises = _course.get_exercise_list()
                 for exercise in exercises:
                     self.stdout.write("Configuration syntax ok for: %s/%s" % (course_key, exercise["key"]))
 
@@ -34,6 +35,7 @@ class Command(BaseCommand):
         else:
             for course in config.all():
                 self.stdout.write("Configuration syntax ok for: %s" % (course["key"]))
-                (_course, exercises) = config.exercises(course["key"])
+                _course = config.get(course["key"])
+                exercises = _course.get_exercise_list()
                 for exercise in exercises:
                     self.stdout.write("Configuration syntax ok for: %s/%s" % (course["key"], exercise["key"]))
