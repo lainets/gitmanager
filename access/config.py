@@ -109,41 +109,6 @@ class CourseConfig:
         return key in self.data
 
 
-    @staticmethod
-    def all():
-        '''
-        Gets all course configs.
-
-        @rtype: C{list}
-        @return: course configurations
-        '''
-
-        # Find all courses if exercises directory is modified.
-        t = os.path.getmtime(settings.COURSES_PATH)
-        if CourseConfig._dir_mtime < t:
-            CourseConfig._courses.clear()
-            CourseConfig._dir_mtime = t
-
-            LOGGER.debug('Recreating course list.')
-            for course in Course.objects.all():
-                try:
-                    CourseConfig.get(course.key)
-                except ConfigError:
-                    LOGGER.exception("Failed to load course: %s", course.key)
-                    continue
-
-        return CourseConfig._courses.values()
-
-
-    @staticmethod
-    def course_and_exercise_configs(course_key: str, exercise_key: str) -> Tuple[Optional[CourseConfig], Optional[ExerciseConfig]]:
-        course = CourseConfig.get(course_key)
-        if course is None:
-            return course, None
-        exercise = course.exercise_config(exercise_key)
-        return course, exercise
-
-
     def get_exercise_list(self) -> Optional[List[dict]]:
         '''
         Gets course exercises as a list.
@@ -236,17 +201,29 @@ class CourseConfig:
 
 
     @staticmethod
-    def course_meta(course_key):
-        # Try cached version.
-        if course_key in CourseConfig._courses:
-            course_root = CourseConfig._courses[course_key]
-            try:
-                if course_root.mtime >= os.path.getmtime(course_root.file):
-                    return course_root.meta
-            except OSError:
-                pass
+    def all():
+        '''
+        Gets all course configs.
 
-        return read_meta(os.path.join(Course.path_to(course_key), META))
+        @rtype: C{list}
+        @return: course configurations
+        '''
+
+        # Find all courses if exercises directory is modified.
+        t = os.path.getmtime(settings.COURSES_PATH)
+        if CourseConfig._dir_mtime < t:
+            CourseConfig._courses.clear()
+            CourseConfig._dir_mtime = t
+
+            LOGGER.debug('Recreating course list.')
+            for course in Course.objects.all():
+                try:
+                    CourseConfig.get(course.key)
+                except ConfigError:
+                    LOGGER.exception("Failed to load course: %s", course.key)
+                    continue
+
+        return CourseConfig._courses.values()
 
 
     @staticmethod
@@ -328,6 +305,29 @@ class CourseConfig:
         )
         symbolic_link(settings.COURSES_PATH, data)
         return config
+
+
+    @staticmethod
+    def course_and_exercise_configs(course_key: str, exercise_key: str) -> Tuple[Optional[CourseConfig], Optional[ExerciseConfig]]:
+        course = CourseConfig.get(course_key)
+        if course is None:
+            return course, None
+        exercise = course.exercise_config(exercise_key)
+        return course, exercise
+
+
+    @staticmethod
+    def course_meta(course_key):
+        # Try cached version.
+        if course_key in CourseConfig._courses:
+            course_root = CourseConfig._courses[course_key]
+            try:
+                if course_root.mtime >= os.path.getmtime(course_root.file):
+                    return course_root.meta
+            except OSError:
+                pass
+
+        return read_meta(os.path.join(Course.path_to(course_key), META))
 
 
     @staticmethod
