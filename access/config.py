@@ -263,12 +263,6 @@ class CourseConfig:
         data["mtime"] = t
         data["dir"] = Course.path_to(course_key)
 
-        if "static_url" not in data:
-            data["static_url"] = "{}{}{}/".format(
-                settings.STATIC_URL_HOST_INJECT,
-                settings.STATIC_URL,
-                course_key
-            )
 
         if "modules" in data:
             keys = []

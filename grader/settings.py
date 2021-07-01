@@ -130,7 +130,6 @@ STATICFILES_DIRS = (
     join(BASE_DIR, 'assets'),
 )
 STATIC_URL = '/static/'
-STATIC_URL_HOST_INJECT = ''
 STATIC_ROOT = join(BASE_DIR, 'static')
 
 #MEDIA_URL = '/media/'
