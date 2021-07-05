@@ -10,7 +10,6 @@ import copy
 
 from util.dict import iterate_kvp_with_dfs, get_rst_as_html
 from util.files import read_meta
-from util.importer import import_named
 from util.static import symbolic_link
 
 
@@ -234,11 +233,6 @@ class ConfigParser:
             data["exercises"] = keys
             data["config_files"] = config
 
-        # Enable course configurable ecercise_loader function.
-        exercise_loader = self._default_exercise_loader
-        if "exercise_loader" in data:
-            exercise_loader = import_named(data, data["exercise_loader"])
-
         self._courses[course_key] = course_root = {
             "meta": meta,
             "file": f,
@@ -246,7 +240,6 @@ class ConfigParser:
             "ptime": time.time(),
             "data": data,
             "lang": self._default_lang(data),
-            "exercise_loader": exercise_loader,
             "exercises": {}
         }
         symbolic_link(DIR, data)
@@ -288,14 +281,12 @@ class ConfigParser:
         if "config_files" in course_root["data"]:
             file_name = course_root["data"]["config_files"].get(exercise_key, exercise_key)
         if file_name.startswith("/"):
-            f, t, data = course_root["exercise_loader"](
-                course_root,
+            f, t, data = self.load_exercise(
                 file_name[1:],
                 self._conf_dir(DIR, course_root["data"]["key"], {})
             )
         else:
-            f, t, data = course_root["exercise_loader"](
-                course_root,
+            f, t, data = self.load_exercise(
                 file_name,
                 self._conf_dir(DIR, course_root["data"]["key"], course_root["meta"])
             )
@@ -461,7 +452,7 @@ class ConfigParser:
         return return_data
 
 
-    def _default_exercise_loader(self, course_root, exercise_key, course_dir):
+    def load_exercise(self, exercise_key, course_dir):
         '''
         Default loader to find and parse file.
 

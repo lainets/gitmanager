@@ -130,9 +130,7 @@ DEFAULT_EXPIRY_MINUTES = 15
 
 # Course configuration path:
 # Every directory under this directory is expected to be a course configuration
-# FIXME: this option is currently just place holder and it's waiting for deprecation
-# of course specific view_types. ps. those are currently imported by util.importer.import_named
-# access/config.py contains hardcoded version of this value.
+# FIXME: access/config.py contains hardcoded version of this value.
 COURSES_PATH = join(BASE_DIR, 'courses')
 
 # Exercise files submission path:
