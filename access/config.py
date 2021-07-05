@@ -2,7 +2,7 @@
 The exercises and classes are configured in json/yaml.
 Courses are listed in the database.
 '''
-from __future__ import annotations # allows typehinting a method that returns an instance of owner class
+from __future__ import annotations
 from dataclasses import dataclass
 from django.conf import settings
 from django.template import loader as django_template_loader
