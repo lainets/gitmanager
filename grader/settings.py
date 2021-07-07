@@ -181,6 +181,11 @@ LOGGING = {
       'handlers': ['email'],
       'propagate': True
     },
+    'gitmanager.build': {
+      'level': 'ERROR',
+      'handlers': [],
+      'propagate': False,
+    },
   },
 }
 

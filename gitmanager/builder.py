@@ -1,3 +1,4 @@
+from io import StringIO
 import logging
 import os.path
 from pathlib import Path
@@ -15,6 +16,9 @@ from .models import Course, CourseUpdate, UpdateStatus
 
 
 logger = logging.getLogger("grader.gitmanager")
+
+build_logger = logging.getLogger("gitmanager.build")
+build_logger.setLevel(logging.DEBUG)
 
 
 def read_static_dir(course_key: str) -> str:
@@ -38,22 +42,23 @@ def git_call(path: str, command: str, cmd: List[str], include_cmd_string: bool =
     return True, cmd_str + response.stdout
 
 
-def clone(path: str, origin: str, branch: str) -> Tuple[bool, str]:
+def clone(path: str, origin: str, branch: str) -> bool:
     Path(path).mkdir(parents=True, exist_ok=True)
 
-    return git_call(".", "clone", ["clone", "-b", branch, "--recursive", origin, path])
+    success, logstr = git_call(".", "clone", ["clone", "-b", branch, "--recursive", origin, path])
+    build_logger.info(logstr)
+    return success
 
 
-def checkout(path: str, origin: str, branch: str) -> Tuple[bool, str]:
-    log = ""
+def checkout(path: str, origin: str, branch: str) -> bool:
     success = True
     # set the path beforehand, and handle logging
     def git(command: str, cmd: List[str]):
-        nonlocal success, log
+        nonlocal success
         if not success: # dont run the other commands if one fails
             return
         success, output = git_call(path, command, cmd)
-        log += output + "\n"
+        build_logger.info(output + "\n")
 
     git("fetch", ["fetch", "origin", branch])
     git("clean", ["clean", "-xfd"])
@@ -63,35 +68,35 @@ def checkout(path: str, origin: str, branch: str) -> Tuple[bool, str]:
     git("submodule reset", ["submodule", "foreach", "--recursive", "git", "reset", "-q", "--hard"])
     git("submodule update", ["submodule", "update", "--init", "--recursive"])
 
-    return success, log
+    return success
 
 
-def pull(path: str, origin: str, branch: str) -> Tuple[bool, str]:
+def pull(path: str, origin: str, branch: str) -> bool:
     if (Path(path) / ".git").exists():
-        success, log = checkout(path, origin, branch)
+        success = checkout(path, origin, branch)
     else:
-        success, log = clone(path, origin, branch)
+        success = clone(path, origin, branch)
 
     if (Path(path) / ".git").exists():
-        success2, log2 = git_call(path, "log", ["--no-pager", "log", '--pretty=format:------------\nCommit metadata\n\nHash:\n%H\nSubject:\n%s\nBody:\n%b\nCommitter:\n%ai\n%ae\nAuthor:\n%ci\n%cn\n%ce\n------------\n', "-1"], include_cmd_string=False)
-        return success and success2, log2 + "\n" + log
+        success2, logstr = git_call(path, "log", ["--no-pager", "log", '--pretty=format:------------\nCommit metadata\n\nHash:\n%H\nSubject:\n%s\nBody:\n%b\nCommitter:\n%ai\n%ae\nAuthor:\n%ci\n%cn\n%ce\n------------\n', "-1"], include_cmd_string=False)
+        build_logger.info("\n" + logstr)
+        return success and success2
     else:
-        return success, "------------\nFailed to clone repository\n------------\n\n" + log
+        build_logger.info("------------\nFailed to clone repository\n------------\n\n")
+        return success
 
 
-def container_build(path: Path, host_path: Path, course_key: str) -> Tuple[bool, str]:
-    log = ""
-
+def container_build(path: Path, host_path: Path, course_key: str) -> bool:
     meta = config.course_meta(course_key)
 
     build_image = settings.DEFAULT_IMAGE
     if meta and "build_image" in meta:
         build_image = meta["build_image"]
-        log += "Using build image: " + build_image + "\n\n"
+        build_logger.info("Using build image: " + build_image + "\n\n")
     elif meta:
-        log += f"No build_image in {META}, using the default: {build_image}\n\n"
+        build_logger.info(f"No build_image in {META}, using the default: {build_image}\n\n")
     else:
-        log += f"No {META} file, using the default build image: {build_image}\n\n"
+        build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
 
     process = subprocess.run([
                 settings.CONTAINER_SCRIPT,
@@ -103,31 +108,31 @@ def container_build(path: Path, host_path: Path, course_key: str) -> Tuple[bool,
             stderr=subprocess.STDOUT,
             encoding='utf8'
         )
-    return process.returncode == 0, log + process.stdout
+    build_logger.info(process.stdout)
+    return process.returncode == 0
 
 
-def local_build(path: str) -> Tuple[bool, str]:
-    log = ""
+def local_build(path: str) -> bool:
     success = True
     def run(command, **kwargs):
-        nonlocal log, success
+        nonlocal success
         process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8', **kwargs)
-        log += process.stdout + "\n"
+        build_logger.info(process.stdout + "\n")
         success = success and process.returncode == 0
 
     if Path(path, "build.sh").exists():
-        log += "### Detected 'build.sh' executing it with bash. ###\n"
+        build_logger.info("### Detected 'build.sh' executing it with bash. ###\n")
         run(["/bin/bash", "build.sh"], cwd=path)
     elif Path(path, "Makefile").exists():
-        log += "### Detected a Makefile. Running 'make html'. Add nop 'build.sh' to disable this! ###\n"
+        build_logger.info("### Detected a Makefile. Running 'make html'. Add nop 'build.sh' to disable this! ###\n")
         run(["make", "html"], cwd=path)
     else:
-        log += "### No build.sh or Makefile. Not building the course. ###\n"
+        build_logger.info("### No build.sh or Makefile. Not building the course. ###\n")
 
-    return success, log
+    return success
 
 
-def build(path: Path, host_path: Path, course_key: str) -> Tuple[bool, str]:
+def build(path: Path, host_path: Path, course_key: str) -> bool:
     if settings.BUILD_IN_CONTAINER:
         return container_build(path, host_path, course_key)
     else:
@@ -165,15 +170,17 @@ def push_event(course_key: str):
     update.save()
 
     path = os.path.join(settings.COURSES_PATH, course_key)
-    update.log = ""
+
+    log_stream = StringIO()
+    log_handler = logging.StreamHandler(log_stream)
+    build_logger.addHandler(log_handler)
     try:
         if course.git_origin:
-            pull_status, pull_log = pull(path, course.git_origin, course.git_branch)
-            update.log += pull_log + "\n"
+            pull_status = pull(path, course.git_origin, course.git_branch)
             if not pull_status:
                 return
         else:
-            update.log += f"Course origin not set: skipping git update\n"
+            build_logger.warning(f"Course origin not set: skipping git update\n")
 
         tmp_path = Path(settings.TMP_DIR, course_key)
         host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
@@ -186,8 +193,7 @@ def push_event(course_key: str):
         shutil.copytree(path, tmp_path, symlinks=True)
 
         # build in tmp folder
-        build_status, build_log = build(tmp_path, host_tmp_path, course_key)
-        update.log += build_log + "\n"
+        build_status = build(tmp_path, host_tmp_path, course_key)
         if not build_status:
             return
 
@@ -198,7 +204,7 @@ def push_event(course_key: str):
         # link static dir
         static_dir = read_static_dir(course_key)
         if static_dir:
-            update.log += f"\nLinking static dir {static_dir}\n"
+            build_logger.info(f"\nLinking static dir {static_dir}\n")
             src_path = Path("static", course_key)
             if src_path.exists() or src_path.is_symlink():
                 src_path.unlink()
@@ -207,9 +213,13 @@ def push_event(course_key: str):
         # all went well
         update.status = UpdateStatus.SUCCESS
     except:
-        update.log += traceback.format_exc() + "\n"
+        build_logger.error("Build failed.\n")
+        build_logger.error(traceback.format_exc() + "\n")
         raise
     finally:
+        update.log = log_stream.getvalue()
+        build_logger.removeHandler(log_handler)
+
         if update.status != UpdateStatus.SUCCESS:
             update.status = UpdateStatus.FAILED
         update.updated_time = Now()
