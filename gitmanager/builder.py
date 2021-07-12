@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
-from access.config import CourseConfig as config, META
+from access.config import CourseConfig, META
 from .models import Course, CourseUpdate, UpdateStatus
 
 
@@ -24,9 +24,9 @@ def read_static_dir(course_key: str) -> str:
     '''
     Reads static_dir from course configuration.
     '''
-    course = config.get(course_key)
-    if course and 'static_dir' in course:
-        return course['static_dir']
+    config = CourseConfig.get(course_key)
+    if config and config.data["static_dir"]:
+        return config.data["static_dir"] # type: ignore
     return ''
 
 
@@ -86,7 +86,7 @@ def pull(path: str, origin: str, branch: str) -> bool:
 
 
 def container_build(path: Path, host_path: Path, course_key: str) -> bool:
-    meta = config.course_meta(course_key)
+    meta = CourseConfig.course_meta(course_key)
 
     build_image = settings.DEFAULT_IMAGE
     if meta and "build_image" in meta:

@@ -99,16 +99,6 @@ class CourseConfig:
     exercises: Dict[str, ExerciseConfig]
 
 
-    def __getitem__(self, key: str):
-        return self.data[key]
-
-    def __setitem__(self, key: str, value):
-        self.data[key] = value
-
-    def __contains__(self, key: str):
-        return key in self.data
-
-
     def get_exercise_list(self) -> Optional[List[dict]]:
         '''
         Gets course exercises as a list.

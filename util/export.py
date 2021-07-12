@@ -28,11 +28,11 @@ def chapter(request, course, of):
     path = of.pop('static_content')
     if type(path) == dict:
         of['url'] = {
-            lang: url_to_static(request, course['key'], p)
+            lang: url_to_static(request, course.data['key'], p)
             for lang,p in path.items()
         }
     else:
-        of['url'] = url_to_static(request, course['key'], path)
+        of['url'] = url_to_static(request, course.data['key'], path)
     return of
 
 
@@ -77,7 +77,7 @@ def exercise(request, course, exercise_root, of):
     elif 'model_files' in exercise:
         of['model_answer'] = i18n_urls(
             languages, exercises, 'model_files',
-            url_to_model, request, course['key'], exercise['key']
+            url_to_model, request, course.data['key'], exercise['key']
         )
     elif exercise.get('view_type', None) == 'access.types.stdsync.createForm':
         # DEPRECATED: model_answer should already have the required data it is
@@ -87,7 +87,7 @@ def exercise(request, course, exercise_root, of):
         if 'url' in of:
             parsed_exercise_url = urllib.parse.urlparse(of['url'])
             model_url = url_to_model(
-                request, course['key'], exercise['key'], ''
+                request, course.data['key'], exercise['key'], ''
             )
             model_url = urllib.parse.urlparse(model_url)._replace(
                     scheme=parsed_exercise_url.scheme,
@@ -115,7 +115,7 @@ def exercise(request, course, exercise_root, of):
     elif 'template_files' in exercise:
         of['exercise_template'] = i18n_urls(
             languages, exercises, 'template_files',
-            url_to_template, request, course['key'], exercise['key']
+            url_to_template, request, course.data['key'], exercise['key']
         )
 
     return of

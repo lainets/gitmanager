@@ -34,8 +34,8 @@ class Command(BaseCommand):
         # Check all.
         else:
             for course in config.all():
-                self.stdout.write("Configuration syntax ok for: %s" % (course["key"]))
-                _course = config.get(course["key"])
+                self.stdout.write("Configuration syntax ok for: %s" % (course.data["key"]))
+                _course = config.get(course.data["key"])
                 exercises = _course.get_exercise_list()
                 for exercise in exercises:
-                    self.stdout.write("Configuration syntax ok for: %s/%s" % (course["key"], exercise["key"]))
+                    self.stdout.write("Configuration syntax ok for: %s/%s" % (course.data["key"], exercise["key"]))

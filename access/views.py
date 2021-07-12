@@ -35,14 +35,14 @@ def course(request, course_key):
     if request.is_ajax():
         return JsonResponse({
             "ready": True,
-            "course_name": course_config["name"],
+            "course_name": course_config.data["name"],
             "exercises": _filter_fields(exercises, ["key", "title"]),
         })
     render_context = {
         'course': course_config.data,
         'exercises': exercises,
         'plus_config_url': request.build_absolute_uri(reverse(
-            'aplus-json', args=[course_config['key']])),
+            'aplus-json', args=[course_config.data['key']])),
     }
 
     render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
@@ -115,7 +115,7 @@ def aplus_json(request, course_key):
     course = config.get(course_key)
     if course is None:
         raise Http404()
-    data = _copy_fields(course, [
+    data = _copy_fields(course.data, [
         "archive_time",
         "assistants",
         "categories",
@@ -138,8 +138,8 @@ def aplus_json(request, course_key):
         "start",
         "view_content_to",
     ])
-    if "language" in course:
-        data["lang"] = course["language"]
+    if "language" in course.data:
+        data["lang"] = course.data["language"]
 
     def children_recursion(parent):
         if not "children" in parent:
@@ -157,8 +157,8 @@ def aplus_json(request, course_key):
         return result
 
     modules = []
-    if "modules" in course:
-        for m in course["modules"]:
+    if "modules" in course.data:
+        for m in course.data["modules"]:
             mf = _type_dict(m, course.data.get("module_types", {}))
             mf["children"] = children_recursion(m)
             modules.append(mf)
