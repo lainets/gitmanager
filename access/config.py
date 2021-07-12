@@ -9,17 +9,19 @@ from django.template import loader as django_template_loader
 import os, time, json, yaml, re
 import logging
 import copy
-from typing import ClassVar, Dict, Optional, List, Tuple
+from typing import ClassVar, Dict, Optional, List, Tuple, Union
+from pydantic import BaseModel as PydanticModel
 
 from util.dict import iterate_kvp_with_dfs, get_rst_as_html
 from util.files import read_meta
+from util.localize import DEFAULT_LANG
 from util.static import symbolic_link
-from gitmanager.models import Course
+from gitmanager.models import Course as CourseModel
+from .course import Chapter, Course, Exercise, Module
 
 
 META = "apps.meta"
 INDEX = "index"
-DEFAULT_LANG = "en"
 
 LOGGER = logging.getLogger('main')
 
@@ -38,13 +40,12 @@ class ConfigError(Exception):
         return repr(self.value)
 
 
-@dataclass
-class ExerciseConfig:
-    course: CourseConfig
+class ExerciseConfig(PydanticModel):
     file: str
     mtime: float
     ptime: float
-    data: dict
+    data: Dict[str, dict]
+    default_lang: str
 
 
     def data_for_language(self, lang: Optional[str] = None) -> dict:
@@ -52,7 +53,7 @@ class ExerciseConfig:
             return self.data
 
         # Try to find version for requested or configured language.
-        for lang in (lang, self.course.lang):
+        for lang in (lang, self.default_lang):
             if lang in self.data:
                 data = self.data[lang]
                 data["lang"] = lang
@@ -90,13 +91,17 @@ class CourseConfig:
     _courses: ClassVar[Dict[str, CourseConfig]] = {}
     _dir_mtime: ClassVar[float] = 0
     # instance variables
+    key: str
+    dir: str
     meta: dict
     file: str
     mtime: float
     ptime: float
-    data: Dict[str, dict]
+    data: Course
     lang: str
     exercises: Dict[str, ExerciseConfig]
+    exercise_keys: List[str]
+    config_files: Dict[str, str]
 
 
     def get_exercise_list(self) -> Optional[List[dict]]:
@@ -108,7 +113,7 @@ class CourseConfig:
         '''
         # Pick exercise data into list.
         exercise_list = []
-        for exercise_key in self.data["exercises"]:
+        for exercise_key in self.exercise_keys:
             exercise = self.exercise_data(exercise_key)
             if exercise is None:
                 raise ConfigError('Invalid exercise key "%s" listed in "%s"'
@@ -144,7 +149,7 @@ class CourseConfig:
         @rtype: C{dict}
         @return: exercise root or None
         '''
-        if exercise_key not in self.data["exercises"]:
+        if exercise_key not in self.exercise_keys:
             return None
 
         # Try cached version.
@@ -156,19 +161,17 @@ class CourseConfig:
             except OSError:
                 pass
 
-        LOGGER.debug('Loading exercise "%s/%s"', self.data["key"], exercise_key)
-        file_name = exercise_key
-        if "config_files" in self.data:
-            file_name = self.data["config_files"].get(exercise_key, exercise_key)
+        LOGGER.debug('Loading exercise "%s/%s"', self.key, exercise_key)
+        file_name = self.config_files.get(exercise_key, exercise_key)
         if file_name.startswith("/"):
             f, t, data = ExerciseConfig.load(
                 file_name[1:],
-                CourseConfig._conf_dir(self.data["key"], {})
+                CourseConfig._conf_dir(self.key, {})
             )
         else:
             f, t, data = ExerciseConfig.load(
                 file_name,
-                CourseConfig._conf_dir(self.data["key"], self.meta)
+                CourseConfig._conf_dir(self.key, self.meta)
             )
         if not data:
             return None
@@ -180,13 +183,14 @@ class CourseConfig:
             version["key"] = exercise_key
             version["mtime"] = t
 
-        self.exercises[exercise_key] = exercise_root = ExerciseConfig(
-            course = self,
-            file = f,
-            mtime = t,
-            ptime = time.time(),
-            data = data,
-        )
+        self.exercises[exercise_key] = exercise_root = ExerciseConfig.parse_obj({
+            "file": f,
+            "mtime": t,
+            "ptime": time.time(),
+            "data": data,
+            "default_lang": self.lang,
+        })
+
         return exercise_root
 
 
@@ -206,7 +210,7 @@ class CourseConfig:
             CourseConfig._dir_mtime = t
 
             LOGGER.debug('Recreating course list.')
-            for course in Course.objects.all():
+            for course in CourseModel.objects.all():
                 try:
                     CourseConfig.get(course.key)
                 except ConfigError:
@@ -248,46 +252,38 @@ class CourseConfig:
         if data is None:
             raise ConfigError('Failed to parse configuration file "%s"' % (f))
 
-        ConfigParser.check_fields(f, data, ["name"])
-        data["key"] = course_key
-        data["mtime"] = t
-        data["dir"] = Course.path_to(course_key)
+        default_lang = CourseConfig._default_lang(data)
 
+        course = Course.parse_obj(data)
 
-        if "modules" in data:
-            keys = []
-            config_files = {}
-            def recurse_exercises(parent):
-                if "children" in parent:
-                    for exercise_vars in parent["children"]:
-                        if "key" in exercise_vars:
-                            exercise_key = str(exercise_vars["key"])
-                            cfg = None
-                            if "config" in exercise_vars:
-                                cfg = exercise_vars["config"]
-                            elif "type" in exercise_vars and "exercise_types" in data \
-                                    and exercise_vars["type"] in data["exercise_types"] \
-                                    and "config" in data["exercise_types"][exercise_vars["type"]]:
-                                cfg = data["exercise_types"][exercise_vars["type"]]["config"]
-                            if cfg:
-                                keys.append(exercise_key)
-                                config_files[exercise_key] = cfg
+        exercise_keys = []
+        config_files = {}
+        if course.modules:
+            def recurse_exercises(parent: Union[Module, Chapter]):
+                for exercise_vars in parent.children:
+                    if isinstance(exercise_vars, Exercise):
+                        if exercise_vars.config is not None:
+                            exercise_keys.append(exercise_vars.key)
+                            config_files[exercise_vars.key] = exercise_vars.config
+                    else:
                         recurse_exercises(exercise_vars)
-            for module in data["modules"]:
+            for module in course.modules:
                 recurse_exercises(module)
-            data["exercises"] = keys
-            data["config_files"] = config_files
 
         CourseConfig._courses[course_key] = config = CourseConfig(
+            key = course_key,
+            dir = CourseModel.path_to(course_key),
             meta = meta,
             file = f,
             mtime = t,
             ptime = time.time(),
-            data = data,
-            lang = CourseConfig._default_lang(data),
-            exercises = {}
+            data = course,
+            lang = default_lang,
+            exercises = {},
+            exercise_keys = exercise_keys,
+            config_files = config_files,
         )
-        symbolic_link(settings.COURSES_PATH, data)
+        symbolic_link(settings.COURSES_PATH, course_key, config)
         return config
 
 
@@ -311,7 +307,7 @@ class CourseConfig:
             except OSError:
                 pass
 
-        return read_meta(os.path.join(Course.path_to(course_key), META))
+        return read_meta(os.path.join(CourseModel.path_to(course_key), META))
 
 
     @staticmethod
@@ -327,18 +323,18 @@ class CourseConfig:
         @return: path to the course config directory
         '''
         if 'grader_config' in meta:
-            return os.path.join(Course.path_to(course_key), meta['grader_config'])
-        return Course.path_to(course_key)
+            return os.path.join(CourseModel.path_to(course_key), meta['grader_config'])
+        return CourseModel.path_to(course_key)
 
 
     @staticmethod
     def _default_lang(data):
-        l = data.get('language')
-        if type(l) == list:
-            data['lang'] = l[0]
-        elif l == str:
-            data['lang'] = l
-        return data.get('lang', DEFAULT_LANG)
+        l = data.get('lang')
+        if isinstance(l, list) and len(l) > 0:
+            return l[0]
+        elif isinstance(l, str):
+            return l
+        return DEFAULT_LANG
 
 
 class ConfigParser:

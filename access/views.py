@@ -1,11 +1,13 @@
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
 from django.shortcuts import render
 from django.http.response import HttpResponse, JsonResponse, Http404
 from django.utils import translation
 from django.urls import reverse
-import copy
-import os
 
-from access.config import CourseConfig as config
+from access.config import CourseConfig
+from access.course import Exercise, Chapter, Parent
 from util import export
 
 
@@ -13,11 +15,11 @@ def index(request):
     '''
     Signals that the grader is ready and lists available courses.
     '''
-    course_configs = config.all()
+    course_configs = CourseConfig.all()
     if request.is_ajax():
         return JsonResponse({
             "ready": True,
-            "courses": _filter_fields(course_configs, ["key", "name"])
+            "courses": [{"key": c.key, "name": c.data.name} for c in course_configs]
         })
     return render(request, 'access/ready.html', {
         "courses": course_configs,
@@ -28,21 +30,21 @@ def course(request, course_key):
     '''
     Signals that the course is ready to be graded and lists available exercises.
     '''
-    course_config = config.get(course_key)
+    course_config = CourseConfig.get(course_key)
     if course_config is None:
         raise Http404()
     exercises = course_config.get_exercise_list()
     if request.is_ajax():
         return JsonResponse({
             "ready": True,
-            "course_name": course_config.data["name"],
+            "course_name": course_config.data.name,
             "exercises": _filter_fields(exercises, ["key", "title"]),
         })
     render_context = {
         'course': course_config.data,
         'exercises': exercises,
         'plus_config_url': request.build_absolute_uri(reverse(
-            'aplus-json', args=[course_config.data['key']])),
+            'aplus-json', args=[course_config.key])),
     }
 
     render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
@@ -112,76 +114,56 @@ def aplus_json(request, course_key):
     '''
     Delivers the configuration as JSON for A+.
     '''
-    course = config.get(course_key)
-    if course is None:
+    config = CourseConfig.get(course_key)
+    if config is None:
         raise Http404()
-    data = _copy_fields(course.data, [
-        "archive_time",
-        "assistants",
-        "categories",
-        "contact",
-        "content_numbering",
-        "course_description",
-        "course_footer",
-        "description",
-        "end",
-        "enrollment_audience",
-        "enrollment_end",
-        "enrollment_start",
-        "head_urls",
-        "index_mode",
-        "lang",
-        "lifesupport_time",
-        "module_numbering",
-        "name",
-        "numerate_ignoring_modules",
-        "start",
-        "view_content_to",
-    ])
-    if "language" in course.data:
-        data["lang"] = course.data["language"]
 
-    def children_recursion(parent):
-        if not "children" in parent:
-            return []
-        result = []
-        for o in [o for o in parent["children"] if "key" in o]:
-            of = _type_dict(o, course.data.get("exercise_types", {}))
-            if "config" in of:
-                exercise = course.exercise_config(str(of["key"]))
-                of = export.exercise(request, course, exercise, of)
-            elif "static_content" in of:
-                of = export.chapter(request, course, of)
-            of["children"] = children_recursion(o)
-            result.append(of)
+    data = config.data.dict(exclude={"modules", "static_dir"}, exclude_none=True)
+
+    def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:
+        result: List[Dict[str, Any]] = []
+        for o in parent.children:
+            of = o.dict(exclude={"children"}, exclude_none=True)
+            if isinstance(o, Exercise) and o.config:
+                exercise = config.exercise_config(o.key)
+                data = export.exercise(request, config, exercise, of)
+            elif isinstance(o, Chapter):
+                data = export.chapter(request, config, of)
+            else: # any other exercise type
+                data = of
+            data["children"] = children_recursion(config, o)
+            result.append(data)
         return result
 
     modules = []
-    if "modules" in course.data:
-        for m in course.data["modules"]:
-            mf = _type_dict(m, course.data.get("module_types", {}))
-            mf["children"] = children_recursion(m)
-            modules.append(mf)
+    for m in config.data.modules:
+        mf = m.dict(exclude={"children"}, exclude_none=True)
+        mf["children"] = children_recursion(config, m)
+        modules.append(mf)
     data["modules"] = modules
 
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     return JsonResponse(data)
 
 
-def _get_course_exercise_lang(course_key, exercise_key, lang_code):
+def _get_course_exercise_lang(
+        course_key: str,
+        exercise_key: str,
+        lang_code: Optional[str]
+        ) -> Tuple[CourseConfig, Dict[str, Any], str]:
     # Keep only "en" from "en-gb" if the long language format is used.
     if lang_code:
         lang_code = lang_code[:2]
-    cconfig = config.get(course_key)
-    if cconfig is None:
+    config = CourseConfig.get(course_key)
+    if config is None:
         raise Http404()
-    exercise = cconfig.exercise_data(exercise_key, lang=lang_code)
+    exercise = config.exercise_data(exercise_key, lang=lang_code)
     if exercise is None:
         raise Http404()
     if not lang_code:
-        lang_code = cconfig.lang
+        lang_code = config.lang
     translation.activate(lang_code)
-    return (cconfig, exercise, lang_code)
+    return (config, exercise, lang_code)
 
 
 def _filter_fields(dict_list, pick_fields):
@@ -202,40 +184,3 @@ def _filter_fields(dict_list, pick_fields):
             new_entry[name] = entry[name]
         result.append(new_entry)
     return result
-
-
-def _copy_fields(dict_item, pick_fields):
-    '''
-    Copies picked fields from a dictionary.
-
-    @type dict_item: C{dict}
-    @param dict_item: a dictionary
-    @type pick_fields: C{list}
-    @param pick_fields: a list of field names
-    @rtype: C{dict}
-    @return: a dictionary of picked fields
-    '''
-    result = {}
-    for name in pick_fields:
-        if name in dict_item:
-            result[name] = copy.deepcopy(dict_item[name])
-    return result
-
-def _type_dict(dict_item, dict_types):
-    '''
-    Extends dictionary with a type reference.
-
-    @type dict_item: C{dict}
-    @param dict_item: a dictionary
-    @type dict_types: C{dict}
-    @param dict_types: a dictionary of type dictionaries
-    @rtype: C{dict}
-    @return: an extended dictionary
-    '''
-    base = {}
-    if "type" in dict_item and dict_item["type"] in dict_types:
-        base = copy.deepcopy(dict_types[dict_item["type"]])
-    base.update(dict_item)
-    if "type" in base:
-        del base["type"]
-    return base
