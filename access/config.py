@@ -103,6 +103,9 @@ class CourseConfig:
     exercise_keys: List[str]
     config_files: Dict[str, str]
 
+    @property
+    def static_dir(self) -> str:
+        return os.path.join(self.dir, self.data.static_dir or "")
 
     def get_exercise_list(self) -> Optional[List[dict]]:
         '''
@@ -193,6 +196,14 @@ class CourseConfig:
 
         return exercise_root
 
+    @staticmethod
+    def path_to(key: str, *paths: str) -> str:
+        return os.path.join(settings.COURSES_PATH, key, *paths)
+
+    def static_path_to(self, *paths: str) -> Optional[str]:
+        if self.data.static_dir is Undefined:
+            return None
+        return os.path.join(self.data.static_dir, *paths)
 
     @staticmethod
     def all():
@@ -272,7 +283,7 @@ class CourseConfig:
 
         CourseConfig._courses[course_key] = config = CourseConfig(
             key = course_key,
-            dir = CourseModel.path_to(course_key),
+            dir = CourseConfig.path_to(course_key),
             meta = meta,
             file = f,
             mtime = t,
@@ -307,7 +318,7 @@ class CourseConfig:
             except OSError:
                 pass
 
-        return read_meta(os.path.join(CourseModel.path_to(course_key), META))
+        return read_meta(CourseConfig.path_to(course_key, META))
 
 
     @staticmethod
@@ -323,8 +334,8 @@ class CourseConfig:
         @return: path to the course config directory
         '''
         if 'grader_config' in meta:
-            return os.path.join(CourseModel.path_to(course_key), meta['grader_config'])
-        return CourseModel.path_to(course_key)
+            return CourseConfig.path_to(course_key, meta['grader_config'])
+        return CourseConfig.path_to(course_key)
 
 
     @staticmethod

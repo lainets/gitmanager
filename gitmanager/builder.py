@@ -25,8 +25,8 @@ def read_static_dir(course_key: str) -> str:
     Reads static_dir from course configuration.
     '''
     config = CourseConfig.get(course_key)
-    if config and config.data["static_dir"]:
-        return config.data["static_dir"] # type: ignore
+    if config and config.static_dir:
+        return config.static_dir
     return ''
 
 
@@ -168,7 +168,7 @@ def push_event(course_key: str):
     update.status = UpdateStatus.RUNNING
     update.save()
 
-    path = course.path
+    path = CourseConfig.path_to(course_key)
 
     log_stream = StringIO()
     log_handler = logging.StreamHandler(log_stream)
@@ -207,7 +207,7 @@ def push_event(course_key: str):
             src_path = Path("static", course_key)
             if src_path.exists() or src_path.is_symlink():
                 src_path.unlink()
-            src_path.symlink_to(Path(path, static_dir))
+            src_path.symlink_to(static_dir)
 
         # all went well
         update.status = UpdateStatus.SUCCESS

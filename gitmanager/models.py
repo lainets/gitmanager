@@ -1,7 +1,5 @@
 from django.db import models
-from django.conf import settings
 from enum import Enum
-import os.path
 
 class Course(models.Model):
     '''
@@ -12,14 +10,6 @@ class Course(models.Model):
     git_origin = models.CharField(blank=True, max_length=255)
     git_branch = models.CharField(max_length=40)
     update_hook = models.URLField(blank=True)
-
-    @staticmethod
-    def path_to(key: str) -> str:
-        return os.path.join(settings.COURSES_PATH, key)
-
-    @property
-    def path(self) -> str:
-        return Course.path_to(self.key)
 
     class META:
         ordering = ['key']

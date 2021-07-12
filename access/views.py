@@ -71,7 +71,7 @@ def exercise_model(request, course_key, exercise_key, parameter):
 
     if path:
         try:
-            with open(os.path.join(course.dir, path)) as f:
+            with open(CourseConfig.path_to(course.key, path)) as f:
                 content = f.read()
         except FileNotFoundError as error:
             raise Http404("Model file missing") from error
@@ -101,7 +101,7 @@ def exercise_template(request, course_key, exercise_key, parameter):
 
     if path:
         try:
-            with open(os.path.join(course.dir, path)) as f:
+            with open(CourseConfig.path_to(course.key, path)) as f:
                 content = f.read()
         except FileNotFoundError as error:
             raise Http404("Template file missing") from error
