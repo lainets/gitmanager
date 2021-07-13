@@ -1,10 +1,12 @@
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.shortcuts import render
 from django.http.response import HttpResponse, JsonResponse, Http404
 from django.utils import translation
 from django.urls import reverse
+from pydantic import AnyHttpUrl
 
 from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
@@ -110,6 +112,13 @@ def exercise_template(request, course_key, exercise_key, parameter):
     raise Http404()
 
 
+class JSONEncoder(DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, AnyHttpUrl):
+            return str(obj)
+        return super().default(obj)
+
+
 def aplus_json(request, course_key):
     '''
     Delivers the configuration as JSON for A+.
@@ -143,7 +152,7 @@ def aplus_json(request, course_key):
     data["modules"] = modules
 
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
-    return JsonResponse(data)
+    return JsonResponse(data, encoder=JSONEncoder)
 
 
 def _get_course_exercise_lang(

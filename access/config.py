@@ -8,9 +8,9 @@ from django.conf import settings
 from django.template import loader as django_template_loader
 import os, time, json, yaml, re
 import logging
-import copy
 from typing import ClassVar, Dict, Optional, List, Tuple, Union
 from pydantic import BaseModel as PydanticModel
+from pathlib import Path
 
 from util.dict import iterate_kvp_with_dfs, get_rst_as_html
 from util.files import read_meta
@@ -101,7 +101,7 @@ class CourseConfig:
     lang: str
     exercises: Dict[str, ExerciseConfig]
     exercise_keys: List[str]
-    config_files: Dict[str, str]
+    config_files: Dict[str, Path]
 
     @property
     def static_dir(self) -> str:
@@ -165,16 +165,16 @@ class CourseConfig:
                 pass
 
         LOGGER.debug('Loading exercise "%s/%s"', self.key, exercise_key)
-        file_name = self.config_files.get(exercise_key, exercise_key)
-        if file_name.startswith("/"):
+        file_name = self.config_files.get(exercise_key, Path(exercise_key))
+        if file_name.is_absolute():
             f, t, data = ExerciseConfig.load(
-                file_name[1:],
-                CourseConfig._conf_dir(self.key, {})
+                str(file_name)[1:],
+                CourseConfig._conf_dir(self.dir, {})
             )
         else:
             f, t, data = ExerciseConfig.load(
-                file_name,
-                CourseConfig._conf_dir(self.key, self.meta)
+                str(file_name),
+                CourseConfig._conf_dir(self.dir, self.meta)
             )
         if not data:
             return None
@@ -268,7 +268,7 @@ class CourseConfig:
         course = Course.parse_obj(data)
 
         exercise_keys = []
-        config_files = {}
+        config_files: Dict[str, Path] = {}
         if course.modules:
             def recurse_exercises(parent: Union[Module, Chapter]):
                 for exercise_vars in parent.children:
@@ -283,7 +283,7 @@ class CourseConfig:
 
         CourseConfig._courses[course_key] = config = CourseConfig(
             key = course_key,
-            dir = CourseConfig.path_to(course_key),
+            dir = course_dir,
             meta = meta,
             file = f,
             mtime = t,
