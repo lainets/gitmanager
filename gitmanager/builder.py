@@ -205,6 +205,17 @@ def push_event(course_key: str):
         if not build_status:
             return
 
+        # try loading the configs to validate them
+        try:
+            config = CourseConfig.load(str(tmp_path))
+            if config is None:
+                return
+            config.get_exercise_list()
+        except ValueError as e:
+            build_logger.error("ValueError in config:\n")
+            build_logger.error(str(e))
+            return
+
         # copy the course material back
         rm_path(path)
         shutil.copytree(tmp_path, path, symlinks=True)

@@ -4,11 +4,14 @@ Courses are listed in the database.
 '''
 from __future__ import annotations
 from dataclasses import dataclass
+from pathlib import Path
 from django.conf import settings
 from django.template import loader as django_template_loader
 import os, time, json, yaml, re
 import logging
 from typing import ClassVar, Dict, Optional, List, Tuple, Union
+import copy
+
 from pydantic import BaseModel as PydanticModel
 from pathlib import Path
 
@@ -24,6 +27,10 @@ META = "apps.meta"
 INDEX = "index"
 
 LOGGER = logging.getLogger('main')
+
+
+def load_meta(course_dir: Union[str, Path]) -> Dict[str,str]:
+    return read_meta(os.path.join(course_dir, META))
 
 
 class ConfigError(Exception):
@@ -252,9 +259,21 @@ class CourseConfig:
                 pass
 
         LOGGER.debug('Loading course "%s"' % (course_key))
-        meta = CourseConfig.course_meta(course_key)
+        course_dir = CourseConfig.path_to(course_key)
+
+        config = CourseConfig.load(course_dir, course_key)
+        if config is not None:
+            CourseConfig._courses[course_key] = config
+            symbolic_link(settings.COURSES_PATH, course_key, config)
+        return config
+
+
+    @staticmethod
+    def load(course_dir: str, course_key: str = "") -> Optional["CourseConfig"]:
+        """Loads course config from the given directory"""
+        meta = load_meta(course_dir)
         try:
-            f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_key, meta), INDEX))
+            f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_dir, meta), INDEX))
         except ConfigError:
             return None
 
@@ -281,7 +300,7 @@ class CourseConfig:
             for module in course.modules:
                 recurse_exercises(module)
 
-        CourseConfig._courses[course_key] = config = CourseConfig(
+        return CourseConfig(
             key = course_key,
             dir = course_dir,
             meta = meta,
@@ -294,8 +313,6 @@ class CourseConfig:
             exercise_keys = exercise_keys,
             config_files = config_files,
         )
-        symbolic_link(settings.COURSES_PATH, course_key, config)
-        return config
 
 
     @staticmethod
@@ -318,24 +335,24 @@ class CourseConfig:
             except OSError:
                 pass
 
-        return read_meta(CourseConfig.path_to(course_key, META))
+        return load_meta(CourseConfig.path_to(course_key))
 
 
     @staticmethod
-    def _conf_dir(course_key, meta):
+    def _conf_dir(course_dir, meta):
         '''
         Gets configuration directory for the course.
 
-        @type course_key: C{str}
-        @param course_key: course key
+        @type course_dir: C{str}
+        @param course_dir: course directory
         @type meta: C{dict}
         @param meta: course meta data
         @rtype: C{str}
         @return: path to the course config directory
         '''
         if 'grader_config' in meta:
-            return CourseConfig.path_to(course_key, meta['grader_config'])
-        return CourseConfig.path_to(course_key)
+            return os.path.join(course_dir, meta['grader_config'])
+        return course_dir
 
 
     @staticmethod
