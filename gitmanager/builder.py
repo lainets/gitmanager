@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
-from access.config import CourseConfig, META
+from access.config import CourseConfig, load_meta, META
 from util.files import rm_path
 from .models import Course, CourseUpdate, UpdateStatus
 
@@ -96,9 +96,8 @@ def pull(path: str, origin: str, branch: str) -> bool:
         build_logger.info("------------\nFailed to clone repository\n------------\n\n")
         return success
 
-
-def container_build(path: Path, host_path: Path, course_key: str) -> bool:
-    meta = CourseConfig.course_meta(course_key)
+def container_build(path: Path, host_path: Path) -> bool:
+    meta = load_meta(path)
 
     build_image = settings.DEFAULT_IMAGE
     if meta and "build_image" in meta:
@@ -142,10 +141,9 @@ def local_build(path: str) -> bool:
 
     return success
 
-
-def build(path: Path, host_path: Path, course_key: str) -> bool:
+def build(path: Path, host_path: Path) -> bool:
     if settings.BUILD_IN_CONTAINER:
-        return container_build(path, host_path, course_key)
+        return container_build(path, host_path)
     else:
         return local_build(str(path))
 
@@ -201,7 +199,7 @@ def push_event(course_key: str):
         shutil.copytree(path, tmp_path, symlinks=True)
 
         # build in tmp folder
-        build_status = build(tmp_path, host_tmp_path, course_key)
+        build_status = build(tmp_path, host_tmp_path)
         if not build_status:
             return
 
