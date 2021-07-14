@@ -2,8 +2,10 @@
 Utility functions for exercise files.
 
 '''
+from typing import Union
 from django.conf import settings
 import datetime, random, string, os, shutil, json
+from pathlib import Path
 
 
 META_PATH = os.path.join(settings.SUBMISSION_PATH, "meta")
@@ -26,3 +28,15 @@ def read_meta(file_path):
             for key,val in [l.split('=') for l in f.readlines() if '=' in l]:
                 meta[key.strip()] = val.strip()
     return meta
+
+
+def rm_path(path: Union[str, Path]) -> None:
+    path = Path(path)
+    if path.is_symlink():
+        path.unlink()
+    elif not path.exists():
+        return
+    elif path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()

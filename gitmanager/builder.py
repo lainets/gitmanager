@@ -11,6 +11,7 @@ from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 
 from access.config import CourseConfig, META
+from util.files import rm_path
 from .models import Course, CourseUpdate, UpdateStatus
 
 
@@ -69,11 +70,22 @@ def checkout(path: str, origin: str, branch: str) -> bool:
 
     return success
 
+def has_origin(path: str, origin: str) -> bool:
+    success, origin_url = git_call(path, "remote", ["remote", "get-url", "origin"], include_cmd_string=False)
+    return origin == origin_url.strip()
 
 def pull(path: str, origin: str, branch: str) -> bool:
-    if (Path(path) / ".git").exists():
-        success = checkout(path, origin, branch)
-    else:
+    success = False
+    do_clone = True
+    if Path(path, ".git"):
+        if has_origin(path, origin):
+            do_clone = False
+            success = checkout(path, origin, branch)
+        else:
+            build_logger.info("Wrong origin in repo, recloning\n\n")
+
+    if do_clone:
+        rm_path(path)
         success = clone(path, origin, branch)
 
     if (Path(path) / ".git").exists():
@@ -185,10 +197,7 @@ def push_event(course_key: str):
         host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
 
         # copy the course material to a tmp folder
-        if tmp_path.is_dir():
-            shutil.rmtree(tmp_path)
-        elif tmp_path.exists():
-            tmp_path.unlink()
+        rm_path(tmp_path)
         shutil.copytree(path, tmp_path, symlinks=True)
 
         # build in tmp folder
@@ -197,7 +206,7 @@ def push_event(course_key: str):
             return
 
         # copy the course material back
-        shutil.rmtree(path)
+        rm_path(path)
         shutil.copytree(tmp_path, path, symlinks=True)
 
         # link static dir
