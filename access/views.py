@@ -127,12 +127,12 @@ def aplus_json(request, course_key):
     if config is None:
         raise Http404()
 
-    data = config.data.dict(exclude={"modules", "static_dir"}, exclude_none=True)
+    data = config.data.dict(exclude={"modules", "static_dir"})
 
     def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
         for o in parent.children:
-            of = o.dict(exclude={"children"}, exclude_none=True)
+            of = o.dict(exclude={"children"})
             if isinstance(o, Exercise) and o.config:
                 exercise = config.exercise_config(o.key)
                 data = export.exercise(request, config, exercise, of)
@@ -146,7 +146,7 @@ def aplus_json(request, course_key):
 
     modules = []
     for m in config.data.modules:
-        mf = m.dict(exclude={"children"}, exclude_none=True)
+        mf = m.dict(exclude={"children"})
         mf["children"] = children_recursion(config, m)
         modules.append(mf)
     data["modules"] = modules

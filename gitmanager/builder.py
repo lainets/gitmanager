@@ -70,9 +70,11 @@ def checkout(path: str, origin: str, branch: str) -> bool:
 
     return success
 
+
 def has_origin(path: str, origin: str) -> bool:
     success, origin_url = git_call(path, "remote", ["remote", "get-url", "origin"], include_cmd_string=False)
     return origin == origin_url.strip()
+
 
 def pull(path: str, origin: str, branch: str) -> bool:
     success = False

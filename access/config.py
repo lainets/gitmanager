@@ -5,6 +5,7 @@ Courses are listed in the database.
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
+from util.pydantic import Undefined
 from django.conf import settings
 from django.template import loader as django_template_loader
 import os, time, json, yaml, re
@@ -292,7 +293,7 @@ class CourseConfig:
             def recurse_exercises(parent: Union[Module, Chapter]):
                 for exercise_vars in parent.children:
                     if isinstance(exercise_vars, Exercise):
-                        if exercise_vars.config is not None:
+                        if exercise_vars.config is not Undefined:
                             exercise_keys.append(exercise_vars.key)
                             config_files[exercise_vars.key] = exercise_vars.config
                     else:
