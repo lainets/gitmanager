@@ -5,6 +5,7 @@
 ##
 from os import environ
 from os.path import abspath, dirname, join
+from typing import Any, Dict
 BASE_DIR = dirname(dirname(abspath(__file__)))
 
 
@@ -19,6 +20,16 @@ ADMINS = (
 ALLOWED_HOSTS = ["*"]
 SSH_KEY_PATH=join(environ['HOME'], ".ssh/id_ecdsa")
 
+# Local messaging library settings
+APLUS_AUTH_LOCAL = {
+    "PRIVATE_KEY": None,
+    "PUBLIC_KEY": None,
+    "REMOTE_AUTHENTICATOR_KEY": None,
+    "REMOTE_AUTHENTICATOR_URL": None, # e.g. "https://<aplus_host>/api/v2/get-token/"
+    #"DISABLE_JWT_SIGNING": False,
+    #"DISABLE_LOGIN_CHECKS": False,
+}
+
 # course builder settings
 BUILD_IN_CONTAINER=True
 DEFAULT_IMAGE="apluslms/compile-rst:1.6"
@@ -29,6 +40,9 @@ TMP_DIR = "/tmp/gitmanager"
 HOST_TMP_DIR = None
 ##########################################################################
 
+APLUS_AUTH: Dict[str, Any] = {
+    "AUTH_CLASS": "access.auth.Authentication",
+}
 
 INSTALLED_APPS = (
     # 'django.contrib.admin',
@@ -41,6 +55,7 @@ INSTALLED_APPS = (
     'access',
     'gitmanager.apps.Config',
     'huey.contrib.djhuey',
+    'aplus_auth',
 )
 
 MIDDLEWARE = [
@@ -51,6 +66,7 @@ MIDDLEWARE = [
     # 'django.contrib.auth.middleware.AuthenticationMiddleware',
     # 'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'aplus_auth.auth.django.AuthenticationMiddleware'
 ]
 
 TEMPLATES = [
@@ -210,6 +226,8 @@ ENV_SETTINGS_PREFIX = environ.get('ENV_SETTINGS_PREFIX', 'GRADER_')
 update_settings_from_environment(__name__, ENV_SETTINGS_PREFIX)
 
 update_secret_from_file(__name__, environ.get('GRADER_SECRET_KEY_FILE', 'secret_key'))
+
+APLUS_AUTH.update(APLUS_AUTH_LOCAL)
 
 # Drop x-frame policy when debugging
 if DEBUG:
