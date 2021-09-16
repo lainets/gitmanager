@@ -186,22 +186,24 @@ def push_event(course_key: str):
     log_handler = logging.StreamHandler(log_stream)
     build_logger.addHandler(log_handler)
     try:
+        tmp_path = Path(settings.TMP_DIR, course_key)
+        host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
+
         if course.git_origin:
-            pull_status = pull(path, course.git_origin, course.git_branch)
+            pull_status = pull(str(tmp_path), course.git_origin, course.git_branch)
             if not pull_status:
                 return
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
 
-        tmp_path = Path(settings.TMP_DIR, course_key)
-        host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
-
-        # copy the course material to a tmp folder
-        rm_path(tmp_path)
-        shutil.copytree(path, tmp_path, symlinks=True)
+            # we assume that a missing git origin means local development
+            # inside the course directory, thus:
+            # copy the course material to the tmp folder
+            rm_path(tmp_path)
+            shutil.copytree(path, tmp_path, symlinks=True)
 
         # build in tmp folder
-        build_status = build(tmp_path, host_tmp_path)
+        build_status = build(course_key, tmp_path, host_tmp_path)
         if not build_status:
             return
 
