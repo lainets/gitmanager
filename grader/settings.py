@@ -20,6 +20,11 @@ ADMINS = (
 ALLOWED_HOSTS = ["*"]
 SSH_KEY_PATH=join(environ['HOME'], ".ssh/id_ecdsa")
 
+# scheme and host for automatic updates
+FRONTEND_URL = None # e.g. "https://<aplus_host>"
+# default grader URL used for configuring
+DEFAULT_GRADER_URL = None # e.g. "https://<grader_host>/configure"
+
 # Local messaging library settings
 APLUS_AUTH_LOCAL = {
     "PRIVATE_KEY": None,

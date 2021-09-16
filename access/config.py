@@ -67,11 +67,17 @@ class ConfigError(Exception):
         return repr(self.value)
 
 
+class ConfigureOptions(PydanticModel):
+    files: Dict[str,str] = {}
+    url: str
+
+
 class ExerciseConfig(PydanticModel):
     file: str
     mtime: float
     ptime: float
     data: Dict[str, dict]
+    configure: Optional[ConfigureOptions]
     default_lang: str
 
 
@@ -206,6 +212,18 @@ class CourseConfig:
         if not data:
             return None
 
+        # DEPRECATED: default configure settings
+        # remove if/else and the else block contents, leaving only the if block contents
+        if "_configure" in data:
+            configure = data.pop("_configure", None)
+        else:
+            configure = {
+                "url": settings.DEFAULT_GRADER_URL,
+            }
+            mount = data.get("container", {}).get("mount")
+            if mount:
+                configure["files"] = {mount: mount}
+
         # Process key modifiers and create language versions of the data.
         data = ConfigParser.process_tags(data, self.lang)
         for version in data.values():
@@ -218,6 +236,7 @@ class CourseConfig:
             "mtime": t,
             "ptime": time.time(),
             "data": data,
+            "configure": configure,
             "default_lang": self.lang,
         })
 

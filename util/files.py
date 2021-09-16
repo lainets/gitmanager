@@ -40,3 +40,24 @@ def rm_path(path: Union[str, Path]) -> None:
         shutil.rmtree(path)
     else:
         path.unlink()
+
+
+def zip_dir(ziph: ZipFile, path: Path, name: str = None) -> None:
+    if name is None:
+        name = path.name
+
+    for root, _, files in os.walk(path):
+        root = Path(root)
+        rootname = name / root.relative_to(path)
+        for file in files:
+            ziph.write(root / file, rootname / file)
+
+
+def zip_path(ziph: ZipFile, path: Path, name: str = None) -> None:
+    if name is None:
+        name = path.name
+
+    if path.is_dir():
+        zip_dir(ziph, path, name)
+    elif path.is_file() and not path.is_symlink():
+        ziph.write(path, name)

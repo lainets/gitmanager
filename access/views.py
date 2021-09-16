@@ -1,5 +1,10 @@
-import os
+import json
+from json.decoder import JSONDecodeError
+import logging
+from pathlib import Path
+from tempfile import TemporaryFile
 from typing import Any, Dict, List, Optional, Tuple
+from zipfile import ZipFile
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.shortcuts import render
@@ -8,11 +13,19 @@ from django.utils import translation
 from django.urls import reverse
 from django.views import View
 from pydantic import AnyHttpUrl
+from aplus_auth.payload import Permission, Permissions
+from aplus_auth.requests import post
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
+from gitmanager.models import Course
 from util import export
+from util.files import zip_path
 from util.login_required import login_required
+
+
+logger = logging.getLogger("gitmanager")
 
 
 @login_required
@@ -134,6 +147,72 @@ def aplus_json(request, course_key):
     if config is None:
         raise Http404()
 
+    configures: Dict[str, Any] = {}
+    for key, exercise in config.exercises.items():
+        conf = exercise.configure
+        if conf is None:
+            continue
+        url = conf.url
+        if url not in configures:
+            configures[url] = []
+        configures[url].append((key, exercise))
+
+    course_id = Course.objects.get(key=course_key).remote_id
+
+    if course_id is None and configures:
+        return HttpResponse("Remote id not set: cannot configure", status=500)
+
+    exercise_locations = {}
+    errors = []
+    for url, exercises in configures.items():
+
+        tmp_file = TemporaryFile(mode="w+b")
+        ziph = ZipFile(tmp_file, "w")
+
+        exercise_data: List[Dict[str, dict]] = []
+        for key, exercise in exercises:
+            exercise_data.append({
+                "key": key,
+                "config": exercise.data,
+                "files": list(exercise.configure.files.keys()),
+            })
+            for name, path in exercise.configure.files.items():
+                zip_path(ziph, Path(config.dir, path), name)
+
+        ziph.close()
+        tmp_file.seek(0)
+
+        permissions = Permissions()
+        permissions.instances.add(Permission.WRITE, id=course_id)
+
+        data = MultipartEncoder({
+            "course_id": str(course_id),
+            "course_key": course_key,
+            "exercises": json.dumps(exercise_data),
+            "files": ("files", tmp_file, "application/octet-stream"),
+        })
+        logger.debug(f"Sending to {url}")
+        try:
+            headers = {"Prefer": "respond-async", "Content-Type": data.content_type}
+            response = post(url, headers=headers, data=data, permissions=permissions)
+        except Exception as e:
+            logger.warn(f"Failed to configure: {e}")
+            errors.append({"url": url, "error": f"Couldn't access {url}"})
+        else:
+            if response.status_code != 200 or not response.text:
+                logger.warn(f"Failed to configure {url}: {response.status_code}\n{response.text}")
+                errors.append({"url": url, "code": response.status_code, "error": response.text})
+            else:
+                try:
+                    new_locations = json.loads(response.text)
+                except JSONDecodeError as e:
+                    logger.info(f"Couldn't load configure response:\n{e}")
+                    logger.debug(f"{url} returned {response.text}")
+                else:
+                    for key, _ in exercises:
+                        if key in new_locations:
+                            exercise_locations[key] = new_locations[key]
+
     data = config.data.dict(exclude={"modules", "static_dir"})
 
     def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:
@@ -143,6 +222,8 @@ def aplus_json(request, course_key):
             if isinstance(o, Exercise) and o.config:
                 exercise = config.exercise_config(o.key)
                 data = export.exercise(request, config, exercise, of)
+                if "url" not in of and o.key in exercise_locations:
+                    of["url"] =  exercise_locations[o.key]
             elif isinstance(o, Chapter):
                 data = export.chapter(request, config, of)
             else: # any other exercise type
@@ -159,6 +240,7 @@ def aplus_json(request, course_key):
     data["modules"] = modules
 
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
+    data["errors"] = errors
     return JsonResponse(data, encoder=JSONEncoder)
 
 

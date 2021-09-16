@@ -55,6 +55,7 @@ def exercise(
     match the exercise structure in other languages.
     """
     of.pop('config')
+    of.pop('configure', None)
     languages,exercises = zip(*exercise_root.data.items())
     languages,exercises = cast(Tuple[Tuple[str,...],Tuple[Dict[str, Any],...]], (languages,exercises))
     exercise = exercises[0]

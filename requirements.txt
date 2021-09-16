@@ -8,3 +8,4 @@ huey~=2.3.2
 redis~=3.5.3
 pydantic~=1.8.2
 aplus-auth~=0.1.0
+requests-toolbelt~=0.9.1
