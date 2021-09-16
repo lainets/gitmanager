@@ -9,9 +9,11 @@ from typing import List, Tuple
 from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
+from pydantic.error_wrappers import ValidationError
 
 from access.config import CourseConfig, load_meta, META
 from util.files import rm_path
+from util.pydantic import validation_error_str, validation_warning_str
 from .models import Course, CourseUpdate, UpdateStatus
 
 
@@ -213,12 +215,16 @@ def push_event(course_key: str):
             if config is None:
                 return
             config.get_exercise_list()
-        except ValueError as e:
-            build_logger.error("ValueError in config:\n")
-            build_logger.error(str(e))
+        except ValidationError as e:
+            build_logger.error(validation_error_str(e))
             return
 
+        warning_str = validation_warning_str(config)
+        if warning_str:
+            build_logger.warning(warning_str)
+
         # copy the course material back
+        build_logger.info("Copying the built materials")
         rm_path(path)
         shutil.copytree(tmp_path, path, symlinks=True)
 

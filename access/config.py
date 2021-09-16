@@ -5,7 +5,7 @@ Courses are listed in the database.
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-from util.pydantic import Undefined
+from util.pydantic import Undefined, validation_error_str, validation_warning_str
 from django.conf import settings
 from django.template import loader as django_template_loader
 import os, time, json, yaml, re
@@ -14,7 +14,7 @@ from typing import ClassVar, Dict, Optional, List, Tuple, Union
 import copy
 
 from pydantic import BaseModel as PydanticModel
-from pathlib import Path
+from pydantic.error_wrappers import ValidationError
 
 from util.dict import iterate_kvp_with_dfs, get_rst_as_html
 from util.files import read_meta
@@ -231,10 +231,17 @@ class CourseConfig:
             LOGGER.debug('Recreating course list.')
             for course in CourseModel.objects.all():
                 try:
-                    CourseConfig.get(course.key)
+                    config = CourseConfig.get(course.key)
                 except ConfigError:
                     LOGGER.exception("Failed to load course: %s", course.key)
-                    continue
+                except ValidationError as e:
+                    LOGGER.exception("Failed to load course: %s", course.key)
+                    LOGGER.exception(validation_error_str(e))
+                else:
+                    warnings = validation_warning_str(config)
+                    if warnings:
+                        LOGGER.warning("Warnings in course config: %s", course.key)
+                        LOGGER.warning(warnings)
 
         return CourseConfig._courses.values()
 
