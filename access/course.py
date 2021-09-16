@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 
 from pydantic import AnyHttpUrl, Field
 from pydantic.class_validators import root_validator, validator
-from pydantic.types import NonNegativeInt, confloat
+from pydantic.types import NonNegativeInt, PositiveInt, confloat
 
 from util.localize import Localized, DEFAULT_LANG
 from util.pydantic import PydanticModel, NotRequired
 
 class Parent(PydanticModel):
-    children: List[Union["Chapter", "Exercise"]] = []
+    children: List[Union["Chapter", "Exercise", "LTIExercise", "ExerciseCollection"]] = []
 
     def child_categories(self) -> Set[str]:
         """Returns a set of categories of children recursively"""
@@ -35,6 +35,9 @@ class Item(Parent):
     exercise_template: NotRequired[Localized[str]] # TODO: url check
     exercise_info: NotRequired[Any] # TODO: json check
 
+    class Config:
+        extra = "forbid"
+
     @root_validator(allow_reuse=True, pre=True)
     def name_or_title(cls, values: Dict[str, Any]):
         if "name" in values and "title" in values:
@@ -57,9 +60,6 @@ class Exercise(Item):
     max_points: NotRequired[NonNegativeInt]
     points_to_pass: NotRequired[NonNegativeInt]
 
-    class Config:
-        extra = "forbid"
-
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_assistant_permissions(cls, values: Dict[str, Any]):
         if not values.get("allow_assistant_viewing", False) and values.get("allow_assistant_grading", True):
@@ -67,12 +67,24 @@ class Exercise(Item):
         return values
 
 
+class LTIExercise(Exercise):
+    lti: str
+    lti_context_id: NotRequired[str]
+    lti_resource_link_id: NotRequired[str]
+    lti_aplus_get_and_post: NotRequired[bool]
+    lti_open_in_iframe: NotRequired[bool]
+
+
+class ExerciseCollection(Item):
+    target_category: str
+    target_url: str
+    max_points: PositiveInt
+    points_to_pass: NotRequired[NonNegativeInt]
+
+
 class Chapter(Item):
     static_content: Localized[Path]
     generate_table_of_contents: NotRequired[bool]
-
-    class Config:
-        extra = "forbid"
 
     @validator('static_content', allow_reuse=True)
     def validate_static_content(cls, paths: Localized[Path]):
@@ -83,6 +95,8 @@ class Chapter(Item):
 
 Parent.update_forward_refs()
 Exercise.update_forward_refs()
+LTIExercise.update_forward_refs()
+ExerciseCollection.update_forward_refs()
 Chapter.update_forward_refs()
 
 
