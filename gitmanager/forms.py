@@ -9,6 +9,7 @@ class CourseForm(forms.ModelForm):
         model = Course
         fields = [
             'key',
+            'remote_id',
             'git_origin',
             'git_branch',
             'update_hook',

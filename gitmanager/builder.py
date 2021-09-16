@@ -5,11 +5,15 @@ import shutil
 import subprocess
 import traceback
 from typing import List, Tuple
+import urllib.parse
 
 from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
 from pydantic.error_wrappers import ValidationError
+
+from aplus_auth.payload import Permission, Permissions
+from aplus_auth.requests import post
 
 from access.config import CourseConfig, load_meta, META
 from util.files import rm_path
@@ -242,7 +246,31 @@ def push_event(course_key: str):
     except:
         build_logger.error("Build failed.\n")
         build_logger.error(traceback.format_exc() + "\n")
-        raise
+    else:
+        if course.remote_id is None:
+            build_logger.warning("Remote id not set. Not doing an automatic update.")
+        elif settings.FRONTEND_URL is None:
+            build_logger.warning("FRONTEND_URL not set. Not doing an automatic update.")
+        else:
+            build_logger.info("Doing an automatic update...")
+            failtext = ""
+            try:
+                notification_url = urllib.parse.urljoin(settings.FRONTEND_URL, f"api/v2/courses/{course.remote_id}/notify_update/")
+                permissions = Permissions()
+                permissions.instances.add(Permission.WRITE, id=course.remote_id)
+                response = post(notification_url, permissions=permissions, headers={"Application": "application/json, application/*"})
+                if response.status_code != 200:
+                    failtext = response.reason
+                elif response.text != "[]":
+                    failtext = response.text
+            except Exception as e:
+                failtext = str(e)
+            finally:
+                if failtext:
+                    build_logger.error("Failed:")
+                    build_logger.error(failtext)
+                else:
+                    build_logger.info("Success.")
     finally:
         update.log = log_stream.getvalue()
         build_logger.removeHandler(log_handler)
@@ -251,9 +279,3 @@ def push_event(course_key: str):
             update.status = UpdateStatus.FAILED
         update.updated_time = Now()
         update.save()
-
-    if update.status == UpdateStatus.SUCCESS:
-        pass
-        # TODO: ? reload uwsgi processes
-
-        # TODO: let LMS know about the update

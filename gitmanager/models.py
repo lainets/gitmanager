@@ -7,6 +7,8 @@ class Course(models.Model):
     '''
 
     key = models.SlugField(unique=True)
+    # course instance id on A+
+    remote_id = models.IntegerField(unique=True, blank=True, null=True)
     git_origin = models.CharField(blank=True, max_length=255)
     git_branch = models.CharField(max_length=40)
     update_hook = models.URLField(blank=True)
