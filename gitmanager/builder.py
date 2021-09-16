@@ -161,7 +161,12 @@ def build(path: Path, host_path: Path) -> bool:
 # needed
 @db_task()
 @lock_task("push_event")
-def push_event(course_key: str):
+def push_event(
+        course_key: str,
+        skip_git: bool = False,
+        skip_build: bool = False,
+        skip_notify: bool = False,
+        ) -> None:
     logger.debug(f"push_event: {course_key}")
 
     course: Course = Course.objects.get(key=course_key)
@@ -195,23 +200,29 @@ def push_event(course_key: str):
         tmp_path = Path(settings.TMP_DIR, course_key)
         host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
 
-        if course.git_origin:
-            pull_status = pull(str(tmp_path), course.git_origin, course.git_branch)
-            if not pull_status:
+        if not skip_git:
+            if course.git_origin:
+                pull_status = pull(str(tmp_path), course.git_origin, course.git_branch)
+                if not pull_status:
+                    return
+            else:
+                build_logger.warning(f"Course origin not set: skipping git update\n")
+
+                # we assume that a missing git origin means local development
+                # inside the course directory, thus:
+                # copy the course material to the tmp folder
+                rm_path(tmp_path)
+                shutil.copytree(path, tmp_path, symlinks=True)
+        else:
+            build_logger.info("Skipping git update.")
+
+        if not skip_build:
+            # build in tmp folder
+            build_status = build(course_key, tmp_path, host_tmp_path)
+            if not build_status:
                 return
         else:
-            build_logger.warning(f"Course origin not set: skipping git update\n")
-
-            # we assume that a missing git origin means local development
-            # inside the course directory, thus:
-            # copy the course material to the tmp folder
-            rm_path(tmp_path)
-            shutil.copytree(path, tmp_path, symlinks=True)
-
-        # build in tmp folder
-        build_status = build(course_key, tmp_path, host_tmp_path)
-        if not build_status:
-            return
+            build_logger.info("Skipping build.")
 
         # try loading the configs to validate them
         try:
@@ -249,6 +260,8 @@ def push_event(course_key: str):
     else:
         if course.remote_id is None:
             build_logger.warning("Remote id not set. Not doing an automatic update.")
+        elif skip_notify:
+            build_logger.info("Skipping automatic update.")
         elif settings.FRONTEND_URL is None:
             build_logger.warning("FRONTEND_URL not set. Not doing an automatic update.")
         else:

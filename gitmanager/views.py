@@ -100,8 +100,8 @@ def hook(request, key):
             course=course,
             request_ip=get_client_ip(request)
         )
-
-        push_event(key)
+        params = {k: request.POST[k] == "on" for k in ("skip_git", "skip_build", "skip_notify") if k in request.POST}
+        push_event(key, **params)
 
     if request.META.get('HTTP_REFERER'):
         return redirect('manager-updates', course.key)
