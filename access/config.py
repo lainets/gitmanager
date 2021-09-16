@@ -10,7 +10,7 @@ from django.conf import settings
 from django.template import loader as django_template_loader
 import os, time, json, yaml, re
 import logging
-from typing import ClassVar, Dict, Optional, List, Tuple, Union
+from typing import Any, ClassVar, Dict, Optional, List, Tuple, Union
 import copy
 
 from pydantic import BaseModel as PydanticModel
@@ -21,13 +21,32 @@ from util.files import read_meta
 from util.localize import DEFAULT_LANG
 from util.static import symbolic_link
 from gitmanager.models import Course as CourseModel
-from .course import Chapter, Course, Exercise, Module
+from .course import Chapter, Course, Exercise, Module, Parent
 
 
 META = "apps.meta"
 INDEX = "index"
 
 LOGGER = logging.getLogger('main')
+
+
+def _type_dict(dict_item: Dict[str, Any], dict_types: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    '''
+    Extends dictionary with a type reference.
+    @type dict_item: C{dict}
+    @param dict_item: a dictionary
+    @type dict_types: C{dict}
+    @param dict_types: a dictionary of type dictionaries
+    @rtype: C{dict}
+    @return: an extended dictionary
+    '''
+    # TODO: should probably throw an error if type isn't in dict_types
+    if "type" not in dict_item or dict_item["type"] not in dict_types:
+        return dict_item
+    base = copy.deepcopy(dict_types[dict_item["type"]])
+    base.update(dict_item)
+    del base["type"]
+    return base
 
 
 def load_meta(course_dir: Union[str, Path]) -> Dict[str,str]:
@@ -292,21 +311,45 @@ class CourseConfig:
 
         default_lang = CourseConfig._default_lang(data)
 
+        # apply exercise_types and module_types
+        # TODO: this might cause hard to debug type errors due *_types not being validated separately
+        # maybe try loading the types into partial pydantic objects first?
+        if "modules" in data:
+            if "module_types" in data:
+                for i, module in enumerate(data["modules"]):
+                    data["modules"][i] = _type_dict(module, data["module_types"])
+
+                del data["module_types"]
+
+            if "exercise_types" in data:
+                def apply_exercise_types(parent: Dict[str, Any]) -> None:
+                    if "children" not in parent:
+                        return
+                    for i, exercise_vars in enumerate(parent["children"]):
+                        if "key" in exercise_vars:
+                            parent["children"][i] = _type_dict(exercise_vars, data["exercise_types"])
+                        apply_exercise_types(exercise_vars)
+                for module in data["modules"]:
+                    apply_exercise_types(module)
+
+                del data["exercise_types"]
+
         course = Course.parse_obj(data)
 
-        exercise_keys = []
+        exercise_keys: List[str] = []
         config_files: Dict[str, Path] = {}
         if course.modules:
-            def recurse_exercises(parent: Union[Module, Chapter]):
-                for exercise_vars in parent.children:
-                    if isinstance(exercise_vars, Exercise):
-                        if exercise_vars.config is not Undefined:
-                            exercise_keys.append(exercise_vars.key)
-                            config_files[exercise_vars.key] = exercise_vars.config
-                    else:
-                        recurse_exercises(exercise_vars)
+            def gather_keys_and_configs(parent: Parent):
+                for obj in parent.children:
+                    if isinstance(obj, Exercise):
+                        if obj.config is not Undefined:
+                            exercise_keys.append(obj.key)
+                            config_files[obj.key] = obj.config
+
+                    if isinstance(obj, Parent):
+                        gather_keys_and_configs(obj)
             for module in course.modules:
-                recurse_exercises(module)
+                gather_keys_and_configs(module)
 
         return CourseConfig(
             key = course_key,
