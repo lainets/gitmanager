@@ -194,10 +194,10 @@ class Course(PydanticModel):
     def validate_module_dates(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         for m in values["modules"]:
             if m.close and values.get("end") and m.close > values["end"]:
-                raise ValueError("Module close must be before course end")
+                m.add_warning(f"Course ends before module closes")
 
             if m.late_close:
                 close = m.close or values["end"]
                 if close and m.late_close < close:
-                    raise ValueError("Module late_close must be after close")
+                    m.add_warning(f"'late_close' is before 'close'")
         return values
