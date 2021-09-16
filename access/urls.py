@@ -8,4 +8,5 @@ urlpatterns = [
     url(r'^exercise_template/([\w-]+)/([\w-]+)/([\w\d\_\-\.]+)$', views.exercise_template, name='exercise_template'),
     url(r'^([\w-]+)/$', views.course, name='course'),
     url(r'^([\w-]+)/aplus-json$', views.aplus_json, name='aplus-json'),
+    url(r'^login$', views.LoginView.as_view(), name="login"),
 ]

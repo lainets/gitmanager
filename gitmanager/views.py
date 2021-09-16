@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
+from util.login_required import login_required
 from .forms import CourseForm
 from .models import Course, UpdateStatus
 from .builder import push_event
@@ -13,6 +14,7 @@ from .apps import ssh_key
 logger = logging.getLogger("grader.gitmanager")
 
 
+@login_required
 def courses(request):
     return render(request, 'gitmanager/courses.html', {
         'courses': Course.objects.all(),
@@ -20,6 +22,7 @@ def courses(request):
     })
 
 
+@login_required
 def edit(request, key=None):
     if key:
         course = get_object_or_404(Course, key=key)
@@ -38,6 +41,7 @@ def edit(request, key=None):
     })
 
 
+@login_required
 def updates(request, key):
     course = get_object_or_404(Course, key=key)
     return render(request, 'gitmanager/updates.html', {
@@ -47,6 +51,7 @@ def updates(request, key):
     })
 
 
+@login_required
 def build_log_json(request, key):
     try:
         course = Course.objects.get(key=key)

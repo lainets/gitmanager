@@ -6,13 +6,16 @@ from django.shortcuts import render
 from django.http.response import HttpResponse, JsonResponse, Http404
 from django.utils import translation
 from django.urls import reverse
+from django.views import View
 from pydantic import AnyHttpUrl
 
 from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
 from util import export
+from util.login_required import login_required
 
 
+@login_required
 def index(request):
     '''
     Signals that the grader is ready and lists available courses.
@@ -28,6 +31,7 @@ def index(request):
     })
 
 
+@login_required
 def course(request, course_key):
     '''
     Signals that the course is ready to be graded and lists available exercises.
@@ -53,6 +57,7 @@ def course(request, course_key):
     return render(request, 'access/course.html', render_context)
 
 
+@login_required
 def exercise_model(request, course_key, exercise_key, parameter):
     '''
     Presents a model answer for an exercise.
@@ -83,6 +88,7 @@ def exercise_model(request, course_key, exercise_key, parameter):
     raise Http404()
 
 
+@login_required
 def exercise_template(request, course_key, exercise_key, parameter):
     '''
     Presents the exercise template.
@@ -119,6 +125,7 @@ class JSONEncoder(DjangoJSONEncoder):
         return super().default(obj)
 
 
+@login_required
 def aplus_json(request, course_key):
     '''
     Delivers the configuration as JSON for A+.
@@ -153,6 +160,21 @@ def aplus_json(request, course_key):
 
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     return JsonResponse(data, encoder=JSONEncoder)
+
+
+class LoginView(View):
+    def get(self, request):
+        response = render(request, 'access/login.html')
+        response.delete_cookie("AuthToken")
+        return response
+
+    def post(self, request):
+        if not hasattr(request, "user") or not request.user.is_authenticated:
+            return HttpResponse("Invalid token", status=401)
+        else:
+            response = HttpResponse()
+            response.set_cookie("AuthToken", str(request.auth))
+            return response
 
 
 def _get_course_exercise_lang(
