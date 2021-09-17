@@ -46,6 +46,14 @@ class Item(Parent):
             values["name"] = values.pop("title")
         return values
 
+    @root_validator(allow_reuse=True, pre=True)
+    def remove_fields(cls, values: Dict[str, Any]):
+        values = {k:v for k,v in values.items() if k[0] != "_"}
+        # DEPRECATED: scale_points exists for some reason in some index.yaml
+        # it isn't used anywhere though. It should be removed altogether
+        values.pop("scale_points", None)
+        return values
+
 
 class Exercise(Item):
     max_submissions: NonNegativeInt = 0
