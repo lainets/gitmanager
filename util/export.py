@@ -1,4 +1,5 @@
 from typing import Any, Dict, Tuple, cast
+from util.static import static_url_path
 from access.config import CourseConfig, ExerciseConfig
 from itertools import zip_longest
 import urllib.parse
@@ -19,10 +20,9 @@ def url_to_template(request: HttpRequest, course_key: str, exercise_key: str, pa
     )
 
 
-def url_to_static(request, course_key, path):
+def url_to_static(request: HttpRequest, course_key: str, path: str) -> str:
     ''' Creates an URL for a path in static files '''
-    return request.build_absolute_uri(
-        '{}{}/{}'.format(settings.STATIC_URL, course_key, path))
+    return request.build_absolute_uri(static_url_path(course_key, path))
 
 
 def chapter(request: HttpRequest, course: CourseConfig, of: Dict[str, Any]) -> Dict[str, Any]:

@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import traceback
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 import urllib.parse
 
 from django.conf import settings
@@ -18,6 +18,7 @@ from aplus_auth.requests import post
 from access.config import CourseConfig, load_meta, META
 from util.files import rm_path
 from util.pydantic import validation_error_str, validation_warning_str
+from util.static import static_url_path
 from .models import Course, CourseUpdate, UpdateStatus
 
 
@@ -104,7 +105,7 @@ def pull(path: str, origin: str, branch: str) -> bool:
         build_logger.info("------------\nFailed to clone repository\n------------\n\n")
         return success
 
-def container_build(path: Path, host_path: Path) -> bool:
+def container_build(path: Path, host_path: Path, env: Dict[str, str]) -> bool:
     meta = load_meta(path)
 
     build_image = settings.DEFAULT_IMAGE
@@ -121,20 +122,21 @@ def container_build(path: Path, host_path: Path) -> bool:
                 build_image,
                 str(path.resolve()),
                 str(host_path.resolve()),
+                "\n".join((f"{k}={v}" for k,v in env.items())),
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            encoding='utf8'
+            encoding='utf8',
         )
     build_logger.info(process.stdout)
     return process.returncode == 0
 
 
-def local_build(path: str) -> bool:
+def local_build(path: str, env: Dict[str,str]) -> bool:
     success = True
     def run(command, **kwargs):
-        nonlocal success
-        process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8', **kwargs)
+        nonlocal success, env
+        process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8', env=env, **kwargs)
         build_logger.info(process.stdout + "\n")
         success = success and process.returncode == 0
 
@@ -149,11 +151,17 @@ def local_build(path: str) -> bool:
 
     return success
 
-def build(path: Path, host_path: Path) -> bool:
+
+def build(course: Course, path: Path, host_path: Path) -> bool:
+    env = {
+        "COURSE_KEY": course.key,
+        "COURSE_ID": str(course.remote_id),
+        "STATIC_URL_PATH": static_url_path(course.key),
+    }
     if settings.BUILD_IN_CONTAINER:
-        return container_build(path, host_path)
+        return container_build(path, host_path, env)
     else:
-        return local_build(str(path))
+        return local_build(str(path), env)
 
 
 # lock_task to make sure that two updates don't happen at the same
@@ -218,7 +226,7 @@ def push_event(
 
         if not skip_build:
             # build in tmp folder
-            build_status = build(course_key, tmp_path, host_tmp_path)
+            build_status = build(course, tmp_path, host_tmp_path)
             if not build_status:
                 return
         else:
