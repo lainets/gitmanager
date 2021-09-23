@@ -20,6 +20,14 @@ class Parent(PydanticModel):
             categories.union(c.child_categories())
         return categories
 
+    def child_keys(self) -> List[str]:
+        """Returns a list of keys of children recursively"""
+        keys: List[str] = []
+        for c in self.children:
+            keys.append(c.key)
+            keys.extend(c.child_keys())
+        return keys
+
 
 class Item(Parent):
     key: str
@@ -196,6 +204,23 @@ class Course(PydanticModel):
             for c in m.child_categories():
                 if c not in values["categories"]:
                     raise ValueError(f"Category not found in categories: {c}")
+        return values
+
+    @root_validator(allow_reuse=True, skip_on_failure=True)
+    def validate_keys(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        for m in values["modules"]:
+            keys = m.child_keys()
+            keyset = set(keys)
+            if len(keys) != len(keyset):
+                duplicates: Set[str] = set()
+                for key in keys:
+                    if key in duplicates:
+                        continue
+                    elif key not in keyset:
+                        duplicates.add(key)
+                    else:
+                        keyset.remove(key)
+                raise ValueError(f"Duplicate learning object (chapter, exercise) keys: {duplicates}")
         return values
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
