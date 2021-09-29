@@ -115,7 +115,7 @@ class JSONEncoder(DjangoJSONEncoder):
 
 
 @login_required
-def aplus_json(request, course_key):
+def aplus_json(request, course_key: str):
     '''
     Delivers the configuration as JSON for A+.
     '''
@@ -138,14 +138,16 @@ def aplus_json(request, course_key):
     if course_id is None and configures:
         return HttpResponse("Remote id not set: cannot configure", status=500)
 
-    exercise_locations = {}
+    exercise_defaults: Dict[str, Any] = {}
     errors = []
     for url, exercises in configures.items():
 
         tmp_file = TemporaryFile(mode="w+b")
+        # no compression, only pack the files into a single package
         ziph = ZipFile(tmp_file, "w")
 
-        exercise_data: List[Dict[str, dict]] = []
+        logger.debug(f"Compressing for {url}")
+        exercise_data: List[Dict[str, Any]] = []
         for exercise in exercises:
             exercise_data.append({
                 "key": exercise.key,
@@ -176,30 +178,34 @@ def aplus_json(request, course_key):
             errors.append({"url": url, "error": f"Couldn't access {url}"})
         else:
             if response.status_code != 200 or not response.text:
-                logger.warn(f"Failed to configure {url}: {response.status_code}\n{response.text}")
+                logger.warn(f"Failed to configure {url}: {response.status_code}\nResponse: {response.text}")
                 errors.append({"url": url, "code": response.status_code, "error": response.text})
             else:
                 try:
-                    new_locations = json.loads(response.text)
+                    logger.debug(f"Loading from {url}")
+                    defaults = json.loads(response.text)
                 except JSONDecodeError as e:
                     logger.info(f"Couldn't load configure response:\n{e}")
                     logger.debug(f"{url} returned {response.text}")
+                    errors.append({"url": url, "error": str(e)})
                 else:
-                    for key, _ in exercises:
-                        if key in new_locations:
-                            exercise_locations[key] = new_locations[key]
+                    exercise_defaults = {
+                        exercise.key: defaults[exercise.key]
+                        for exercise in exercises
+                        if exercise.key in defaults
+                    }
 
     data = config.data.dict(exclude={"modules", "static_dir"})
 
+    # TODO: this should really be done before the course validation happens
     def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
         for o in parent.children:
             of = o.dict(exclude={"children"})
             if isinstance(o, Exercise) and o.config:
                 exercise = config.exercise_config(o.key)
-                data = export.exercise(request, config, exercise, of)
-                if "url" not in of and o.key in exercise_locations:
-                    of["url"] =  exercise_locations[o.key]
+                data = exercise_defaults.get(o.key, {})
+                data.update(export.exercise(request, config, exercise, of))
             elif isinstance(o, Chapter):
                 data = export.chapter(request, config, of)
             else: # any other exercise type

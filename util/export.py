@@ -89,36 +89,6 @@ def exercise(
             languages, exercises, 'model_files',
             url_to_model, request, course.key, exercise['key']
         )
-    elif exercise.get('view_type', None) == 'access.types.stdsync.createForm':
-        # DEPRECATED: model_answer should already have the required data it is
-        # not gitmanager's job to know what 'access.types.stdsync.createForm' is
-
-        # build an url to the grader
-        if 'url' in of:
-            parsed_exercise_url = urllib.parse.urlparse(of['url'])
-            model_url = url_to_model(
-                request, course.key, exercise['key'], ''
-            )
-            model_url = urllib.parse.urlparse(model_url)._replace(
-                    scheme=parsed_exercise_url.scheme,
-                    netloc=parsed_exercise_url.netloc
-                ).geturl()
-        else:
-            model_url = ''
-
-        if not model_url:
-            of['model_answer'] = ''
-        elif not exercise.get('show_model_answer', True):
-            # Set the empty string here so that an existing value may be
-            # removed from the A+ database when the course is imported there.
-            of['model_answer'] = ''
-        elif len(languages) == 1:
-            of['model_answer'] = model_url
-        else:
-            of['model_answer'] = {
-                l: model_url + '?lang=' + l
-                for i,l in enumerate(languages)
-            }
 
     if 'exercise_template' in exercise:
         of['exercise_template'] = exercise['exercise_template']
