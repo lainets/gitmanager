@@ -70,65 +70,41 @@ def course(request, course_key):
     return render(request, 'access/course.html', render_context)
 
 
+def serve_exercise_file(request, course_key, exercise_key, basename, dict_key, type):
+    lang = request.GET.get('lang', None)
+    (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
+
+    if dict_key not in exercise:
+        raise Http404()
+
+    try:
+        path = next((path for path in exercise[dict_key] if path.split('/')[-1] == basename))
+    except StopIteration:
+        raise Http404()
+
+    try:
+        with open(CourseConfig.path_to(course.key, path)) as f:
+            content = f.read()
+    except FileNotFoundError as error:
+        raise Http404(f"{type} file missing") from error
+    else:
+        return HttpResponse(content, content_type='text/plain')
+
+
 @login_required
-def exercise_model(request, course_key, exercise_key, parameter):
+def exercise_model(request, course_key, exercise_key, basename):
     '''
     Presents a model answer for an exercise.
     '''
-    lang = request.GET.get('lang', None)
-    (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
-
-    path = None
-
-    if 'model_files' in exercise:
-        def find_name(paths, name):
-            models = [(path,path.split('/')[-1]) for path in paths]
-            for path,name in models:
-                if name == parameter:
-                    return path
-            return None
-        path = find_name(exercise['model_files'], parameter)
-
-    if path:
-        try:
-            with open(CourseConfig.path_to(course.key, path)) as f:
-                content = f.read()
-        except FileNotFoundError as error:
-            raise Http404("Model file missing") from error
-        else:
-            return HttpResponse(content, content_type='text/plain')
-
-    raise Http404()
+    return serve_exercise_file(request, course_key, exercise_key, basename, "model_files", "Model")
 
 
 @login_required
-def exercise_template(request, course_key, exercise_key, parameter):
+def exercise_template(request, course_key, exercise_key, basename):
     '''
     Presents the exercise template.
     '''
-    lang = request.GET.get('lang', None)
-    (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
-
-    path = None
-
-    if 'template_files' in exercise:
-        def find_name(paths, name):
-            templates = [(path,path.split('/')[-1]) for path in paths]
-            for path,name in templates:
-                if name == parameter:
-                    return path
-            return None
-        path = find_name(exercise['template_files'], parameter)
-
-    if path:
-        try:
-            with open(CourseConfig.path_to(course.key, path)) as f:
-                content = f.read()
-        except FileNotFoundError as error:
-            raise Http404("Template file missing") from error
-        return HttpResponse(content, content_type='text/plain')
-
-    raise Http404()
+    return serve_exercise_file(request, course_key, exercise_key, basename, "template_files", "Template")
 
 
 class JSONEncoder(DjangoJSONEncoder):

@@ -8,15 +8,15 @@ from django.http import HttpRequest
 from django.urls import reverse
 
 
-def url_to_model(request: HttpRequest, course_key: str, exercise_key: str, parameter: str):
+def url_to_model(request: HttpRequest, course_key: str, exercise_key: str, basename: str):
     return request.build_absolute_uri(
-        reverse('model', args=[course_key, exercise_key, parameter])
+        reverse('model', args=[course_key, exercise_key, basename])
     )
 
 
-def url_to_template(request: HttpRequest, course_key: str, exercise_key: str, parameter: str):
+def url_to_template(request: HttpRequest, course_key: str, exercise_key: str, basename: str):
     return request.build_absolute_uri(
-        reverse('exercise_template', args=[course_key, exercise_key, parameter])
+        reverse('exercise_template', args=[course_key, exercise_key, basename])
     )
 
 
