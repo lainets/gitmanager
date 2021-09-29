@@ -1,16 +1,96 @@
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 from datetime import datetime, timedelta
+import os
+import time
 
+from django.conf import settings
 from pydantic import AnyHttpUrl, Field
 from pydantic.class_validators import root_validator, validator
+from pydantic.fields import PrivateAttr
 from pydantic.types import NonNegativeInt, PositiveInt, confloat
 
 from util.localize import Localized, DEFAULT_LANG
 from util.pydantic import PydanticModel, NotRequired
+from .parser import ConfigParser
+
+
+LOGGER = logging.getLogger('main')
+
+
+class ConfigureOptions(PydanticModel):
+    files: Dict[str,str] = {}
+    url: str
+
+
+class ExerciseConfig(PydanticModel):
+    data: Dict[str, dict]
+    file: str
+    mtime: float
+    ptime: float
+    default_lang: str
+
+    def data_for_language(self, lang: Optional[str] = None) -> dict:
+        if lang == '_root':
+            return self.data
+
+        # Try to find version for requested or configured language.
+        for lang in (lang, self.default_lang):
+            if lang in self.data:
+                data = self.data[lang]
+                data["lang"] = lang
+                return data
+
+        # Fallback to any existing language version.
+        return list(self.data.values())[0]
+
+    @staticmethod
+    def load(exercise_key: str, filename: str, course_dir: str, lang: str) -> "ExerciseConfig":
+        '''
+        Default loader to find and parse file.
+
+        @type course_root: C{dict}
+        @param course_root: a course root dictionary
+        @type exercise_key: C{str}
+        @param exercise_key: an exercise key
+        @type filename: C{str}
+        @param filename: config file name
+        @type course_dir: C{str}
+        @param course_dir: a path to the course root directory
+        @rtype: C{str}, C{dict}
+        @return: exercise config file path, modified time and data dict
+        '''
+        config_file = ConfigParser.get_config(os.path.join(course_dir, filename))
+        data = ConfigParser.parse(config_file)
+        if "include" in data:
+            data = ConfigParser._include(data, config_file, course_dir)
+        #return config_file, os.path.getmtime(config_file), data
+
+        mtime = os.path.getmtime(config_file)
+
+        # Process key modifiers and create language versions of the data.
+        data = ConfigParser.process_tags(data, lang)
+        for version in data.values():
+            ConfigParser.check_fields(config_file, version, ["title", "view_type"])
+            version["key"] = exercise_key
+            version["mtime"] = mtime
+
+        return ExerciseConfig.parse_obj({
+            "file": config_file,
+            "mtime": mtime,
+            "ptime": time.time(),
+            "data": data,
+            "default_lang": lang,
+        })
+
 
 class Parent(PydanticModel):
     children: List[Union["Chapter", "Exercise", "LTIExercise", "ExerciseCollection"]] = []
+
+    def postprocess(self, **kwargs: Any):
+        for c in self.children:
+            c.postprocess(**kwargs)
 
     def child_categories(self) -> Set[str]:
         """Returns a set of categories of children recursively"""
@@ -65,6 +145,7 @@ class Item(Parent):
 
 class Exercise(Item):
     max_submissions: NonNegativeInt = 0
+    configure: NotRequired[ConfigureOptions]
     allow_assistant_viewing: NotRequired[bool]
     allow_assistant_grading: NotRequired[bool]
     config: NotRequired[Path]
@@ -75,6 +156,44 @@ class Exercise(Item):
     max_group_size: NotRequired[NonNegativeInt]
     max_points: NotRequired[NonNegativeInt]
     points_to_pass: NotRequired[NonNegativeInt]
+    _config_obj: Optional[ExerciseConfig] = PrivateAttr(default=None)
+
+    def postprocess(self, *, course_dir: str, grader_config_dir: str, default_lang: str, **kwargs: Any):
+        super().postprocess(
+            course_dir=course_dir,
+            grader_config_dir=grader_config_dir,
+            default_lang=default_lang,
+            **kwargs,
+        )
+
+        LOGGER.debug('Loading exercise "%s/%s"', course_dir, self.key)
+        if self.config:
+            if self.config.is_absolute():
+                self._config_obj = ExerciseConfig.load(
+                    self.key,
+                    str(self.config)[1:],
+                    course_dir,
+                    default_lang,
+                )
+            else:
+                self._config_obj = ExerciseConfig.load(
+                    self.key,
+                    str(self.config),
+                    grader_config_dir,
+                    default_lang,
+                )
+
+        # DEPRECATED: default configure settings
+        # this is for backwards compatibility and should be removed in the future
+        if not self.configure and self._config_obj and settings.DEFAULT_GRADER_URL is not None:
+            configure = {
+                "url": settings.DEFAULT_GRADER_URL,
+            }
+            mount = next(iter(self._config_obj.data.values())).get("container", {}).get("mount")
+            if mount:
+                configure["files"] = {mount: mount}
+
+            self.configure = ConfigureOptions.parse_obj(configure)
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_assistant_permissions(cls, values: Dict[str, Any]):
@@ -188,6 +307,10 @@ class Course(PydanticModel):
     numerate_ignoring_modules: NotRequired[bool]
     view_content_to: NotRequired[str]
     static_dir: NotRequired[str]
+
+    def postprocess(self, **kwargs: Any):
+        for c in self.modules:
+            c.postprocess(**kwargs)
 
     @validator('modules', allow_reuse=True)
     def validate_module_keys(cls, modules: List[Module]) -> List[Module]:

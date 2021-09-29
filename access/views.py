@@ -123,17 +123,17 @@ def aplus_json(request, course_key):
     if config is None:
         raise Http404()
 
-    configures: Dict[str, Any] = {}
-    for key, exercise in config.exercises.items():
+    configures: Dict[str, List[Exercise]] = {}
+    for exercise in config.exercises.values():
         conf = exercise.configure
-        if conf is None:
+        if not conf:
             continue
         url = conf.url
         if url not in configures:
             configures[url] = []
-        configures[url].append((key, exercise))
+        configures[url].append(exercise)
 
-    course_id = Course.objects.get(key=course_key).remote_id
+    course_id: int = Course.objects.get(key=course_key).remote_id
 
     if course_id is None and configures:
         return HttpResponse("Remote id not set: cannot configure", status=500)
@@ -146,10 +146,10 @@ def aplus_json(request, course_key):
         ziph = ZipFile(tmp_file, "w")
 
         exercise_data: List[Dict[str, dict]] = []
-        for key, exercise in exercises:
+        for exercise in exercises:
             exercise_data.append({
-                "key": key,
-                "config": exercise.data,
+                "key": exercise.key,
+                "config": exercise._config_obj.data if exercise._config_obj else None,
                 "files": list(exercise.configure.files.keys()),
             })
             for name, path in exercise.configure.files.items():

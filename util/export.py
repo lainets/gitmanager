@@ -1,6 +1,7 @@
 from typing import Any, Dict, Tuple, cast
 from util.static import static_url_path
-from access.config import CourseConfig, ExerciseConfig
+from access.config import CourseConfig
+from access.course import ExerciseConfig
 from itertools import zip_longest
 import urllib.parse
 
