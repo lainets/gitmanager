@@ -153,6 +153,7 @@ def aplus_json(request, course_key: str):
         for exercise in exercises:
             exercise_data.append({
                 "key": exercise.key,
+                "spec": exercise.dict(exclude={"config", "configure"}),
                 "config": exercise._config_obj.data if exercise._config_obj else None,
                 "files": list(exercise.configure.files.keys()),
             })
