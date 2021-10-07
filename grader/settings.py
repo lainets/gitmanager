@@ -36,13 +36,13 @@ APLUS_AUTH_LOCAL = {
 }
 
 # course builder settings
-BUILD_IN_CONTAINER=True
 DEFAULT_IMAGE="apluslms/compile-rst:1.6"
+BUILD_MODULE = join(BASE_DIR, "scripts/docker_build.py")
 TMP_DIR = "/tmp/gitmanager"
-# if the app runs inside docker, TMP_DIR must be mounted to a directory on the host
-# set HOST_TMP_DIR to be that directory. This is so that we can call docker and
-# mount said directoty to the build container
-HOST_TMP_DIR = None
+# See the BUILD_MODULE script for details
+BUILD_MODULE_SETTINGS = {
+  "HOST_TMP_DIR": TMP_DIR,
+}
 ##########################################################################
 
 APLUS_AUTH: Dict[str, Any] = {

@@ -1,10 +1,12 @@
+import importlib
 from io import StringIO
 import logging
 from pathlib import Path
 import shutil
-import subprocess
+import sys
 import traceback
-from typing import Dict, List, Tuple
+from types import ModuleType
+from typing import List, Tuple
 import urllib.parse
 
 from django.conf import settings
@@ -26,6 +28,27 @@ logger = logging.getLogger("grader.gitmanager")
 
 build_logger = logging.getLogger("gitmanager.build")
 build_logger.setLevel(logging.DEBUG)
+
+
+def _import_path(path: str) -> ModuleType:
+    """Imports an attribute (e.g. class or function) from a module from a specified path"""
+    spec = importlib.util.spec_from_file_location("builder_module", path)
+    if spec is None:
+        raise ImportError(f"Couldn't find {path}")
+
+    module = importlib.util.module_from_spec(spec)
+    if module is None:
+        raise ImportError(f"Couldn't import {path}")
+    sys.modules["builder_module"] = module
+    spec.loader.exec_module(module)
+
+    return module
+
+build_module = _import_path(settings.BUILD_MODULE)
+if not hasattr(build_module, "build"):
+    raise AttributeError(f"{settings.BUILD_MODULE} does not have a build function")
+if not callable(getattr(build_module, "build")):
+    raise AttributeError(f"build attribute in {settings.BUILD_MODULE} is not callable")
 
 
 def read_static_dir(course_key: str) -> str:
@@ -105,7 +128,8 @@ def pull(path: str, origin: str, branch: str) -> bool:
         build_logger.info("------------\nFailed to clone repository\n------------\n\n")
         return success
 
-def container_build(path: Path, host_path: Path, env: Dict[str, str]) -> bool:
+
+def build(course: Course, path: Path) -> bool:
     meta = load_meta(path)
 
     build_image = settings.DEFAULT_IMAGE
@@ -117,51 +141,20 @@ def container_build(path: Path, host_path: Path, env: Dict[str, str]) -> bool:
     else:
         build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
 
-    process = subprocess.run([
-                settings.CONTAINER_SCRIPT,
-                build_image,
-                str(path.resolve()),
-                str(host_path.resolve()),
-                "\n".join((f"{k}={v}" for k,v in env.items())),
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            encoding='utf8',
-        )
-    build_logger.info(process.stdout)
-    return process.returncode == 0
-
-
-def local_build(path: str, env: Dict[str,str]) -> bool:
-    success = True
-    def run(command, **kwargs):
-        nonlocal success, env
-        process = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8', env=env, **kwargs)
-        build_logger.info(process.stdout + "\n")
-        success = success and process.returncode == 0
-
-    if Path(path, "build.sh").exists():
-        build_logger.info("### Detected 'build.sh' executing it with bash. ###\n")
-        run(["/bin/bash", "build.sh"], cwd=path)
-    elif Path(path, "Makefile").exists():
-        build_logger.info("### Detected a Makefile. Running 'make html'. Add nop 'build.sh' to disable this! ###\n")
-        run(["make", "html"], cwd=path)
-    else:
-        build_logger.info("### No build.sh or Makefile. Not building the course. ###\n")
-
-    return success
-
-
-def build(course: Course, path: Path, host_path: Path) -> bool:
     env = {
         "COURSE_KEY": course.key,
         "COURSE_ID": str(course.remote_id),
         "STATIC_URL_PATH": static_url_path(course.key),
     }
-    if settings.BUILD_IN_CONTAINER:
-        return container_build(path, host_path, env)
-    else:
-        return local_build(str(path), env)
+
+    return build_module.build(
+        logger=build_logger,
+        course_key=course.key,
+        path=path,
+        image=build_image,
+        env=env,
+        settings=settings.BUILD_MODULE_SETTINGS,
+    )
 
 
 # lock_task to make sure that two updates don't happen at the same
@@ -206,7 +199,6 @@ def push_event(
     build_logger.addHandler(log_handler)
     try:
         tmp_path = Path(settings.TMP_DIR, course_key)
-        host_tmp_path = Path(settings.HOST_TMP_DIR, course_key)
 
         if not skip_git:
             if course.git_origin:
@@ -226,7 +218,7 @@ def push_event(
 
         if not skip_build:
             # build in tmp folder
-            build_status = build(course, tmp_path, host_tmp_path)
+            build_status = build(course, tmp_path)
             if not build_status:
                 return
         else:
