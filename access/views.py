@@ -14,7 +14,9 @@ from django.urls import reverse
 from django.views import View
 from pydantic import AnyHttpUrl
 from aplus_auth.payload import Permission, Permissions
-from aplus_auth.requests import post
+from aplus_auth.requests import Session
+from requests.packages.urllib3.util.retry import Retry
+from requests.sessions import HTTPAdapter
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from access.config import CourseConfig
@@ -171,8 +173,21 @@ def aplus_json(request, course_key: str):
         })
         logger.debug(f"Sending to {url}")
         try:
-            headers = {"Prefer": "respond-async", "Content-Type": data.content_type}
-            response = post(url, headers=headers, data=data, permissions=permissions)
+            with Session() as session:
+                retry = Retry(
+                    total=5,
+                    connect=5,
+                    read=2,
+                    status=3,
+                    allowed_methods=None,
+                    status_forcelist=[500,502,503,504],
+                    raise_on_status=False,
+                    backoff_factor=0.4,
+                )
+                session.mount(url, HTTPAdapter(max_retries=retry))
+
+                headers = {"Prefer": "respond-async", "Content-Type": data.content_type}
+                response = session.post(url, headers=headers, data=data, permissions=permissions)
         except Exception as e:
             logger.warn(f"Failed to configure: {e}")
             errors.append({"url": url, "error": f"Couldn't access {url}"})
