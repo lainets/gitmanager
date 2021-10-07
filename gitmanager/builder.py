@@ -157,6 +157,33 @@ def build(course: Course, path: Path) -> bool:
     )
 
 
+def send_error_mail(course: Course, subject: str, message: str) -> bool:
+    if course.remote_id is None:
+        build_logger.error(f"Remote id not set: cannot send error email")
+        return False
+
+    email_url = urllib.parse.urljoin(settings.FRONTEND_URL, f"api/v2/courses/{course.remote_id}/send_mail/")
+    permissions = Permissions()
+    permissions.instances.add(Permission.WRITE, id=course.remote_id)
+    data = {
+        "subject": subject,
+        "message": message,
+    }
+    try:
+        response = post(email_url, permissions=permissions, data=data, headers={"Application": "application/json, application/*"})
+    except:
+        logger.exception(f"Failed to send email for {course.key}")
+        build_logger.exception(f"Failed to send error email")
+        return False
+
+    if response.status_code != 200 or response.text:
+        logger.error(f"Sending email for {course.key} failed: {response.status_code} {response.text}")
+        build_logger.error(f"API failed to send the error email: {response.status_code} {response.text}")
+        return False
+
+    return True
+
+
 # lock_task to make sure that two updates don't happen at the same
 # time. Would be better to lock it for each repo separately but it isn't really
 # needed
@@ -271,13 +298,19 @@ def push_event(
                 notification_url = urllib.parse.urljoin(settings.FRONTEND_URL, f"api/v2/courses/{course.remote_id}/notify_update/")
                 permissions = Permissions()
                 permissions.instances.add(Permission.WRITE, id=course.remote_id)
-                response = post(notification_url, permissions=permissions, headers={"Application": "application/json, application/*"})
+                response = post(notification_url, permissions=permissions, data={"email_on_error": course.email_on_error}, headers={"Application": "application/json, application/*"})
                 if response.status_code != 200:
                     failtext = response.reason
                 elif response.text != "[]":
                     failtext = response.text
             except Exception as e:
                 failtext = str(e)
+                if course.email_on_error:
+                    send_error_mail(
+                        course,
+                        f"Failed to notify update of {course_key}",
+                        "Build succeeded but notifying the frontend of the update failed:\n" + failtext
+                    )
             finally:
                 if failtext:
                     build_logger.error("Failed:")
@@ -285,10 +318,14 @@ def push_event(
                 else:
                     build_logger.info("Success.")
     finally:
+        if update.status != UpdateStatus.SUCCESS:
+            update.status = UpdateStatus.FAILED
+
+            if course.email_on_error:
+                send_error_mail(course, f"Course {course_key} build failed", log_stream.getvalue())
+
         update.log = log_stream.getvalue()
         build_logger.removeHandler(log_handler)
 
-        if update.status != UpdateStatus.SUCCESS:
-            update.status = UpdateStatus.FAILED
         update.updated_time = Now()
         update.save()

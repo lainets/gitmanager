@@ -31,7 +31,8 @@ def edit(request, key=None):
         course = None
         form = CourseForm(request.POST or None)
     for name in form.fields:
-        form.fields[name].widget.attrs = {'class': 'form-control'}
+        if name != "email_on_error":
+            form.fields[name].widget.attrs = {'class': 'form-control'}
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('manager-courses')
