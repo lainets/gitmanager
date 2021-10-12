@@ -43,6 +43,11 @@ TMP_DIR = "/tmp/gitmanager"
 BUILD_MODULE_SETTINGS = {
   "HOST_TMP_DIR": TMP_DIR,
 }
+
+# Build task scheduling redis options. These are ignored by huey if DEBUG=True
+# and immediate mode is not turned off in HUEY settings.
+redis_host = environ.get("REDIS_HOST", "localhost")
+redis_port = environ.get("REDIS_PORT", 6379)
 ##########################################################################
 
 APLUS_AUTH: Dict[str, Any] = {
@@ -211,8 +216,28 @@ LOGGING = {
   },
 }
 
+from redis import ConnectionPool
+pool = ConnectionPool(host=redis_host, port=redis_port, max_connections=50, db=0)
+
 HUEY = {
+    'huey_class': 'huey.RedisHuey',
     'results': False,  # Whether to store return values of tasks
+    # see redis.Connection in https://redis-py.readthedocs.io/en/stable/ for possible settings
+    'connection': {
+      'connection_pool': pool,
+    },
+    'consumer': {
+        'workers': 1, # at the moment the build process blocks all other builds, so no need for more
+        'worker_type': 'process',
+        'initial_delay': 1,  # Smallest polling interval, same as -d.
+        'backoff': 1.15,  # Exponential backoff using this rate, -b.
+        'max_delay': 10.0,  # Max possible polling interval, -m.
+        'scheduler_interval': 1,  # Check schedule every second, -s.
+        'periodic': False,  # Disable crontab feature.
+        'check_worker_health': True,  # Enable worker health checks.
+        'health_check_interval': 1,  # Check worker health every second.
+        'flush_locks': True, # this might cause problems if there are multiple workers and one restarts
+    },
 }
 
 
