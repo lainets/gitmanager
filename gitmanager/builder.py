@@ -216,8 +216,6 @@ def push_event(
         update.save()
 
     update = updates[-1]
-    update.status = UpdateStatus.RUNNING
-    update.save()
 
     path = CourseConfig.path_to(course_key)
 
@@ -225,6 +223,9 @@ def push_event(
     log_handler = logging.StreamHandler(log_stream)
     build_logger.addHandler(log_handler)
     try:
+        update.status = UpdateStatus.RUNNING
+        update.save()
+
         tmp_path = Path(settings.TMP_DIR, course_key)
 
         if not skip_git:
