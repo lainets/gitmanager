@@ -88,7 +88,7 @@ def checkout(path: str, origin: str, branch: str) -> bool:
         if not success: # dont run the other commands if one fails
             return
         success, output = git_call(path, command, cmd)
-        build_logger.info(output + "\n")
+        build_logger.info(output)
 
     git("fetch", ["fetch", "origin", branch])
     git("clean", ["clean", "-xfd"])
@@ -122,7 +122,7 @@ def pull(path: str, origin: str, branch: str) -> bool:
 
     if (Path(path) / ".git").exists():
         success2, logstr = git_call(path, "log", ["--no-pager", "log", '--pretty=format:------------\nCommit metadata\n\nHash:\n%H\nSubject:\n%s\nBody:\n%b\nCommitter:\n%ai\n%ae\nAuthor:\n%ci\n%cn\n%ce\n------------\n', "-1"], include_cmd_string=False)
-        build_logger.info("\n" + logstr)
+        build_logger.info(logstr)
         return success and success2
     else:
         build_logger.info("------------\nFailed to clone repository\n------------\n\n")
