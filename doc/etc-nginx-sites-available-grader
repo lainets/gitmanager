@@ -19,10 +19,10 @@ server {
     location /static {
         add_header 'Access-Control-Allow-Origin' '*';
       	add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS';
-        alias /srv/grader/mooc-grader/static;
+        alias /srv/grader/gitmanager/static;
     }
     location /robots.txt {
-        alias /srv/grader/mooc-grader/static/robots.txt;
+        alias /srv/grader/gitmanager/static/robots.txt;
     }
     location /ajax {
         uwsgi_pass django-grader;
