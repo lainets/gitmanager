@@ -1,3 +1,4 @@
+from itertools import chain
 import json
 from json.decoder import JSONDecodeError
 import logging
@@ -23,7 +24,7 @@ from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
 from gitmanager.models import Course
 from util import export
-from util.files import zip_path
+from util.files import file_mappings
 from util.login_required import login_required
 
 
@@ -157,8 +158,17 @@ def aplus_json(request, course_key: str):
                 "config": exercise._config_obj.data if exercise._config_obj else None,
                 "files": list(exercise.configure.files.keys()),
             })
-            for name, path in exercise.configure.files.items():
-                zip_path(ziph, Path(config.dir, path), name)
+
+        files = chain.from_iterable((
+            exercise.configure.files.items()
+            for exercise in exercises
+        ))
+        try:
+            for name, path in file_mappings(Path(config.dir), files):
+                ziph.write(path, name)
+        except ValueError as e:
+            errors.append(f"Skipping {url} configuration: error in zipping files: {e}")
+            continue
 
         ziph.close()
         tmp_file.seek(0)

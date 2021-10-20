@@ -2,7 +2,7 @@
 Utility functions for exercise files.
 
 '''
-from typing import Any, Dict, Union
+from typing import Any, Dict, Generator, Iterable, Tuple, Union
 from django.conf import settings
 import datetime, random, string, os, shutil, json
 from pathlib import Path
@@ -42,22 +42,54 @@ def rm_path(path: Union[str, Path]) -> None:
         path.unlink()
 
 
-def zip_dir(ziph: ZipFile, path: Path, name: str = None) -> None:
-    if name is None:
-        name = path.name
+def file_mappings(root: Path, mappings_in: Iterable[Tuple[str,str]]) -> Generator[Tuple[str, Path], None, None]:
+    """
+    Resolves (name, path) tuples into (name, file) tuples.
+    E.g. if path is a folder, we get an entry for each file in it.
 
-    for root, _, files in os.walk(path):
-        root = Path(root)
-        rootname = name / root.relative_to(path)
-        for file in files:
-            ziph.write(root / file, rootname / file)
+    Raises ValueError if a name has multiple different files.
+    """
+    mappings = sorted((name, root / path) for name, path in mappings_in)
 
+    def is_subpath(child, parent):
+        if child == parent:
+            return True
+        return len(child) > len(parent) and child[len(parent)] == "/" and child.startswith(parent)
 
-def zip_path(ziph: ZipFile, path: Path, name: str = None) -> None:
-    if name is None:
-        name = path.name
+    def in_course_dir_check(path: Path):
+        nonlocal root
+        try:
+            path.resolve().relative_to(root)
+        except:
+            raise ValueError(f"{path} links outside the course directory")
 
-    if path.is_dir():
-        zip_dir(ziph, path, name)
-    elif path.is_file() and not path.is_symlink():
-        ziph.write(path, name)
+    def expand_dir(name: str, path: Path) -> Generator[Tuple[str,Path], None, None]:
+        for child in path.iterdir():
+            child_name = name / child.relative_to(path)
+            yield str(child_name), child
+
+    def expand_full(name: str, path: Path) -> Generator[Tuple[str,Path], None, None]:
+        if path.is_file():
+            in_course_dir_check(path)
+            yield name, path
+        elif path.is_dir():
+            for root, _, files in os.walk(path, followlinks=True):
+                root = Path(root)
+                rootname = name / root.relative_to(path)
+                for file in files:
+                    in_course_dir_check(root / file)
+                    yield str(rootname / file), root / file
+
+    while mappings:
+        while len(mappings) > 1 and is_subpath(mappings[1][0], mappings[0][0]):
+            map = mappings.pop(0)
+            if map[1].is_file():
+                if map[0] != mappings[0][0]:
+                    raise ValueError(f"{map[0]} is mapped to a file ({map[1]}) but {mappings[0][0]} is under it")
+                elif map[1] != mappings[0][1]:
+                    raise ValueError(f"{map[0]} is mapped to a file {map[1]} and the path {mappings[0][1]}")
+            elif map[1].is_dir():
+                mappings.extend(expand_dir(*map))
+                mappings.sort()
+
+        yield from expand_full(*mappings.pop(0))
