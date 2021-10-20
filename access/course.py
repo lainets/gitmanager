@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Literal, Optional, Set, TypeVar, Union
 from datetime import datetime, timedelta
 import os
 import time
@@ -114,7 +114,7 @@ class Item(Parent):
     category: str
     status: NotRequired[str]
     order: NotRequired[int]
-    audience: NotRequired[str]
+    audience: NotRequired[Literal["internal", "external", "registered"]]
     name: NotRequired[Localized[str]]
     description: NotRequired[str]
     use_wide_column: NotRequired[bool]
@@ -228,6 +228,12 @@ class ExerciseCollection(Item):
     max_points: PositiveInt
     points_to_pass: NotRequired[NonNegativeInt]
 
+    @root_validator(allow_reuse=True, skip_on_failure=True)
+    def validate_assistant_permissions(cls, values: Dict[str, Any]):
+        if values["target_category"] == values["category"]:
+            raise ValueError("Exercise collection's category and target category cannot be the same")
+        return values
+
 
 class Chapter(Item):
     static_content: Localized[Path]
@@ -295,6 +301,10 @@ class Module(Parent):
             values["name"] = values.pop("title")
         return values
 
+
+NumberingType = Literal["none", "arabic", "roman", "hidden"]
+
+
 class Course(PydanticModel):
     name: str
     modules: List[Module]
@@ -303,21 +313,21 @@ class Course(PydanticModel):
     assistants: NotRequired[List[str]]
     categories: Dict[str, Any] = {} # TODO: add a pydantic model for categories
     contact: NotRequired[str]
-    content_numbering: NotRequired[str]
+    content_numbering: NotRequired[NumberingType]
     course_description: NotRequired[str]
     course_footer: NotRequired[str]
     description: NotRequired[str]
     start: NotRequired[datetime]
     end: NotRequired[datetime]
-    enrollment_audience: NotRequired[str]
+    enrollment_audience: NotRequired[Literal["internal", "external", "all"]]
     enrollment_end: NotRequired[datetime]
     enrollment_start: NotRequired[datetime]
     head_urls: List[AnyHttpUrl] = []
-    index_mode: NotRequired[str]
+    index_mode: NotRequired[Literal["results", "toc", "last", "experimental"]]
     lifesupport_time: NotRequired[datetime]
-    module_numbering: NotRequired[str]
+    module_numbering: NotRequired[NumberingType]
     numerate_ignoring_modules: NotRequired[bool]
-    view_content_to: NotRequired[str]
+    view_content_to: NotRequired[Literal["enrolled", "enrollment_audience", "all_registered", "public"]]
     static_dir: NotRequired[str]
 
     def postprocess(self, **kwargs: Any):
