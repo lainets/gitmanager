@@ -6,7 +6,7 @@ that we can call docker and mount said directoty to the build container.
 
 import logging
 import os.path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 import subprocess
 
 
@@ -14,6 +14,7 @@ def build(
         logger: logging.Logger,
         course_key: str,
         image: str,
+        cmd: Optional[List[str]],
         env: Dict[str, str],
         settings: Dict[str, Any],
         **kwargs,
@@ -27,6 +28,9 @@ def build(
         "--workdir", "/content",
         image,
     ]
+
+    if cmd is not None:
+        command.extend(cmd)
 
     logger.info(" ".join(command))
 

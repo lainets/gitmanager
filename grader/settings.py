@@ -37,6 +37,8 @@ APLUS_AUTH_LOCAL = {
 
 # course builder settings
 DEFAULT_IMAGE="apluslms/compile-rst:1.6"
+# default command passed to container. set to None to use the image default
+DEFAULT_CMD="legacy_build"
 BUILD_MODULE = join(BASE_DIR, "scripts/docker_build.py")
 TMP_DIR = "/tmp/gitmanager"
 # See the BUILD_MODULE script for details

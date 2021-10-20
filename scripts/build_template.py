@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 
 def build(
@@ -8,6 +8,7 @@ def build(
         course_key: str,
         path: Path,
         image: str,
+        cmd: Optional[List[str]],
         env: Dict[str, str],
         settings: Any,
         **kwargs,

@@ -2,6 +2,7 @@ import importlib
 from io import StringIO
 import logging
 from pathlib import Path
+import shlex
 import shutil
 import sys
 import traceback
@@ -133,11 +134,22 @@ def build(course: Course, path: Path) -> bool:
     meta = load_meta(path)
 
     build_image = settings.DEFAULT_IMAGE
-    if meta and "build_image" in meta:
-        build_image = meta["build_image"]
-        build_logger.info("Using build image: " + build_image + "\n\n")
-    elif meta:
-        build_logger.info(f"No build_image in {META}, using the default: {build_image}\n\n")
+    build_command = None
+    if meta:
+        if "build_image" in meta:
+            build_image = meta["build_image"]
+            build_logger.info(f"Using build image: {build_image}\n\n")
+        else:
+            build_logger.info(f"No build_image in {META}, using the default: {build_image}\n\n")
+
+        if "build_command" in meta:
+            build_command = meta["build_command"]
+            build_logger.info(f"Using build command: {build_command}\n\n")
+        elif not "build_image" in meta:
+            build_command = settings.DEFAULT_CMD
+            build_logger.info(f"No build_command in {META}, using the default: {build_command}\n\n")
+        else:
+            build_logger.info(f"No build_command in {META}, using the image default\n\n")
     else:
         build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
 
@@ -147,11 +159,15 @@ def build(course: Course, path: Path) -> bool:
         "STATIC_URL_PATH": static_url_path(course.key),
     }
 
+    if build_command is not None:
+        build_command = shlex.split(build_command)
+
     return build_module.build(
         logger=build_logger,
         course_key=course.key,
         path=path,
         image=build_image,
+        cmd=build_command,
         env=env,
         settings=settings.BUILD_MODULE_SETTINGS,
     )
