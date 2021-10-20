@@ -260,6 +260,7 @@ class CourseConfig:
 
         course = Course.parse_obj(data)
         course.postprocess(
+            course_key = course_key,
             course_dir = CourseConfig._conf_dir(course_dir, {}),
             grader_config_dir = CourseConfig._conf_dir(course_dir, meta),
             default_lang = default_lang,

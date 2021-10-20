@@ -158,8 +158,9 @@ class Exercise(Item):
     points_to_pass: NotRequired[NonNegativeInt]
     _config_obj: Optional[ExerciseConfig] = PrivateAttr(default=None)
 
-    def postprocess(self, *, course_dir: str, grader_config_dir: str, default_lang: str, **kwargs: Any):
+    def postprocess(self, *, course_key: str, course_dir: str, grader_config_dir: str, default_lang: str, **kwargs: Any):
         super().postprocess(
+            course_key = course_key,
             course_dir=course_dir,
             grader_config_dir=grader_config_dir,
             default_lang=default_lang,
@@ -194,6 +195,17 @@ class Exercise(Item):
                 configure["files"] = {mount: mount}
 
             self.configure = ConfigureOptions.parse_obj(configure)
+
+        # DEPRECATED: add instructions_file to configure files
+        # this is for backwards compatibility and should be removed in the future
+        if self.configure and self._config_obj and self._config_obj.data.get("instructions_file"):
+            file = self._config_obj.data["instructions_file"]
+            if not isinstance(file, str):
+                raise ValueError("Assistant grading is allowed but viewing is not")
+            if file.startswith("./"):
+                self.configure.files[file] = course_key + "/" + file[2:]
+            else:
+                self.configure.files[file] = file
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_assistant_permissions(cls, values: Dict[str, Any]):
