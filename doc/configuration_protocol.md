@@ -3,6 +3,7 @@
 Gitmanager will send a POST request with the following POST fields:
 * `course_id`: the id of the course on A+
 * `course_key`: the course key on gitmanager
+* `course_spec`: the parsed contents of the course config file
 * `exercises`: a list of
     * `key`: exercise key
     * `spec`: the exercise specification from the index.json/yaml file without

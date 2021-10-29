@@ -4,7 +4,7 @@ from json.decoder import JSONDecodeError
 import logging
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from zipfile import ZipFile
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -16,6 +16,7 @@ from django.views import View
 from pydantic import AnyHttpUrl
 from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import Session
+from requests.models import Response
 from requests.packages.urllib3.util.retry import Retry
 from requests.sessions import HTTPAdapter
 from requests_toolbelt.multipart.encoder import MultipartEncoder
@@ -112,9 +113,74 @@ def exercise_template(request, course_key, exercise_key, basename):
 
 class JSONEncoder(DjangoJSONEncoder):
     def default(self, obj):
-        if isinstance(obj, AnyHttpUrl):
+        if isinstance(obj, AnyHttpUrl) or isinstance(obj, Path):
             return str(obj)
         return super().default(obj)
+
+
+def configure_url(
+        url: str,
+        course_id: int,
+        course_key: str,
+        dir: str,
+        files: Iterable[Tuple[str, str]],
+        **kwargs: Any
+        ) -> Tuple[Optional[Response], Optional[Union[str, Dict[str,str]]]]:
+
+    logger.debug(f"Compressing for {url}")
+
+    tmp_file = TemporaryFile(mode="w+b")
+    # no compression, only pack the files into a single package
+    ziph = ZipFile(tmp_file, "w")
+
+    try:
+        for name, path in file_mappings(Path(dir), files):
+            ziph.write(path, name)
+    except ValueError as e:
+        return None, f"Skipping {url} configuration: error in zipping files: {e}"
+
+    ziph.close()
+    tmp_file.seek(0)
+
+    permissions = Permissions()
+    permissions.instances.add(Permission.WRITE, id=course_id)
+
+    data_dict = {
+        "course_id": str(course_id),
+        "course_key": course_key,
+        "files": ("files", tmp_file, "application/octet-stream"),
+        **{
+            k: v if isinstance(v, str) else json.dumps(v, cls=JSONEncoder)
+            for k,v in kwargs.items()
+        },
+    }
+    data = MultipartEncoder(data_dict)
+
+    logger.debug(f"Configuring {url}")
+    try:
+        with Session() as session:
+            retry = Retry(
+                total=5,
+                connect=5,
+                read=2,
+                status=3,
+                allowed_methods=None,
+                status_forcelist=[500,502,503,504],
+                raise_on_status=False,
+                backoff_factor=0.4,
+            )
+            session.mount(url, HTTPAdapter(max_retries=retry))
+
+            headers = {"Prefer": "respond-async", "Content-Type": data.content_type}
+            response = session.post(url, headers=headers, data=data, permissions=permissions)
+    except Exception as e:
+        logger.warn(f"Failed to configure: {e}")
+        return None, {"url": url, "error": f"Couldn't access {url}"}
+    else:
+        if response.status_code != 200:
+            logger.warn(f"Failed to configure {url}: {response.status_code}\nResponse: {response.text}")
+            return response, {"url": url, "code": response.status_code, "error": response.text}
+    return response, None
 
 
 @login_required
@@ -126,30 +192,30 @@ def aplus_json(request, course_key: str):
     if config is None:
         raise Http404()
 
-    configures: Dict[str, List[Exercise]] = {}
+    configures: Dict[str, Tuple[Dict[str,str], List[Exercise]]] = {}
+    for conf in config.data.configures:
+        url = conf.url
+        configures[url] = (conf.files,[])
+
     for exercise in config.exercises.values():
         conf = exercise.configure
         if not conf:
             continue
         url = conf.url
         if url not in configures:
-            configures[url] = []
-        configures[url].append(exercise)
+            configures[url] = ({},[])
+        configures[url][1].append(exercise)
 
     course_id: int = Course.objects.get(key=course_key).remote_id
 
     if course_id is None and configures:
         return HttpResponse("Remote id not set: cannot configure", status=500)
 
+    course_spec = config.data.dict(exclude={"static_dir", "configures"})
+
     exercise_defaults: Dict[str, Any] = {}
     errors = []
-    for url, exercises in configures.items():
-
-        tmp_file = TemporaryFile(mode="w+b")
-        # no compression, only pack the files into a single package
-        ziph = ZipFile(tmp_file, "w")
-
-        logger.debug(f"Compressing for {url}")
+    for url, (course_files, exercises) in configures.items():
         exercise_data: List[Dict[str, Any]] = []
         for exercise in exercises:
             exercise_data.append({
@@ -160,52 +226,21 @@ def aplus_json(request, course_key: str):
             })
 
         files = chain.from_iterable((
-            exercise.configure.files.items()
-            for exercise in exercises
+            course_files.items(),
+            *(
+                exercise.configure.files.items()
+                for exercise in exercises
+            )
         ))
-        try:
-            for name, path in file_mappings(Path(config.dir), files):
-                ziph.write(path, name)
-        except ValueError as e:
-            errors.append(f"Skipping {url} configuration: error in zipping files: {e}")
-            continue
 
-        ziph.close()
-        tmp_file.seek(0)
+        response, error = configure_url(url, course_id, course_key, config.dir, files, course_spec=course_spec, exercises=exercise_data)
+        if error is not None:
+            errors.append(error)
 
-        permissions = Permissions()
-        permissions.instances.add(Permission.WRITE, id=course_id)
-
-        data = MultipartEncoder({
-            "course_id": str(course_id),
-            "course_key": course_key,
-            "exercises": json.dumps(exercise_data),
-            "files": ("files", tmp_file, "application/octet-stream"),
-        })
-        logger.debug(f"Sending to {url}")
-        try:
-            with Session() as session:
-                retry = Retry(
-                    total=5,
-                    connect=5,
-                    read=2,
-                    status=3,
-                    allowed_methods=None,
-                    status_forcelist=[500,502,503,504],
-                    raise_on_status=False,
-                    backoff_factor=0.4,
-                )
-                session.mount(url, HTTPAdapter(max_retries=retry))
-
-                headers = {"Prefer": "respond-async", "Content-Type": data.content_type}
-                response = session.post(url, headers=headers, data=data, permissions=permissions)
-        except Exception as e:
-            logger.warn(f"Failed to configure: {e}")
-            errors.append({"url": url, "error": f"Couldn't access {url}"})
-        else:
-            if response.status_code != 200 or not response.text:
-                logger.warn(f"Failed to configure {url}: {response.status_code}\nResponse: {response.text}")
-                errors.append({"url": url, "code": response.status_code, "error": response.text})
+        if response is not None and response.status_code == 200:
+            if not response.text and exercises:
+                logger.warn(f"{url} returned an empty response on exercise configuration")
+                errors.append(f"{url} returned an empty response on exercise configuration")
             else:
                 try:
                     logger.debug(f"Loading from {url}")

@@ -66,6 +66,11 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 		The options are the same as for `content_numbering`.
 	* `course_description`: HTML text for the course front page
 	* `course_footer`: HTML text for the footer of the front page
+	* `configures`: list of external configuration settings. A list of
+		* `url`: where to send the course configuration
+		* `files`: what files to send. A list of <name>: <path>
+		dicts. The file/directory at <path> is sent to url with
+		name <name>.
 	* `exercises`: (deprecated, see modules) A list of active exercise keys
 	* `modules`: a list of
 		* `key`: part of the url

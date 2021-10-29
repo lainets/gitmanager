@@ -329,6 +329,7 @@ class Course(PydanticModel):
     numerate_ignoring_modules: NotRequired[bool]
     view_content_to: NotRequired[Literal["enrolled", "enrollment_audience", "all_registered", "public"]]
     static_dir: NotRequired[str]
+    configures: List[ConfigureOptions] = []
 
     def postprocess(self, **kwargs: Any):
         for c in self.modules:
@@ -342,6 +343,16 @@ class Course(PydanticModel):
                 raise ValueError(f"Duplicate module key: {m.key}")
             keys.append(m.key)
         return modules
+
+    @validator('configures', allow_reuse=True)
+    def validate_configures(cls, configures: List[ConfigureOptions]):
+        urls = []
+        for c in configures:
+            if c.url in urls:
+                raise ValueError(f"Duplicate configure URL: {c.url}")
+            urls.append(c.url)
+
+        return configures
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_categories(cls, values: Dict[str, Any]) -> Dict[str, Any]:
