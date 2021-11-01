@@ -190,9 +190,12 @@ class Exercise(Item):
             configure = {
                 "url": settings.DEFAULT_GRADER_URL,
             }
-            mount = next(iter(self._config_obj.data.values())).get("container", {}).get("mount")
-            if mount:
-                configure["files"] = {mount: mount}
+            mounts = {}
+            for lang_data in self._config_obj.data.values():
+                mount = lang_data.get("container", {}).get("mount")
+                if mount:
+                    mounts[mount] = mount
+            configure["files"] = mounts
 
             self.configure = ConfigureOptions.parse_obj(configure)
 
