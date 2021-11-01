@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Union
 from django.conf import settings
 
 from util.pydantic import Undefined
+from util.typing import PathLike
 
 if TYPE_CHECKING:
     from access.config import CourseConfig
@@ -16,7 +17,7 @@ def symbolic_link(courses_dir: str, course_key: str, course_config: "CourseConfi
         os.symlink(src, dst)
 
 
-def static_url_path(course_key: str, *paths: Union[str, "os.PathLike[str]"]):
+def static_url_path(course_key: str, *paths: PathLike):
     ''' Returns absolute URL path (no host) for a static file of a course '''
     return os.path.join(
         settings.STATIC_URL,

@@ -2,6 +2,7 @@ import importlib
 from io import StringIO
 import logging
 from pathlib import Path
+import os
 import shlex
 import shutil
 import sys
@@ -19,9 +20,10 @@ from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import post
 
 from access.config import CourseConfig, load_meta, META
-from util.files import rm_path
+from util.files import is_subpath, rm_path
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url_path
+from util.typing import PathLike
 from .models import Course, CourseUpdate, UpdateStatus
 
 
@@ -200,6 +202,31 @@ def send_error_mail(course: Course, subject: str, message: str) -> bool:
     return True
 
 
+def is_self_contained(path: PathLike) -> bool:
+    spath = os.fspath(path)
+    for root, _, files in os.walk(spath):
+        rpath = Path(root)
+        for file in files:
+            if not is_subpath(str((rpath / file).resolve()), spath):
+                return False
+
+    return True
+
+
+def copytree(src: PathLike, dst: PathLike) -> None:
+    """
+    Uses cp command to copy a directory tree in order to preserve hard- and symlinks.
+    """
+    process = subprocess.run(
+        ["cp", "-a", os.fspath(src), os.fspath(dst)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        encoding="utf-8"
+    )
+    if process.returncode != 0:
+        raise RuntimeError(f"Failed to copy built course files: {process.stdout}")
+
+
 # lock_task to make sure that two updates don't happen at the same
 # time. Would be better to lock it for each repo separately but it isn't really
 # needed
@@ -268,6 +295,10 @@ def push_event(
         else:
             build_logger.info("Skipping build.")
 
+        if not is_self_contained(tmp_path):
+            build_logger.error(f"Course {course_key} is not self contained (contains links to files outside course directory)")
+            return
+
         # try loading the configs to validate them
         try:
             config = CourseConfig.load(str(tmp_path))
@@ -285,7 +316,7 @@ def push_event(
         # copy the course material back
         build_logger.info("Copying the built materials")
         rm_path(path)
-        shutil.copytree(tmp_path, path, symlinks=True)
+        copytree(tmp_path, path)
 
         # link static dir
         static_dir = read_static_dir(course_key)

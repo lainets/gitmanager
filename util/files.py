@@ -7,13 +7,15 @@ from django.conf import settings
 import datetime, random, string, os, shutil, json
 from pathlib import Path
 
+from util.typing import PathLike
+
 
 META_PATH = os.path.join(settings.SUBMISSION_PATH, "meta")
 if not os.path.exists(META_PATH):
     os.makedirs(META_PATH)
 
 
-def read_meta(file_path: Union[str, bytes, "os.PathLike[Any]"]) -> Dict[str,str]:
+def read_meta(file_path: PathLike) -> Dict[str,str]:
     '''
     Reads a meta file comprised of lines in format: key = value.
 
@@ -42,6 +44,12 @@ def rm_path(path: Union[str, Path]) -> None:
         path.unlink()
 
 
+def is_subpath(child: str, parent: str):
+    if child == parent:
+        return True
+    return len(child) > len(parent) and child[len(parent)] == "/" and child.startswith(parent)
+
+
 def file_mappings(root: Path, mappings_in: Iterable[Tuple[str,str]]) -> Generator[Tuple[str, Path], None, None]:
     """
     Resolves (name, path) tuples into (name, file) tuples.
@@ -50,11 +58,6 @@ def file_mappings(root: Path, mappings_in: Iterable[Tuple[str,str]]) -> Generato
     Raises ValueError if a name has multiple different files.
     """
     mappings = sorted((name, root / path) for name, path in mappings_in)
-
-    def is_subpath(child, parent):
-        if child == parent:
-            return True
-        return len(child) > len(parent) and child[len(parent)] == "/" and child.startswith(parent)
 
     def in_course_dir_check(path: Path):
         nonlocal root
