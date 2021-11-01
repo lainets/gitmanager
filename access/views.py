@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from tempfile import TemporaryFile
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
-from zipfile import ZipFile
+from tarfile import PAX_FORMAT, TarFile
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.shortcuts import render
@@ -131,15 +131,15 @@ def configure_url(
 
     tmp_file = TemporaryFile(mode="w+b")
     # no compression, only pack the files into a single package
-    ziph = ZipFile(tmp_file, "w")
+    tarh = TarFile(mode="w", fileobj=tmp_file, format=PAX_FORMAT)
 
     try:
         for name, path in file_mappings(Path(dir), files):
-            ziph.write(path, name)
+            tarh.add(path, name)
     except ValueError as e:
         return None, f"Skipping {url} configuration: error in zipping files: {e}"
 
-    ziph.close()
+    tarh.close()
     tmp_file.seek(0)
 
     permissions = Permissions()

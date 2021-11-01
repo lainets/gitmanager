@@ -10,12 +10,12 @@ Gitmanager will send a POST request with the following POST fields:
     the `configure` and `config` fields.
     * `config`: the parsed contents of the exercise's config file (specified in
     index.json/yaml) as a dictionary
-    * `files`: paths of the files corresponding to this exercise in the ZIP
+    * `files`: paths of the files corresponding to this exercise in the TAR
     file explained below. Note that multiple exercises CAN share a file in the
-    ZIP.
-and a single ZIP file containing all the files.
+    TAR.
+and a single TAR file containing all the files.
 
-The ZIP file contains the files specified in the `configure` fields of the
+The TAR file contains the files specified in the `configure` fields of the
 index.json/yaml file. The path of each file is the key in `configure` and the
 file is the file found from the value (a path) of said key.
 
