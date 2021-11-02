@@ -1,12 +1,15 @@
+from itertools import zip_longest
+from pathlib import Path
 from typing import Any, Dict, Tuple, cast
+
+from django.core.serializers.json import DjangoJSONEncoder
+from django.http import HttpRequest
+from django.urls import reverse
+from pydantic.networks import AnyHttpUrl
+
 from util.static import static_url_path
 from access.config import CourseConfig
 from access.course import ExerciseConfig
-from itertools import zip_longest
-import urllib.parse
-
-from django.http import HttpRequest
-from django.urls import reverse
 
 
 def url_to_model(request: HttpRequest, course_key: str, exercise_key: str, basename: str):
@@ -257,3 +260,10 @@ def list_get(dicts, key, default):
 
 def list_enumerate(lists, default):
     return zip_longest(*lists, fillvalue=default)
+
+
+class JSONEncoder(DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, AnyHttpUrl) or isinstance(obj, Path):
+            return str(obj)
+        return super().default(obj)
