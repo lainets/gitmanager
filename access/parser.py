@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from typing import Dict
+from typing import Callable, Dict, Optional, Tuple
 import yaml
 
 from django.conf import settings
@@ -33,7 +33,7 @@ class ConfigParser:
     '''
     Provides configuration data parsed and automatically updated on change.
     '''
-    FORMATS = {
+    FORMATS: Dict[str, Callable] = {
         'json': json.load,
         'yaml': yaml.safe_load
     }
@@ -94,7 +94,7 @@ class ConfigParser:
 
 
     @staticmethod
-    def parse(path, loader=None):
+    def parse(path: str, loader: Optional[Callable] = None) -> Tuple[float, dict]:
         '''
         Parses a dict from a file.
 
@@ -103,7 +103,7 @@ class ConfigParser:
         @type loader: C{function}
         @param loader: a configuration file stream parser
         @rtype: C{dict}
-        @return: an object representing the configuration file or None
+        @return: mtime of the file and an object representing the configuration file or None
         '''
         if not loader:
             try:
@@ -116,11 +116,11 @@ class ConfigParser:
                 data = loader(f)
             except ValueError as e:
                 raise ConfigError("Configuration error in %s" % (path), e)
-        return data
+        return os.path.getmtime(path), data
 
 
     @staticmethod
-    def _include(data, target_file, course_dir):
+    def _include(data: dict, target_file: str, course_dir: str) -> Tuple[float, dict]:
         '''
         Includes the config files defined in data["include"] into data.
 
@@ -135,11 +135,14 @@ class ConfigParser:
         '''
         return_data = data.copy()
 
+        mtime = 0.0
         for include_data in data["include"]:
             ConfigParser.check_fields(target_file, include_data, ("file",))
 
             include_file = ConfigParser.get_config(os.path.join(course_dir, include_data["file"]))
             loader = ConfigParser.FORMATS[os.path.splitext(include_file)[1][1:]]
+
+            mtime = max(mtime, os.path.getmtime(include_file))
 
             if "template_context" in include_data:
                 # Load new data from rendered include file string
@@ -170,7 +173,7 @@ class ConfigParser:
                                 target_file,
                                 new_value,
                                 include_file))
-        return return_data
+        return mtime, return_data
 
 
     @staticmethod

@@ -105,7 +105,7 @@ class CourseConfig:
         return exercise.data_for_language(lang)
 
 
-    def exercise_config(self, exercise_key) -> Optional[ExerciseConfig]:
+    def exercise_config(self, exercise_key: str) -> Optional[ExerciseConfig]:
         '''
         Gets exercise dictionary root (meta and data).
 
@@ -122,8 +122,10 @@ class CourseConfig:
         # Try cached version.
         if exercise_key in self.exercises:
             exercise_root = self.exercises[exercise_key]._config_obj
+            include_ok = self._check_include_file_timestamps(exercise_root)
             try:
-                if exercise_root.mtime >= os.path.getmtime(exercise_root.file):
+                if (exercise_root.mtime >= os.path.getmtime(exercise_root.file)
+                        and include_ok):
                     return exercise_root
             except OSError:
                 pass
@@ -266,8 +268,7 @@ class CourseConfig:
         meta = load_meta(course_dir)
         f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_dir, meta), INDEX))
 
-        t = os.path.getmtime(f)
-        data = ConfigParser.parse(f)
+        t, data = ConfigParser.parse(f)
         if data is None:
             raise ConfigError('Failed to parse configuration file "%s"' % (f))
 
@@ -385,3 +386,25 @@ class CourseConfig:
             return l
         return DEFAULT_LANG
 
+    def _check_include_file_timestamps(self, exercise_config: ExerciseConfig) -> bool:
+        """Check the exercise modification time against the modification timestamps
+        of the included configuration templates.
+
+        Included configuration templates are set in the data["include"] field
+        (if they are used).
+
+        @param exercise_config: the exercise ExerciseConfig
+        @return: True if the exercise is up-to-date
+            (not older than the latest modification in included files)
+        """
+        course_dir = CourseConfig._conf_dir(self.dir, self.meta)
+
+        max_include_timestamp = 0
+        for data in exercise_config.data.values():
+            for include_data in data.get("include", []):
+                include_file = ConfigParser.get_config(os.path.join(course_dir, include_data["file"]))
+                try:
+                    max_include_timestamp = max(max_include_timestamp, os.path.getmtime(include_file))
+                except OSError:
+                    return False
+        return exercise_config.mtime >= max_include_timestamp

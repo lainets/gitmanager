@@ -62,12 +62,13 @@ class ExerciseConfig(PydanticModel):
         @return: exercise config file path, modified time and data dict
         '''
         config_file = ConfigParser.get_config(os.path.join(course_dir, filename))
-        data = ConfigParser.parse(config_file)
+        mtime, data = ConfigParser.parse(config_file)
         if "include" in data:
-            data = ConfigParser._include(data, config_file, course_dir)
-        #return config_file, os.path.getmtime(config_file), data
+            include_file_timestamp, data = ConfigParser._include(data, config_file, course_dir)
 
-        mtime = os.path.getmtime(config_file)
+            # Save the latest modification time of the exercise in the cache.
+            # If there is an included base template, its modification time may be later.
+            mtime = max(mtime, include_file_timestamp)
 
         # Process key modifiers and create language versions of the data.
         data = ConfigParser.process_tags(data, lang)
