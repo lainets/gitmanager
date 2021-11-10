@@ -16,6 +16,7 @@ grader/secret_key.py
 
 static/*
 courses/*
+course_store/*
 !courses/README.md
 !courses/__init__.py
 

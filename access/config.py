@@ -151,6 +151,14 @@ class CourseConfig:
     def path_to(key: str, *paths: str) -> str:
         return os.path.join(settings.COURSES_PATH, key, *paths)
 
+    @staticmethod
+    def build_path_to(key: str, *paths: str) -> str:
+        return os.path.join(settings.BUILD_PATH, key, *paths)
+
+    @staticmethod
+    def store_path_to(key: str, *paths: str) -> str:
+        return os.path.join(settings.STORE_PATH, key, *paths)
+
     def static_path_to(self, *paths: str) -> Optional[str]:
         if self.data.static_dir is Undefined:
             return None

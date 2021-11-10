@@ -1,15 +1,18 @@
+import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.shortcuts import render
-from django.http.response import HttpResponse, JsonResponse, Http404
+from django.http import HttpRequest, HttpResponse, JsonResponse, Http404
 from django.utils import translation
 from django.urls import reverse
 from django.views import View
 
 from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
-from gitmanager.configure import configure_graders
+from gitmanager import builder
+from gitmanager.models import Course
 from util import export
 from util.login_required import login_required
 
@@ -97,15 +100,36 @@ def exercise_template(request, course_key, exercise_key, basename):
 
 
 @login_required
-def aplus_json(request, course_key: str):
+def aplus_json(request: HttpRequest, course_key: str):
     '''
     Delivers the configuration as JSON for A+.
     '''
-    config = CourseConfig.get(course_key)
-    if config is None:
-        raise Http404()
+    errors = []
 
-    exercise_defaults, errors = configure_graders(config)
+    config_path = CourseConfig.store_path_to(course_key)
+    if Path(config_path).exists():
+        config = CourseConfig.load(config_path, course_key)
+        defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+    else:
+        config = CourseConfig.get(course_key)
+        defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
+
+    if config is None:
+        try:
+            Course.objects.get(key=course_key)
+        except:
+            raise Http404()
+        else:
+            return JsonResponse({
+                "success": False,
+                "errors": ["Course has not been (successfully) built yet"],
+            })
+
+    if Path(defaults_path).exists():
+        exercise_defaults = json.load(open(defaults_path, "r"))
+    else:
+        errors.append("Could not find exercise defaults file. Try rebuilding the course")
+        exercise_defaults = {}
 
     data = config.data.dict(exclude={"modules", "static_dir"})
 
@@ -135,7 +159,26 @@ def aplus_json(request, course_key: str):
 
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     data["errors"] = errors
+    data["publish_url"] = request.build_absolute_uri(reverse("publish", args=(course_key, )))
     return JsonResponse(data, encoder=export.JSONEncoder)
+
+
+@login_required
+def publish(request: HttpRequest, course_key: str) -> HttpResponse:
+    try:
+        errors = builder.publish(course_key)
+    except Exception as e:
+        logger.exception(e)
+        return JsonResponse({"errors": str(e), "success": False})
+
+    # link static dir and check correctness
+    prodconfig = CourseConfig.get(course_key)
+    if prodconfig is None:
+        err = "Failed to read config after publishing. This shouldn't happen. You can try rebuilding the course"
+        logger.error(err)
+        return JsonResponse({"errors": err, "success": False})
+
+    return JsonResponse({"errors": errors, "success": True})
 
 
 class LoginView(View):

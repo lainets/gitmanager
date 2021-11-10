@@ -40,10 +40,12 @@ DEFAULT_IMAGE="apluslms/compile-rst:1.6"
 # default command passed to container. set to None to use the image default
 DEFAULT_CMD="legacy_build"
 BUILD_MODULE = join(BASE_DIR, "scripts/docker_build.py")
-TMP_DIR = "/tmp/gitmanager"
+BUILD_PATH = "/tmp/gitmanager"
+# this MUST be on the same device as COURSES_PATH
+STORE_PATH = join(BASE_DIR, "course_store")
 # See the BUILD_MODULE script for details
 BUILD_MODULE_SETTINGS = {
-  "HOST_TMP_DIR": TMP_DIR,
+  "HOST_BUILD_PATH": BUILD_PATH,
 }
 
 # Build task scheduling redis options. These are ignored by huey if DEBUG=True
@@ -177,6 +179,11 @@ COURSES_PATH = join(BASE_DIR, 'courses')
 # Django process requires write access to this directory.
 SUBMISSION_PATH = join(BASE_DIR, 'uploads')
 
+# How long (in seconds) to wait for a lock to the course store directory when trying to
+# store built course. Makes sure that the build process doesn't get stuck on
+# some strange issue
+BUILD_FILELOCK_TIMEOUT = 30
+
 # Logging
 # https://docs.djangoproject.com/en/1.7/topics/logging/
 ##########################################################################
@@ -260,6 +267,10 @@ update_settings_from_environment(__name__, ENV_SETTINGS_PREFIX)
 update_secret_from_file(__name__, environ.get('GRADER_SECRET_KEY_FILE', 'secret_key'))
 
 APLUS_AUTH.update(APLUS_AUTH_LOCAL)
+
+from pathlib import Path
+Path(BUILD_PATH).mkdir(parents=True, exist_ok=True)
+Path(STORE_PATH).mkdir(parents=True, exist_ok=True)
 
 # Drop x-frame policy when debugging
 if DEBUG:

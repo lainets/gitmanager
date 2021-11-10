@@ -1,10 +1,12 @@
 import importlib
 from io import StringIO
+import json
 import logging
 from pathlib import Path
 import os
 import shlex
 import shutil
+import subprocess
 import sys
 import traceback
 from types import ModuleType
@@ -20,7 +22,8 @@ from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import post
 
 from access.config import CourseConfig, load_meta, META
-from util.files import is_subpath, rm_path
+from gitmanager.configure import configure_graders, publish_graders
+from util.files import is_subpath, renames, rm_path, FileLock
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url_path
 from util.typing import PathLike
@@ -52,16 +55,6 @@ if not hasattr(build_module, "build"):
     raise AttributeError(f"{settings.BUILD_MODULE} does not have a build function")
 if not callable(getattr(build_module, "build")):
     raise AttributeError(f"build attribute in {settings.BUILD_MODULE} is not callable")
-
-
-def read_static_dir(course_key: str) -> str:
-    '''
-    Reads static_dir from course configuration.
-    '''
-    config = CourseConfig.get(course_key)
-    if config and config.static_dir:
-        return config.static_dir
-    return ''
 
 
 def git_call(path: str, command: str, cmd: List[str], include_cmd_string: bool = True) -> Tuple[bool, str]:
@@ -227,6 +220,75 @@ def copytree(src: PathLike, dst: PathLike) -> None:
         raise RuntimeError(f"Failed to copy built course files: {process.stdout}")
 
 
+def store(config: CourseConfig) -> bool:
+    """
+    Stores the built course files and sends the configs to the graders.
+
+    Returns False on failure and True on success.
+
+    May raise an exception (due to FileLock timing out).
+    """
+    course_key = config.key
+
+    build_logger.info("Configuring graders...")
+    # send configs to graders' stores
+    exercise_defaults, errors = configure_graders(config)
+    if errors:
+        for e in errors:
+            build_logger.error(e)
+        return False
+
+    store_path = CourseConfig.store_path_to(course_key)
+    store_defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+
+    build_logger.info("Acquiring file lock...")
+    with FileLock(store_path, timeout=settings.BUILD_FILELOCK_TIMEOUT):
+        build_logger.info("File lock acquired.")
+
+        build_logger.info("Copying the built materials")
+        rm_path(store_path)
+        copytree(config.dir, store_path)
+
+        with open(store_defaults_path, "w") as f:
+            json.dump(exercise_defaults, f)
+
+    return True
+
+
+def publish(course_key: str) -> List[str]:
+    """
+    Publishes the stored course files and tells graders to publish too.
+
+    Returns a list of errors if something was published.
+
+    Raises an exception if an error occurs before anything could be published.
+    """
+    prod_path = CourseConfig.path_to(course_key)
+    prod_defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
+    store_path = CourseConfig.store_path_to(course_key)
+    store_defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+
+    config = None
+    if Path(store_path).exists():
+        with FileLock(store_path):
+            config = CourseConfig.load(store_path, course_key)
+            if config is not None:
+                renames([
+                    (store_path, prod_path),
+                    (store_defaults_path, prod_defaults_path),
+                ])
+
+    if config is None:
+        if Path(prod_path).exists():
+            with FileLock(prod_path):
+                config = CourseConfig.load(prod_path, course_key)
+
+    if config is None:
+        raise Exception(f"Config not found for {course_key} - the course probably has not been built")
+
+    return publish_graders(config)
+
+
 # lock_task to make sure that two updates don't happen at the same
 # time. Would be better to lock it for each repo separately but it isn't really
 # needed
@@ -269,11 +331,11 @@ def push_event(
         update.status = UpdateStatus.RUNNING
         update.save()
 
-        tmp_path = Path(settings.TMP_DIR, course_key)
+        build_path = CourseConfig.build_path_to(course_key)
 
         if not skip_git:
             if course.git_origin:
-                pull_status = pull(str(tmp_path), course.git_origin, course.git_branch)
+                pull_status = pull(str(build_path), course.git_origin, course.git_branch)
                 if not pull_status:
                     return
             else:
@@ -282,26 +344,26 @@ def push_event(
                 # we assume that a missing git origin means local development
                 # inside the course directory, thus:
                 # copy the course material to the tmp folder
-                rm_path(tmp_path)
-                shutil.copytree(path, tmp_path, symlinks=True)
+                rm_path(build_path)
+                shutil.copytree(path, build_path, symlinks=True)
         else:
             build_logger.info("Skipping git update.")
 
         if not skip_build:
             # build in tmp folder
-            build_status = build(course, tmp_path)
+            build_status = build(course, Path(build_path))
             if not build_status:
                 return
         else:
             build_logger.info("Skipping build.")
 
-        if not is_self_contained(tmp_path):
+        if not is_self_contained(build_path):
             build_logger.error(f"Course {course_key} is not self contained (contains links to files outside course directory)")
             return
 
         # try loading the configs to validate them
         try:
-            config = CourseConfig.load(str(tmp_path))
+            config = CourseConfig.load(str(build_path), course_key)
             if config is None:
                 return
             config.get_exercise_list()
@@ -313,19 +375,10 @@ def push_event(
         if warning_str:
             build_logger.warning(warning_str)
 
-        # copy the course material back
-        build_logger.info("Copying the built materials")
-        rm_path(path)
-        copytree(tmp_path, path)
-
-        # link static dir
-        static_dir = read_static_dir(course_key)
-        if static_dir:
-            build_logger.info(f"\nLinking static dir {static_dir}\n")
-            src_path = Path("static", course_key)
-            if src_path.exists() or src_path.is_symlink():
-                src_path.unlink()
-            src_path.symlink_to(static_dir)
+        # copy the course material to store
+        if not store(config):
+            build_logger.error("Failed to store built course")
+            return
 
         # all went well
         update.status = UpdateStatus.SUCCESS

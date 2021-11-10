@@ -29,37 +29,41 @@ def configure_url(
         course_id: int,
         course_key: str,
         dir: str,
-        files: Iterable[Tuple[str, str]],
-        **kwargs: Any
+        files: Optional[Iterable[Tuple[str, str]]],
+        **kwargs: Any,
         ) -> Tuple[Optional[Response], Optional[Union[str, Dict[str,str]]]]:
 
-    logger.debug(f"Compressing for {url}")
+    tmp_file = None
+    if files is not None:
+        logger.debug(f"Compressing for {url}")
 
-    tmp_file = TemporaryFile(mode="w+b")
-    # no compression, only pack the files into a single package
-    tarh = TarFile(mode="w", fileobj=tmp_file, format=PAX_FORMAT)
+        tmp_file = TemporaryFile(mode="w+b")
+        # no compression, only pack the files into a single package
+        tarh = TarFile(mode="w", fileobj=tmp_file, format=PAX_FORMAT)
 
-    try:
-        for name, path in file_mappings(Path(dir), files):
-            tarh.add(path, name)
-    except ValueError as e:
-        return None, f"Skipping {url} configuration: error in zipping files: {e}"
+        try:
+            for name, path in file_mappings(Path(dir), files):
+                tarh.add(path, name)
+        except ValueError as e:
+            return None, f"Skipping {url} configuration: error in tarring files: {e}"
 
-    tarh.close()
-    tmp_file.seek(0)
+        tarh.close()
+        tmp_file.seek(0)
 
     permissions = Permissions()
     permissions.instances.add(Permission.WRITE, id=course_id)
 
-    data_dict = {
+    data_dict: Dict[str, Any] = {
         "course_id": str(course_id),
         "course_key": course_key,
-        "files": ("files", tmp_file, "application/octet-stream"),
         **{
             k: v if isinstance(v, str) else json.dumps(v, cls=JSONEncoder)
             for k,v in kwargs.items()
         },
     }
+    if tmp_file is not None:
+        data_dict["files"] = ("files", tmp_file, "application/octet-stream")
+
     data = MultipartEncoder(data_dict)
 
     logger.debug(f"Configuring {url}")
@@ -157,3 +161,38 @@ def configure_graders(config: CourseConfig):
                     }
 
     return exercise_defaults, errors
+
+
+def publish_graders(config: CourseConfig) -> List[str]:
+    configure_urls = {c.url for c in config.data.configures}
+    configure_urls.update(
+        {ex.configure.url for ex in config.exercises.values() if ex.configure}
+    )
+
+    course_id: int = Course.objects.get(key=config.key).remote_id
+
+    if course_id is None and configure_urls:
+        raise ValueError("Remote id not set: cannot publish")
+
+    errors = []
+    for url in configure_urls:
+        response, error = configure_url(url, course_id, config.key, config.dir, None, publish=True)
+        if error is not None:
+            errors.append(error)
+
+        if response is not None and response.status_code == 200:
+            if response.text:
+                try:
+                    logger.debug(f"Loading from {url}")
+                    configure_errors = json.loads(response.text)
+                except JSONDecodeError as e:
+                    logger.info(f"Couldn't load configure response:\n{e}")
+                    logger.debug(f"{url} returned {response.text}")
+                    errors.append({"url": url, "error": str(e)})
+                else:
+                    if isinstance(configure_errors, list):
+                        errors.extend(f"{url}: {e}" for e in configure_errors)
+                    else:
+                        errors.append(f"{url}: {configure_errors}")
+
+    return errors

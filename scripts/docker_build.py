@@ -1,6 +1,6 @@
 """
-If the app runs inside docker, TMP_DIR must be mounted to a directory on the host.
-Set HOST_TMP_DIR inside BUILD_MODULE_SETTINGS to be that directory. This is so
+If the app runs inside docker, BUILD_PATH must be mounted to a directory on the host.
+Set HOST_BUILD_PATH inside BUILD_MODULE_SETTINGS to be that directory. This is so
 that we can call docker and mount said directoty to the build container.
 """
 
@@ -20,7 +20,7 @@ def build(
         **kwargs,
         ) -> bool:
     env_args = [i for t in (("-e", f"{k}={v}") for k,v in env.items()) for i in t]
-    host_path = os.path.join(settings["HOST_TMP_PATH"], course_key)
+    host_path = os.path.join(settings["HOST_BUILD_PATH"], course_key)
     command = [
         "docker", "run",
         *env_args,

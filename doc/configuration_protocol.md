@@ -1,5 +1,14 @@
 # Protocol used to configure exercise graders
 
+The grader configuration happens in two stages: storing and publishing. In the
+storing stage, gitmanager sends all the relevant files and configs to the grader
+to be stored for later. Sometime after the storing, gitmanager will send another
+request telling the grader to publish the stored course. The rationale is that
+this way we can do all the heavy lifting before hand, and then publish the
+changes to the course at once everywhere.
+
+## Storing stage
+
 Gitmanager will send a POST request with the following POST fields:
 * `course_id`: the id of the course on A+
 * `course_key`: the course key on gitmanager
@@ -23,3 +32,10 @@ The grader should respond with a JSON where the keys are the keys of exercises
 and the value, for each exercise, is a dictionary of default configuration
 values. Any field not specified in the course configuration will be set to
 the value in this default configuration.
+
+## Publishing stage
+
+Gitmanager will send a POST request with the following POST fields:
+* `course_id`: the id of the course on A+
+* `course_key`: the course key on gitmanager
+* `publish`: true
