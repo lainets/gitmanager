@@ -2,10 +2,16 @@
 Utility functions for exercise files.
 
 '''
-from typing import Any, Dict, Generator, Iterable, Tuple, Union
-from django.conf import settings
-import datetime, random, string, os, shutil, json
+import fcntl
 from pathlib import Path
+import os
+import shutil
+import tempfile
+import time
+from types import TracebackType
+from typing import Dict, Generator, Iterable, Optional, Tuple, Type, Union
+
+from django.conf import settings
 
 from util.typing import PathLike
 
@@ -96,3 +102,120 @@ def file_mappings(root: Path, mappings_in: Iterable[Tuple[str,str]]) -> Generato
                 mappings.sort()
 
         yield from expand_full(*mappings.pop(0))
+
+
+def _tmp_path(path) -> str:
+    """
+    returns a path to a temporary file/directory (same as <path>) in the same
+    place as <path> with the name prefixed with <path>s name.
+    """
+    dir, name = os.path.split(path)
+    if os.path.isdir(path):
+        tmp = tempfile.mkdtemp(prefix=name, dir=dir)
+    else:
+        fd, tmp = tempfile.mkstemp(prefix=name, dir=dir)
+        os.close(fd)
+    return tmp
+
+
+def rename(src: PathLike, dst: PathLike, keep_tmp=False) -> Optional[str]:
+    """
+    renames a file or directory while making sure that the destination will only be removed if successful.
+    returns None if keep_tmp = False. Otherwise, returns a tmp path to dst (None if dst does not exist).
+    """
+    tmpdst = None
+
+    src, dst = os.fspath(src), os.fspath(dst)
+    if not os.path.exists(dst) or (os.path.isfile(dst) and os.path.isfile(src)):
+        if keep_tmp and os.path.exists(dst):
+            tmpdst = _tmp_path(dst)
+            os.rename(dst, tmpdst)
+
+        try:
+            os.rename(src, dst)
+        except:
+            if tmpdst:
+                os.rename(tmpdst, dst)
+            raise
+    else:
+        tmpdst = _tmp_path(dst)
+        try:
+            os.rename(dst, tmpdst)
+            os.rename(src, dst)
+        except:
+            os.rename(tmpdst, dst)
+            raise
+        else:
+            if not keep_tmp:
+                rm_path(tmpdst)
+
+    return tmpdst
+
+
+def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> None:
+    """
+    Renames multiple files and directories while making sure that either all or none succeed.
+    """
+    done = set()
+    try:
+        for src, dst in pairs:
+            tmpdst = rename(src, dst, True)
+            done.add((src, dst, tmpdst))
+    except:
+        for src, dst, tmp in done:
+            rename(dst, src)
+            if os.path.exists(tmp):
+                rename(tmp, dst)
+        raise
+    else:
+        for _, _, tmp in done:
+            if tmp is not None:
+                rm_path(tmp)
+
+
+def _try_lockf(lockfile, flags) -> Optional[OSError]:
+    try:
+        fcntl.lockf(lockfile, flags)
+    except OSError as e:
+        return e
+    return None
+
+class FileLock:
+    """
+    A context manager for acquiring a file lock on a file or directory.
+    __enter__ may raise OSError for non-blocking access on a locked file
+    or TimeoutError if obtaining a lock takes too long.
+    """
+    def __init__(self, path: PathLike, timeout: Optional[int] = None):
+        self.path = os.fspath(path) + ".lock"
+        self.timeout = timeout
+
+    def __enter__(self):
+        self.lockfile = open(self.path, "w")
+
+        if self.timeout is None:
+            fcntl.lockf(self.lockfile, fcntl.LOCK_EX)
+        else:
+            # we would use a signal to timeout but it can only be used on the main thread
+            e = _try_lockf(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if e:
+                for _ in range(self.timeout):
+                    time.sleep(1)
+                    e = _try_lockf(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    if not e:
+                        break
+                else:
+                    raise e
+
+
+        return self.lockfile
+
+    def __exit__(self, etype:  Optional[Type[Exception]], e: Optional[Exception], traceback: TracebackType):
+        try:
+            os.unlink(self.path)
+        except:
+            pass
+
+        fcntl.lockf(self.lockfile, fcntl.LOCK_UN)
+
+        self.lockfile.close()
