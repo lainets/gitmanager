@@ -106,12 +106,11 @@ def aplus_json(request: HttpRequest, course_key: str):
     '''
     errors = []
 
-    config_path = CourseConfig.store_path_to(course_key)
-    if Path(config_path).exists():
-        config = CourseConfig.load(config_path, course_key)
+    config = CourseConfig.load_from_store(course_key)
+    if config is not None:
         defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
     else:
-        config = CourseConfig.get(course_key)
+        config = CourseConfig.load_from_publish(course_key)
         defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
 
     if config is None:

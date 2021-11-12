@@ -148,15 +148,15 @@ class CourseConfig:
         return exercise._config_obj
 
     @staticmethod
-    def path_to(key: str, *paths: str) -> str:
+    def path_to(key: str = "", *paths: str) -> str:
         return os.path.join(settings.COURSES_PATH, key, *paths)
 
     @staticmethod
-    def build_path_to(key: str, *paths: str) -> str:
+    def build_path_to(key: str = "", *paths: str) -> str:
         return os.path.join(settings.BUILD_PATH, key, *paths)
 
     @staticmethod
-    def store_path_to(key: str, *paths: str) -> str:
+    def store_path_to(key: str = "", *paths: str) -> str:
         return os.path.join(settings.STORE_PATH, key, *paths)
 
     def static_path_to(self, *paths: str) -> Optional[str]:
@@ -218,18 +218,33 @@ class CourseConfig:
                 pass
 
         LOGGER.debug('Loading course "%s"' % (course_key))
-        course_dir = CourseConfig.path_to(course_key)
 
-        config = CourseConfig.load(course_dir, course_key)
+        config = CourseConfig.load_from_publish(course_key)
         if config is not None:
             CourseConfig._courses[course_key] = config
             symbolic_link(settings.COURSES_PATH, course_key, config)
         return config
 
+    @staticmethod
+    def load_from_publish(course_key: str) -> Optional["CourseConfig"]:
+        """Loads a course config from the publish directory"""
+        return CourseConfig.load(CourseConfig.path_to(), course_key)
 
     @staticmethod
-    def load(course_dir: str, course_key: str = "") -> Optional["CourseConfig"]:
-        """Loads course config from the given directory"""
+    def load_from_store(course_key: str) -> Optional["CourseConfig"]:
+        """Loads a course config from the store directory"""
+        return CourseConfig.load(CourseConfig.store_path_to(), course_key)
+
+    @staticmethod
+    def load_from_build(course_key: str) -> Optional["CourseConfig"]:
+        """Loads a course config from the build directory"""
+        return CourseConfig.load(CourseConfig.build_path_to(), course_key)
+
+    @staticmethod
+    def load(root_dir: str, course_key: str) -> Optional["CourseConfig"]:
+        """Loads a course config from the given root directory"""
+        course_dir = os.path.join(root_dir, course_key)
+
         meta = load_meta(course_dir)
         try:
             f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_dir, meta), INDEX))

@@ -204,7 +204,7 @@ def publish(course_key: str) -> List[str]:
     config = None
     if Path(store_path).exists():
         with FileLock(store_path):
-            config = CourseConfig.load(store_path, course_key)
+            config = CourseConfig.load_from_store(course_key)
             if config is not None:
                 renames([
                     (store_path, prod_path),
@@ -214,7 +214,7 @@ def publish(course_key: str) -> List[str]:
     if config is None:
         if Path(prod_path).exists():
             with FileLock(prod_path):
-                config = CourseConfig.load(prod_path, course_key)
+                config = CourseConfig.load_from_publish(course_key)
 
     if config is None:
         raise Exception(f"Config not found for {course_key} - the course probably has not been built")
@@ -296,7 +296,7 @@ def push_event(
 
         # try loading the configs to validate them
         try:
-            config = CourseConfig.load(str(build_path), course_key)
+            config = CourseConfig.load_from_build(course_key)
             if config is None:
                 return
             config.get_exercise_list()
