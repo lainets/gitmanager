@@ -10,7 +10,7 @@ import subprocess
 import sys
 import traceback
 from types import ModuleType
-from typing import List
+from typing import List, Optional
 import urllib.parse
 
 from django.conf import settings
@@ -58,28 +58,33 @@ if not callable(getattr(build_module, "build")):
     raise AttributeError(f"build attribute in {settings.BUILD_MODULE} is not callable")
 
 
-def build(course: Course, path: Path) -> bool:
+def build(course: Course, path: Path, image: Optional[str] = None, command: Optional[str] = None) -> bool:
     meta = load_meta(path)
 
-    build_image = settings.DEFAULT_IMAGE
-    build_command = None
-    if meta:
-        if "build_image" in meta:
-            build_image = meta["build_image"]
-            build_logger.info(f"Using build image: {build_image}\n\n")
-        else:
-            build_logger.info(f"No build_image in {META}, using the default: {build_image}\n\n")
-
-        if "build_command" in meta:
-            build_command = meta["build_command"]
-            build_logger.info(f"Using build command: {build_command}\n\n")
-        elif not "build_image" in meta:
-            build_command = settings.DEFAULT_CMD
-            build_logger.info(f"No build_command in {META}, using the default: {build_command}\n\n")
-        else:
-            build_logger.info(f"No build_command in {META}, using the image default\n\n")
+    if image is not None:
+        build_image = image
+        build_command = command
+        build_logger.info(f"Build image and command overridden: {build_image}, {build_command}\n\n")
     else:
-        build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
+        build_image = settings.DEFAULT_IMAGE
+        build_command = None
+        if meta:
+            if "build_image" in meta:
+                build_image = meta["build_image"]
+                build_logger.info(f"Using build image: {build_image}")
+            else:
+                build_logger.info(f"No build_image in {META}, using the default: {build_image}")
+
+            if "build_command" in meta:
+                build_command = meta["build_command"]
+                build_logger.info(f"Using build command: {build_command}\n\n")
+            elif not "build_image" in meta:
+                build_command = settings.DEFAULT_CMD
+                build_logger.info(f"No build_command in {META}, using the default: {build_command}\n\n")
+            else:
+                build_logger.info(f"No build_command in {META}, using the image default\n\n")
+        else:
+            build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
 
     env = {
         "COURSE_KEY": course.key,
@@ -232,6 +237,8 @@ def push_event(
         skip_git: bool = False,
         skip_build: bool = False,
         skip_notify: bool = False,
+        build_image: Optional[str] = None,
+        build_command: Optional[str] = None,
         ) -> None:
     logger.debug(f"push_event: {course_key}")
 
@@ -284,7 +291,7 @@ def push_event(
 
         if not skip_build:
             # build in tmp folder
-            build_status = build(course, Path(build_path))
+            build_status = build(course, Path(build_path), image = build_image, command = build_command)
             if not build_status:
                 return
         else:
