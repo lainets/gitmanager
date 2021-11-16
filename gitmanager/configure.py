@@ -137,7 +137,7 @@ def configure_graders(config: CourseConfig):
             )
         ))
 
-        response, error = configure_url(url, course_id, course_key, config.dir, files, course_spec=course_spec, exercises=exercise_data)
+        response, error = configure_url(url, course_id, course_key, config.dir, files, course_spec=course_spec, exercises=exercise_data, version_id=config.version_id)
         if error is not None:
             errors.append(error)
 
@@ -176,7 +176,7 @@ def publish_graders(config: CourseConfig) -> List[str]:
 
     errors = []
     for url in configure_urls:
-        response, error = configure_url(url, course_id, config.key, config.dir, None, publish=True)
+        response, error = configure_url(url, course_id, config.key, config.dir, None, publish=True, version_id=config.version_id)
         if error is not None:
             errors.append(error)
 

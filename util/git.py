@@ -1,11 +1,13 @@
 from logging import Logger, getLogger
 from pathlib import Path
+import os
 import subprocess
 from typing import List, Tuple
 
 from django.conf import settings
 
 from util.files import rm_path
+from util.typing import PathLike
 
 
 default_logger = getLogger("util.git")
@@ -78,3 +80,10 @@ def pull(path: str, origin: str, branch: str, *, logger: Logger = default_logger
         logger.info("------------\nFailed to clone repository\n------------\n\n")
         return success
 
+
+def get_commit_hash(path: PathLike) -> str:
+    success, hash_or_error = git_call(os.fspath(path), "rev-parse", ["HEAD"], include_cmd_string = False)
+    if success:
+        return hash_or_error
+    else:
+        raise RuntimeError(hash_or_error)

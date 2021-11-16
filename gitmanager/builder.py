@@ -4,8 +4,10 @@ import json
 import logging
 from pathlib import Path
 import os
+import random
 import shlex
 import shutil
+import string
 import subprocess
 import sys
 import traceback
@@ -24,7 +26,7 @@ from aplus_auth.requests import post
 from access.config import CourseConfig, load_meta, META
 from gitmanager.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
-from util.git import pull
+from util.git import get_commit_hash, pull
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url_path
 from util.typing import PathLike
@@ -56,6 +58,13 @@ if not hasattr(build_module, "build"):
     raise AttributeError(f"{settings.BUILD_MODULE} does not have a build function")
 if not callable(getattr(build_module, "build")):
     raise AttributeError(f"build attribute in {settings.BUILD_MODULE} is not callable")
+
+
+def _get_version_id(course_dir: PathLike) -> str:
+    try:
+        return get_commit_hash(course_dir)
+    except:
+        return "".join(random.choices(string.ascii_letters + string.digits, k=20))
 
 
 def build(course: Course, path: Path, image: Optional[str] = None, command: Optional[str] = None) -> bool:
@@ -178,6 +187,7 @@ def store(config: CourseConfig) -> bool:
 
     store_path = CourseConfig.store_path_to(course_key)
     store_defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+    store_version_path = CourseConfig.version_id_path(CourseConfig.store_path_to(), course_key)
 
     build_logger.info("Acquiring file lock...")
     with FileLock(store_path, timeout=settings.BUILD_FILELOCK_TIMEOUT):
@@ -189,6 +199,10 @@ def store(config: CourseConfig) -> bool:
 
         with open(store_defaults_path, "w") as f:
             json.dump(exercise_defaults, f)
+
+        if config.version_id is not None:
+            with open(store_version_path, "w") as f:
+                f.write(config.version_id)
 
     return True
 
@@ -203,8 +217,10 @@ def publish(course_key: str) -> List[str]:
     """
     prod_path = CourseConfig.path_to(course_key)
     prod_defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
+    prod_version_path = CourseConfig.version_id_path(CourseConfig.path_to(), course_key)
     store_path = CourseConfig.store_path_to(course_key)
     store_defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+    store_version_path = CourseConfig.version_id_path(CourseConfig.store_path_to(), course_key)
 
     config = None
     if Path(store_path).exists():
@@ -214,6 +230,7 @@ def publish(course_key: str) -> List[str]:
                 renames([
                     (store_path, prod_path),
                     (store_defaults_path, prod_defaults_path),
+                    (store_version_path, prod_version_path),
                 ])
 
     if config is None:
@@ -300,6 +317,10 @@ def push_event(
         if not is_self_contained(build_path):
             build_logger.error(f"Course {course_key} is not self contained (contains links to files outside course directory)")
             return
+
+        id_path = CourseConfig.version_id_path(CourseConfig.build_path_to(), course_key)
+        with open(id_path, "w") as f:
+            f.write(_get_version_id(build_path))
 
         # try loading the configs to validate them
         try:

@@ -3,19 +3,20 @@ The exercises and classes are configured in json/yaml.
 Courses are listed in the database.
 '''
 from __future__ import annotations
+import copy
 from dataclasses import dataclass
 from pathlib import Path
-from util.pydantic import Undefined, validation_error_str, validation_warning_str
-from django.conf import settings
-import os, time
 import logging
+import os
+import time
 from typing import Any, ClassVar, Dict, Optional, List, Tuple, Union
-import copy
 
+from django.conf import settings
 from pydantic.error_wrappers import ValidationError
 
 from util.files import read_meta
 from util.localize import DEFAULT_LANG
+from util.pydantic import Undefined, validation_error_str, validation_warning_str
 from util.static import symbolic_link
 from gitmanager.models import Course as CourseModel
 from .course import Course, Exercise, Parent, ExerciseConfig
@@ -63,6 +64,7 @@ class CourseConfig:
     file: str
     mtime: float
     ptime: float
+    version_id: Optional[str]
     data: Course
     lang: str
     exercises: Dict[str, Exercise]
@@ -158,6 +160,10 @@ class CourseConfig:
     @staticmethod
     def store_path_to(key: str = "", *paths: str) -> str:
         return os.path.join(settings.STORE_PATH, key, *paths)
+
+    @staticmethod
+    def version_id_path(root: str, key: str = "") -> str:
+        return os.path.join(root, key + ".version")
 
     def static_path_to(self, *paths: str) -> Optional[str]:
         if self.data.static_dir is Undefined:
@@ -301,6 +307,12 @@ class CourseConfig:
             for module in course.modules:
                 gather_exercises(module)
 
+        try:
+            with open(CourseConfig.version_id_path(root_dir, course_key)) as file:
+                version_id = file.read()
+        except:
+            version_id = None
+
         return CourseConfig(
             key = course_key,
             dir = course_dir,
@@ -308,6 +320,7 @@ class CourseConfig:
             file = f,
             mtime = t,
             ptime = time.time(),
+            version_id = version_id,
             data = course,
             lang = default_lang,
             exercises = exercises,

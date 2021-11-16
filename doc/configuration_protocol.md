@@ -10,6 +10,7 @@ changes to the course at once everywhere.
 ## Storing stage
 
 Gitmanager will send a POST request with the following POST fields:
+* `version_id`: an unique id for this config version
 * `course_id`: the id of the course on A+
 * `course_key`: the course key on gitmanager
 * `course_spec`: the parsed contents of the course config file
@@ -36,6 +37,13 @@ the value in this default configuration.
 ## Publishing stage
 
 Gitmanager will send a POST request with the following POST fields:
+* `version_id`: the unique id of the config version to be published
 * `course_id`: the id of the course on A+
 * `course_key`: the course key on gitmanager
 * `publish`: true
+
+If `version_id` does not match the `version_id` of the course currently
+published or the one that is stored, the grader should leave the course as is
+and return an error saying that the `version_id` does not match.
+
+If succesful, the grader should respond with an empty response or a list of errors (in JSON).
