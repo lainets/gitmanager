@@ -13,6 +13,7 @@ class Course(models.Model):
     git_branch = models.CharField(max_length=40)
     update_hook = models.URLField(blank=True)
     email_on_error = models.BooleanField(default=True)
+    update_automatically = models.BooleanField(default=True)
 
     class META:
         ordering = ['key']

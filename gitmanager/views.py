@@ -31,7 +31,7 @@ def edit(request, key=None):
         course = None
         form = CourseForm(request.POST or None)
     for name in form.fields:
-        if name != "email_on_error":
+        if name not in ("email_on_error", "update_automatically"):
             form.fields[name].widget.attrs = {'class': 'form-control'}
     if request.method == 'POST' and form.is_valid():
         form.save()

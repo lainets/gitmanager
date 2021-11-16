@@ -347,7 +347,9 @@ def push_event(
         build_logger.error("Build failed.\n")
         build_logger.error(traceback.format_exc() + "\n")
     else:
-        if course.remote_id is None:
+        if not course.update_automatically:
+            build_logger.info("Configured to not update automatically.")
+        elif course.remote_id is None:
             build_logger.warning("Remote id not set. Not doing an automatic update.")
         elif skip_notify:
             build_logger.info("Skipping automatic update.")
