@@ -101,6 +101,12 @@ def file_mappings(root: Path, mappings_in: Iterable[Tuple[str,str]]) -> Generato
                 mappings.extend(expand_dir(*map))
                 mappings.sort()
 
+
+        if not is_subpath(str(mappings[0][1]), str(root)):
+            raise ValueError(f"{mappings[0][0]} is mapped to a file ({mappings[0][1]}) outside the root ({root})")
+        elif os.path.isabs(mappings[0][0]):
+            raise ValueError(f"tar filename {mappings[0][0]} is absolute")
+
         yield from expand_full(*mappings.pop(0))
 
 
