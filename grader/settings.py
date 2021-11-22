@@ -48,6 +48,9 @@ BUILD_MODULE_SETTINGS = {
   "HOST_BUILD_PATH": BUILD_PATH,
 }
 
+# Whether to use the X-SendFile
+USE_X_SENDFILE = False
+
 # Build task scheduling redis options. These are ignored by huey if DEBUG=True
 # and immediate mode is not turned off in HUEY settings.
 redis_host = environ.get("REDIS_HOST", "localhost")

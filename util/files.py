@@ -12,6 +12,7 @@ from types import TracebackType
 from typing import Dict, Generator, Iterable, Optional, Tuple, Type, Union
 
 from django.conf import settings
+from django.http.response import FileResponse as DjangoFileResponse, HttpResponse
 
 from util.typing import PathLike
 
@@ -225,3 +226,20 @@ class FileLock:
         fcntl.lockf(self.lockfile, fcntl.LOCK_UN)
 
         self.lockfile.close()
+
+
+class StreamingFileResponse(DjangoFileResponse):
+    def __init__(self, path: str):
+        super().__init__(open(os.path.join(settings.COURSES_PATH, path), "rb"))
+
+
+class XSendFileResponse(HttpResponse):
+    def __init__(self, path: str):
+        super().__init__()
+        self["X-Accel-Redirect"] = os.path.join("/authorized_static", path)
+
+
+if settings.USE_X_SENDFILE:
+    FileResponse = XSendFileResponse
+else:
+    FileResponse = StreamingFileResponse
