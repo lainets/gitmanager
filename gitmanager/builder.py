@@ -12,7 +12,7 @@ import subprocess
 import sys
 import traceback
 from types import ModuleType
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import urllib.parse
 
 from django.conf import settings
@@ -142,15 +142,17 @@ def send_error_mail(course: Course, subject: str, message: str) -> bool:
     return True
 
 
-def is_self_contained(path: PathLike) -> bool:
+def is_self_contained(path: PathLike) -> Tuple[bool, Optional[str]]:
     spath = os.fspath(path)
     for root, _, files in os.walk(spath):
         rpath = Path(root)
         for file in files:
             if not is_subpath(str((rpath / file).resolve()), spath):
-                return False
+                return False, f"{rpath / file} links to a path outside the course directory"
+            if os.path.islink(rpath / file) and os.path.isabs(os.readlink(rpath / file)):
+                return False, f"{rpath / file} is an absolute symlink: this will break the course"
 
-    return True
+    return True, None
 
 
 def copytree(src: PathLike, dst: PathLike) -> None:
@@ -316,8 +318,9 @@ def push_event(
         else:
             build_logger.info("Skipping build.")
 
-        if not is_self_contained(build_path):
-            build_logger.error(f"Course {course_key} is not self contained (contains links to files outside course directory)")
+        value, error = is_self_contained(build_path)
+        if not value:
+            build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
 
         id_path = CourseConfig.version_id_path(CourseConfig.build_path_to(), course_key)
