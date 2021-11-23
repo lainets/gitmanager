@@ -1,8 +1,10 @@
 import json
 import logging
+import os.path
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from aplus_auth.auth.django import Request
 from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse, Http404
 from django.utils import translation
@@ -14,6 +16,7 @@ from access.course import Exercise, Chapter, Parent
 from gitmanager import builder
 from gitmanager.models import Course
 from util import export
+from util.files import FileResponse
 from util.login_required import login_required
 
 
@@ -60,6 +63,30 @@ def course(request, course_key):
 
     render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     return render(request, 'access/course.html', render_context)
+
+
+@login_required
+def protected(request: Request, course_key: str, path: str):
+    if os.path.normpath(path).startswith("../"):
+        raise Http404()
+
+    try:
+        course: Course = Course.objects.get(key=course_key)
+    except Course.DoesNotExist:
+        raise Http404()
+
+    if not course.has_read_access(request, True):
+        return HttpResponse(status=403)
+
+    config = CourseConfig.get(course_key)
+    if config is None:
+        raise Http404()
+
+    static_path = config.static_path_to(path)
+    if static_path is None:
+        raise Http404()
+
+    return FileResponse(CourseConfig.relative_path_to(course_key, static_path))
 
 
 def serve_exercise_file(request, course_key, exercise_key, basename, dict_key, type):
@@ -130,7 +157,7 @@ def aplus_json(request: HttpRequest, course_key: str):
         errors.append("Could not find exercise defaults file. Try rebuilding the course")
         exercise_defaults = {}
 
-    data = config.data.dict(exclude={"modules", "static_dir"})
+    data = config.data.dict(exclude={"modules", "static_dir", "unprotected_paths"})
 
     # TODO: this should really be done before the course validation happens
     def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:

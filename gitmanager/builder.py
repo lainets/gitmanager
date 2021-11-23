@@ -28,7 +28,7 @@ from gitmanager.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
 from util.git import get_commit_hash, pull
 from util.pydantic import validation_error_str, validation_warning_str
-from util.static import static_url_path
+from util.static import static_url_path, symbolic_link
 from util.typing import PathLike
 from .models import Course, CourseUpdate, UpdateStatus
 
@@ -240,6 +240,8 @@ def publish(course_key: str) -> List[str]:
 
     if config is None:
         raise Exception(f"Config not found for {course_key} - the course probably has not been built")
+    else:
+        symbolic_link(config)
 
     return publish_graders(config)
 

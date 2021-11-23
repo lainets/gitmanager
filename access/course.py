@@ -331,7 +331,8 @@ class Course(PydanticModel):
     module_numbering: NotRequired[NumberingType]
     numerate_ignoring_modules: NotRequired[bool]
     view_content_to: NotRequired[Literal["enrolled", "enrollment_audience", "all_registered", "public"]]
-    static_dir: NotRequired[str]
+    static_dir: NotRequired[Path]
+    unprotected_paths: NotRequired[Set[Path]]
     configures: List[ConfigureOptions] = []
 
     def postprocess(self, **kwargs: Any):
@@ -356,6 +357,10 @@ class Course(PydanticModel):
             urls.append(c.url)
 
         return configures
+
+    @validator('unprotected_paths', allow_reuse=True)
+    def validate_unprotected_paths(cls, paths: Set[Path]) -> Set[Path]:
+        return paths.union(Path(p) for p in ("_downloads", "_static", "_images"))
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_categories(cls, values: Dict[str, Any]) -> Dict[str, Any]:

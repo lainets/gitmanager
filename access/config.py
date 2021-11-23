@@ -17,7 +17,7 @@ from pydantic.error_wrappers import ValidationError
 from util.files import read_meta
 from util.localize import DEFAULT_LANG
 from util.pydantic import Undefined, validation_error_str, validation_warning_str
-from util.static import symbolic_link
+from util.static import static_path, symbolic_link
 from gitmanager.models import Course as CourseModel
 from .course import Course, Exercise, Parent, ExerciseConfig
 from .parser import ConfigParser, ConfigError
@@ -150,16 +150,23 @@ class CourseConfig:
         return exercise._config_obj
 
     @staticmethod
+    def relative_path_to(key: str = "", *paths: str) -> str:
+        """
+        Returns the path of course <course_key> relative to the course root directory.
+        """
+        return os.path.join(key, *paths)
+
+    @staticmethod
     def path_to(key: str = "", *paths: str) -> str:
-        return os.path.join(settings.COURSES_PATH, key, *paths)
+        return os.path.join(settings.COURSES_PATH, CourseConfig.relative_path_to(key, *paths))
 
     @staticmethod
     def build_path_to(key: str = "", *paths: str) -> str:
-        return os.path.join(settings.BUILD_PATH, key, *paths)
+        return os.path.join(settings.BUILD_PATH, CourseConfig.relative_path_to(key, *paths))
 
     @staticmethod
     def store_path_to(key: str = "", *paths: str) -> str:
-        return os.path.join(settings.STORE_PATH, key, *paths)
+        return os.path.join(settings.STORE_PATH, CourseConfig.relative_path_to(key, *paths))
 
     @staticmethod
     def version_id_path(root: str, key: str = "") -> str:
@@ -228,7 +235,8 @@ class CourseConfig:
         config = CourseConfig.load_from_publish(course_key)
         if config is not None:
             CourseConfig._courses[course_key] = config
-            symbolic_link(settings.COURSES_PATH, course_key, config)
+            if not static_path(config).exists():
+                symbolic_link(config)
         return config
 
     @staticmethod

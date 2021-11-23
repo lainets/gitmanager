@@ -115,7 +115,7 @@ def configure_graders(config: CourseConfig):
     if course_id is None and configures:
         raise ValueError("Remote id not set: cannot configure")
 
-    course_spec = config.data.dict(exclude={"static_dir", "configures"})
+    course_spec = config.data.dict(exclude={"static_dir", "configures", "unprotected_paths"})
 
     exercise_defaults: Dict[str, Any] = {}
     errors = []
