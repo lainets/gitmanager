@@ -101,11 +101,16 @@ def hook(request, key):
             course=course,
             request_ip=get_client_ip(request)
         )
-        params = {k: request.POST[k] == "on" for k in ("skip_git", "skip_build", "skip_notify") if k in request.POST}
-        if "build_image" in request.POST and request.POST["build_image"]:
-            params["build_image"] = request.POST["build_image"]
-        if "build_command" in request.POST and request.POST["build_command"]:
-            params["build_command"] = request.POST["build_command"]
+
+        request_params = request.POST.dict()
+        request_params.update(request.GET.dict())
+
+        params = {k: request_params == "on" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
+        if "build_image" in request_params and request_params["build_image"]:
+            params["build_image"] = request_params["build_image"]
+        if "build_command" in request_params and request_params["build_command"]:
+            params["build_command"] = request_params["build_command"]
+
         push_event(key, **params)
 
     if request.META.get('HTTP_REFERER'):
