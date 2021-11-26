@@ -46,21 +46,44 @@ def course(request, course_key):
     '''
     Signals that the course is ready to be graded and lists available exercises.
     '''
-    course_config = CourseConfig.get(course_key)
-    if course_config is None:
-        raise Http404()
-    exercises = course_config.get_exercise_list()
+    error = None
+    course_config = None
+    exercises = None
+    try:
+        course_config = CourseConfig.get(course_key)
+    except ConfigError as e:
+        error = str(e)
+    else:
+        if course_config is None:
+            try:
+                Course.objects.get(key=course_key)
+            except:
+                raise Http404()
+            else:
+                error = "Failed to load course config (has it been built and published?)"
+        else:
+            exercises = course_config.get_exercise_list()
+
     if request.is_ajax():
-        return JsonResponse({
-            "ready": True,
-            "course_name": course_config.data.name,
-            "exercises": _filter_fields(exercises, ["key", "title"]),
-        })
+        if course_config is None:
+            data = {
+                "ready": False,
+                "errors": [error],
+            }
+        else:
+            data = {
+                "ready": True,
+                "course_name": course_config.data.name,
+                "exercises": _filter_fields(exercises, ["key", "title"]),
+            }
+        return JsonResponse(data)
+
     render_context = {
-        'course': course_config.data,
+        'course': course_config.data if course_config is not None else {"name": course_key},
         'exercises': exercises,
         'plus_config_url': request.build_absolute_uri(reverse(
-            'aplus-json', args=[course_config.key])),
+            'aplus-json', args=[course_key])),
+        'error': error,
     }
 
     render_context["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
@@ -93,7 +116,10 @@ def protected(request: Request, course_key: str, path: str):
 
 def serve_exercise_file(request, course_key, exercise_key, basename, dict_key, type):
     lang = request.GET.get('lang', None)
-    (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
+    try:
+        (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
+    except ConfigError as e:
+        return HttpResponse(str(e), content_type='text/plain')
 
     if dict_key not in exercise:
         raise Http404()
@@ -108,8 +134,11 @@ def serve_exercise_file(request, course_key, exercise_key, basename, dict_key, t
             content = f.read()
     except FileNotFoundError as error:
         raise Http404(f"{type} file missing") from error
-    else:
-        return HttpResponse(content, content_type='text/plain')
+    except OSError as error:
+        logger.error(f'Error in reading the exercise model file "{path}".', exc_info=error)
+        content = str(error)
+
+    return HttpResponse(content, content_type='text/plain')
 
 
 @login_required
@@ -175,7 +204,11 @@ def aplus_json(request: HttpRequest, course_key: str):
         for o in parent.children:
             of = o.dict(exclude={"children"})
             if isinstance(o, Exercise) and o.config:
-                exercise = config.exercise_config(o.key)
+                try:
+                    exercise = config.exercise_config(o.key)
+                except ConfigError as e:
+                    errors.append(str(e))
+                    continue
                 data = exercise_defaults.get(o.key, {})
                 data.update(export.exercise(request, config, exercise, of))
             elif isinstance(o, Chapter):
