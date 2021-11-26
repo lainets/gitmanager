@@ -271,6 +271,8 @@ class CourseConfig:
         t, data = ConfigParser.parse(f)
         if data is None:
             raise ConfigError('Failed to parse configuration file "%s"' % (f))
+        elif not isinstance(data, dict):
+            raise ConfigError(f'The configuration data is invalid. It must be a dictionary. File "{f}"')
 
         default_lang = CourseConfig._default_lang(data)
 
