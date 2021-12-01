@@ -232,38 +232,39 @@ class CourseConfig:
 
         LOGGER.debug('Loading course "%s"' % (course_key))
 
-        config = CourseConfig.load_from_publish(course_key)
-        if config is not None:
-            CourseConfig._courses[course_key] = config
-            if not static_path(config).exists():
-                symbolic_link(config)
+        try:
+            config = CourseConfig.load_from_publish(course_key)
+        except ConfigError:
+            return None
+
+        CourseConfig._courses[course_key] = config
+        if not static_path(config).exists():
+            symbolic_link(config)
+
         return config
 
     @staticmethod
-    def load_from_publish(course_key: str) -> Optional["CourseConfig"]:
+    def load_from_publish(course_key: str) -> CourseConfig:
         """Loads a course config from the publish directory"""
         return CourseConfig.load(CourseConfig.path_to(), course_key)
 
     @staticmethod
-    def load_from_store(course_key: str) -> Optional["CourseConfig"]:
+    def load_from_store(course_key: str) -> CourseConfig:
         """Loads a course config from the store directory"""
         return CourseConfig.load(CourseConfig.store_path_to(), course_key)
 
     @staticmethod
-    def load_from_build(course_key: str) -> Optional["CourseConfig"]:
+    def load_from_build(course_key: str) -> CourseConfig:
         """Loads a course config from the build directory"""
         return CourseConfig.load(CourseConfig.build_path_to(), course_key)
 
     @staticmethod
-    def load(root_dir: str, course_key: str) -> Optional["CourseConfig"]:
+    def load(root_dir: str, course_key: str) -> CourseConfig:
         """Loads a course config from the given root directory"""
         course_dir = os.path.join(root_dir, course_key)
 
         meta = load_meta(course_dir)
-        try:
-            f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_dir, meta), INDEX))
-        except ConfigError:
-            return None
+        f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_dir, meta), INDEX))
 
         t = os.path.getmtime(f)
         data = ConfigParser.parse(f)

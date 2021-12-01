@@ -1,4 +1,5 @@
 import json
+from json.decoder import JSONDecodeError
 import logging
 import os.path
 from pathlib import Path
@@ -13,6 +14,7 @@ from django.views import View
 
 from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
+from access.parser import ConfigError
 from gitmanager import builder
 from gitmanager.models import Course
 from util import export
@@ -133,26 +135,34 @@ def aplus_json(request: HttpRequest, course_key: str):
     '''
     errors = []
 
-    config = CourseConfig.load_from_store(course_key)
-    if config is not None:
-        defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
-    else:
-        config = CourseConfig.load_from_publish(course_key)
-        defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
-
-    if config is None:
+    try:
+        config = CourseConfig.load_from_store(course_key)
+    except ConfigError as e:
         try:
-            Course.objects.get(key=course_key)
-        except:
-            raise Http404()
-        else:
-            return JsonResponse({
-                "success": False,
-                "errors": ["Course has not been (successfully) built yet"],
-            })
+            config = CourseConfig.load_from_publish(course_key)
+        except ConfigError as e2:
+            try:
+                Course.objects.get(key=course_key)
+            except:
+                raise Http404()
+            else:
+                return JsonResponse({
+                    "success": False,
+                    "errors": ["Failed to load course config (has it been built?):", str(e), str(e2)],
+                })
+
+        defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
+    else:
+        defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
 
     if Path(defaults_path).exists():
-        exercise_defaults = json.load(open(defaults_path, "r"))
+        try:
+            exercise_defaults = json.load(open(defaults_path, "r"))
+        except (JSONDecodeError, OSError) as e:
+            return JsonResponse({
+                "success": False,
+                "errors": ["Failed to load course exercise defaults JSON: " + str(e)],
+            })
     else:
         errors.append("Could not find exercise defaults file. Try rebuilding the course")
         exercise_defaults = {}

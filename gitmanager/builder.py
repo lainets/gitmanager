@@ -24,6 +24,7 @@ from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import post
 
 from access.config import CourseConfig, load_meta, META
+from access.parser import ConfigError
 from gitmanager.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
 from util.git import get_commit_hash, pull
@@ -227,8 +228,11 @@ def publish(course_key: str) -> List[str]:
     config = None
     if Path(store_path).exists():
         with FileLock(store_path):
-            config = CourseConfig.load_from_store(course_key)
-            if config is not None:
+            try:
+                config = CourseConfig.load_from_store(course_key)
+            except ConfigError:
+                pass
+            else:
                 renames([
                     (store_path, prod_path),
                     (store_defaults_path, prod_defaults_path),
@@ -238,7 +242,10 @@ def publish(course_key: str) -> List[str]:
     if config is None:
         if Path(prod_path).exists():
             with FileLock(prod_path):
-                config = CourseConfig.load_from_publish(course_key)
+                try:
+                    config = CourseConfig.load_from_publish(course_key)
+                except ConfigError:
+                    pass
 
     if config is None:
         raise Exception(f"Config not found for {course_key} - the course probably has not been built")
@@ -330,9 +337,10 @@ def push_event(
         # try loading the configs to validate them
         try:
             config = CourseConfig.load_from_build(course_key)
-            if config is None:
-                return
             config.get_exercise_list()
+        except ConfigError as e:
+            build_logger.warning("Failed to load config")
+            raise
         except ValidationError as e:
             build_logger.error(validation_error_str(e))
             return
