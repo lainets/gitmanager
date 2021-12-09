@@ -4,10 +4,10 @@ import logging
 import os
 import re
 from typing import Callable, Dict, Optional, Tuple
+from django.template.context import Context
 import yaml
 
-from django.conf import settings
-from django.template import loader as django_template_loader
+from django.template import Template
 from django.template.exceptions import TemplateDoesNotExist, TemplateSyntaxError
 
 from util.dict import get_rst_as_html
@@ -154,13 +154,13 @@ class ConfigParser:
 
                 if "template_context" in include_data:
                     # Load new data from rendered include file string
-                    render_context = include_data["template_context"]
-                    template_name = os.path.join(course_dir, include_file)
-                    template_name = template_name[len(settings.COURSES_PATH)+1:] # FIXME: XXX: NOTE: TODO: Fix this hack
-                    rendered = django_template_loader.render_to_string(
-                                template_name,
-                                render_context
-                            )
+                    if not isinstance(include_data["template_context"], dict):
+                        raise ConfigError(f"template_context must be a dict in file {target_file}")
+
+                    render_context = Context(include_data["template_context"])
+                    with open(include_file) as f:
+                        template = Template(f.read())
+                    rendered = template.render(Context(render_context))
                     new_data = loader(io.StringIO(rendered))
                 else:
                     # Load new data directly from the include file
