@@ -97,6 +97,12 @@ def build(course: Course, path: Path, image: Optional[str] = None, command: Opti
         else:
             build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
 
+    build_image = build_image.strip()
+
+    if not build_image:
+        build_logger.info(f"Build image is empty. Assuming no build is needed\n\n")
+        return True
+
     env = {
         "COURSE_KEY": course.key,
         "COURSE_ID": str(course.remote_id),
@@ -114,7 +120,7 @@ def build(course: Course, path: Path, image: Optional[str] = None, command: Opti
         logger=build_logger,
         course_key=course.key,
         path=path,
-        image=build_image.strip(),
+        image=build_image,
         cmd=build_command,
         env=env,
         settings=settings.BUILD_MODULE_SETTINGS,
