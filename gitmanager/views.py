@@ -105,10 +105,10 @@ def hook(request, key):
         request_params = request.POST.dict()
         request_params.update(request.GET.dict())
 
-        params = {k: request_params == "on" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
-        if "build_image" in request_params and request_params["build_image"]:
+        params = {k: request_params[k] == "on" or request_params[k] == "true" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
+        if request_params.get("build_image"):
             params["build_image"] = request_params["build_image"]
-        if "build_command" in request_params and request_params["build_command"]:
+        if request_params.get("build_command"):
             params["build_command"] = request_params["build_command"]
 
         push_event(key, **params)
