@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, TypeVar, Union
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import os
 import time
 
@@ -277,6 +277,9 @@ class SimpleDuration(PydanticModel):
         else:
             raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
 
+AnyDuration = Union[timedelta, SimpleDuration]
+AnyDate = Union[date, datetime, str] # TODO: get rid of str. Not sure if even neccessary
+
 
 Float0to1 = confloat(ge=0, le=1)
 
@@ -287,14 +290,14 @@ class Module(Parent):
     status: NotRequired[str]
     order: NotRequired[int]
     introduction: NotRequired[str]
-    open: NotRequired[datetime]
-    close: NotRequired[datetime]
-    duration: NotRequired[Union[timedelta, SimpleDuration]]
-    read_open: NotRequired[Optional[datetime]] = Field(alias="read-open")
+    open: NotRequired[AnyDate]
+    close: NotRequired[AnyDate]
+    duration: NotRequired[AnyDuration]
+    read_open: NotRequired[Optional[AnyDate]] = Field(alias="read-open")
     points_to_pass: NotRequired[NonNegativeInt]
-    late_close: NotRequired[datetime]
+    late_close: NotRequired[AnyDate]
     late_penalty: NotRequired[Float0to1]
-    late_duration: NotRequired[Union[timedelta, SimpleDuration]]
+    late_duration: NotRequired[AnyDuration]
     numerate_ignoring_modules: NotRequired[bool]
 
     @root_validator(allow_reuse=True, pre=True)
@@ -313,7 +316,7 @@ class Course(PydanticModel):
     name: str
     modules: List[Module]
     lang: Union[str, List[str]] = DEFAULT_LANG
-    archive_time: NotRequired[datetime]
+    archive_time: NotRequired[AnyDate]
     assistants: NotRequired[List[str]]
     categories: Dict[str, Any] = {} # TODO: add a pydantic model for categories
     contact: NotRequired[str]
@@ -321,14 +324,14 @@ class Course(PydanticModel):
     course_description: NotRequired[str]
     course_footer: NotRequired[str]
     description: NotRequired[str]
-    start: NotRequired[datetime]
-    end: NotRequired[datetime]
+    start: NotRequired[AnyDate]
+    end: NotRequired[AnyDate]
     enrollment_audience: NotRequired[Literal["internal", "external", "all"]]
-    enrollment_end: NotRequired[datetime]
-    enrollment_start: NotRequired[datetime]
+    enrollment_end: NotRequired[AnyDate]
+    enrollment_start: NotRequired[AnyDate]
     head_urls: List[AnyHttpUrl] = []
     index_mode: NotRequired[Literal["results", "toc", "last", "experimental"]]
-    lifesupport_time: NotRequired[datetime]
+    lifesupport_time: NotRequired[AnyDate]
     module_numbering: NotRequired[NumberingType]
     numerate_ignoring_modules: NotRequired[bool]
     view_content_to: NotRequired[Literal["enrolled", "enrollment_audience", "all_registered", "public"]]
@@ -390,12 +393,24 @@ class Course(PydanticModel):
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_module_dates(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        def get_datetime(value):
+            if isinstance(value, date):
+                return datetime.combine(value, datetime.max.time())
+            elif not isinstance(value, datetime):
+                return None
+            return value
+
+        end_date = get_datetime(values.get("end"))
         for m in values["modules"]:
-            if m.close and values.get("end") and m.close > values["end"]:
+            close = get_datetime(m.close)
+            if close and end_date and close > end_date:
                 m.add_warning(f"Course ends before module closes")
 
-            if m.late_close:
-                close = m.close or values["end"]
-                if close and m.late_close < close:
-                    m.add_warning(f"'late_close' is before 'close'")
+            late_close = get_datetime(m.late_close)
+            if late_close:
+                if close:
+                    if late_close < close:
+                        m.add_warning(f"'late_close' is before 'close'")
+                elif end_date and late_close < end_date:
+                    m.add_warning(f"'late_close' is before module close (which defaults to course 'end')")
         return values
