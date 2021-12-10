@@ -18,6 +18,8 @@ ADMINS = (
 )
 #SERVER_EMAIL = 'root@'
 ALLOWED_HOSTS = ["*"]
+# The scheme and hostname of where the static files can be accessed. Passed to build containers
+STATIC_CONTENT_HOST = None
 SSH_KEY_PATH=join(environ['HOME'], ".ssh/id_ecdsa")
 
 # scheme and host for automatic updates

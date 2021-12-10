@@ -101,6 +101,10 @@ def build(course: Course, path: Path, image: Optional[str] = None, command: Opti
         "COURSE_KEY": course.key,
         "COURSE_ID": str(course.remote_id),
         "STATIC_URL_PATH": static_url_path(course.key),
+        "STATIC_CONTENT_HOST":
+            urllib.parse.urljoin(settings.STATIC_CONTENT_HOST, static_url_path(course.key))
+            if settings.STATIC_CONTENT_HOST
+            else None,
     }
 
     if build_command is not None:
