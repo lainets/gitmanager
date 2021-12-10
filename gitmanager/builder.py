@@ -1,6 +1,7 @@
 import importlib
 from io import StringIO
 import json
+from json.decoder import JSONDecodeError
 import logging
 from pathlib import Path
 import os
@@ -141,6 +142,53 @@ def send_error_mail(course: Course, subject: str, message: str) -> bool:
         return False
 
     return True
+
+
+def notify_update(course: Course):
+    errors = []
+    success = False
+    try:
+        notification_url = urllib.parse.urljoin(settings.FRONTEND_URL, f"api/v2/courses/{course.remote_id}/notify_update/")
+        permissions = Permissions()
+        permissions.instances.add(Permission.WRITE, id=course.remote_id)
+        response = post(notification_url, permissions=permissions, data={"email_on_error": course.email_on_error}, headers={"Application": "application/json, application/*"})
+    except Exception as e:
+        logger.exception(f"Failed to notify_update for course id {course.remote_id}")
+        errors.append(str(e))
+    else:
+        if response.status_code != 200:
+            logger.error(f"notify_update returned {response.reason}: {response.text}")
+            errors.append(response.reason)
+        else:
+            try:
+                data = json.loads(response.text)
+            except JSONDecodeError:
+                logger.exception("Failed to load notify_update response JSON")
+                errors.append("Failed to load notify_update response JSON")
+            else:
+                success = data.get("success", True)
+                response_errors = data.get("errors", [])
+                if not isinstance(response_errors, list):
+                    response_errors = [str(response_errors)]
+
+                errors.extend(response_errors)
+    finally:
+        errorstr = "\n".join(errors)
+        if success and not errorstr:
+            build_logger.info("Success.")
+        elif success and errorstr:
+            build_logger.warn("Success with warnings:")
+            build_logger.warn(errorstr)
+        else:
+            build_logger.error("Failed:")
+            build_logger.error(errorstr)
+
+            if course.email_on_error:
+                send_error_mail(
+                    course,
+                    f"Failed to notify update of {course.key}",
+                    f"Build succeeded but notifying the frontend of the update failed:\n{errorstr}"
+                )
 
 
 def is_self_contained(path: PathLike) -> Tuple[bool, Optional[str]]:
@@ -370,30 +418,7 @@ def push_event(
             build_logger.warning("FRONTEND_URL not set. Not doing an automatic update.")
         else:
             build_logger.info("Doing an automatic update...")
-            failtext = ""
-            try:
-                notification_url = urllib.parse.urljoin(settings.FRONTEND_URL, f"api/v2/courses/{course.remote_id}/notify_update/")
-                permissions = Permissions()
-                permissions.instances.add(Permission.WRITE, id=course.remote_id)
-                response = post(notification_url, permissions=permissions, data={"email_on_error": course.email_on_error}, headers={"Application": "application/json, application/*"})
-                if response.status_code != 200:
-                    failtext = response.reason
-                elif response.text != "[]":
-                    failtext = response.text
-            except Exception as e:
-                failtext = str(e)
-                if course.email_on_error:
-                    send_error_mail(
-                        course,
-                        f"Failed to notify update of {course_key}",
-                        "Build succeeded but notifying the frontend of the update failed:\n" + failtext
-                    )
-            finally:
-                if failtext:
-                    build_logger.error("Failed:")
-                    build_logger.error(failtext)
-                else:
-                    build_logger.info("Success.")
+            notify_update(course)
     finally:
         if update.status != UpdateStatus.SUCCESS:
             update.status = UpdateStatus.FAILED
