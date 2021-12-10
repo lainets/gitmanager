@@ -12,7 +12,7 @@ from pydantic.fields import PrivateAttr
 from pydantic.types import NonNegativeInt, PositiveInt, confloat
 
 from util.localize import Localized, DEFAULT_LANG
-from util.pydantic import PydanticModel, NotRequired
+from util.pydantic import PydanticModel, NotRequired, add_warnings_to_values_dict
 from .parser import ConfigParser
 
 
@@ -214,7 +214,7 @@ class Exercise(Item):
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_assistant_permissions(cls, values: Dict[str, Any]):
         if not values.get("allow_assistant_viewing", False) and values.get("allow_assistant_grading", True):
-            raise ValueError("Assistant grading is allowed but viewing is not")
+            add_warnings_to_values_dict(values, "_root_", "Assistant grading is allowed but viewing is not")
         return values
 
 
