@@ -284,7 +284,7 @@ Float0to1 = confloat(ge=0, le=1)
 class Module(Parent):
     name: Localized[str]
     key: str
-    status: str
+    status: NotRequired[str]
     order: NotRequired[int]
     introduction: NotRequired[str]
     open: NotRequired[datetime]
