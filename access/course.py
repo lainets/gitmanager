@@ -13,6 +13,7 @@ from pydantic.types import NonNegativeInt, PositiveInt, confloat
 
 from util.localize import Localized, DEFAULT_LANG
 from util.pydantic import PydanticModel, NotRequired, add_warnings_to_values_dict
+from util.static import static_url
 from .parser import ConfigParser
 
 
@@ -337,7 +338,7 @@ class Course(PydanticModel):
     enrollment_audience: NotRequired[Literal["internal", "external", "all"]]
     enrollment_end: NotRequired[AnyDate]
     enrollment_start: NotRequired[AnyDate]
-    head_urls: List[AnyHttpUrl] = []
+    head_urls: List[Union[AnyHttpUrl, Path]] = []
     index_mode: NotRequired[Literal["results", "toc", "last", "experimental"]]
     lifesupport_time: NotRequired[AnyDate]
     module_numbering: NotRequired[NumberingType]
@@ -347,9 +348,23 @@ class Course(PydanticModel):
     unprotected_paths: NotRequired[Set[Path]]
     configures: List[ConfigureOptions] = []
 
-    def postprocess(self, **kwargs: Any):
+    def postprocess(self, course_key: str, **kwargs: Any):
         for c in self.modules:
-            c.postprocess(**kwargs)
+            c.postprocess(course_key=course_key, **kwargs)
+
+        nurls: List[Union[AnyHttpUrl, Path]] = []
+        for url in self.head_urls:
+            if isinstance(url, Path):
+                if url.is_absolute():
+                    url = url.relative_to("/")
+                httpurl = static_url(course_key, url)
+                if httpurl is None:
+                    self.add_warning(f"settings.STATIC_CONTENT_HOST not set (by admin). Cannot determine host for {url}", "head_urls")
+                    continue
+                nurls.append(httpurl)
+            else:
+                nurls.append(url)
+        self.head_urls = nurls
 
     @validator('modules', allow_reuse=True)
     def validate_module_keys(cls, modules: List[Module]) -> List[Module]:

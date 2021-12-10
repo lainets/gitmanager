@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+import urllib.parse
 
 from django.conf import settings
 
@@ -12,9 +13,14 @@ if TYPE_CHECKING:
     from access.config import CourseConfig
 
 
+def static_path_from_key(course_key: str) -> Path:
+    """Path to a course's static directory in STATIC_ROOT"""
+    return Path(settings.STATIC_ROOT) / course_key
+
+
 def static_path(course_config: "CourseConfig") -> Path:
     """Path to a course's static directory in STATIC_ROOT"""
-    return Path(settings.STATIC_ROOT) / course_config.key
+    return static_path_from_key(course_config.key)
 
 
 def symbolic_link(course_config: "CourseConfig"):
@@ -42,3 +48,13 @@ def static_url_path(course_key: str, *paths: PathLike):
         course_key,
         *[os.fspath(p) for p in paths]
     )
+
+
+def static_url(course_key: str, *paths: PathLike) -> Optional[str]:
+    if settings.STATIC_CONTENT_HOST:
+        return urllib.parse.urljoin(
+            settings.STATIC_CONTENT_HOST,
+            static_url_path(course_key, *paths)
+        )
+    else:
+        return None
