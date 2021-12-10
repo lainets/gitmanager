@@ -11,9 +11,9 @@
 
 * `/static`: Static files for default grader pages.
 
-* `/access`: Django application presenting exercises and accepting submissions.
+* `/access`: Django application presenting courses.
 
-	* `templates`: Default view and grading task templates.
+	* `templates`: View templates.
 
 	* `types`: Implementations for different exercise view types.
 
@@ -21,14 +21,8 @@
 
 * `/util`: Utility modules for HTTP, shell, filesystem access etc.
 
-* `/courses`: Course directories holding exercise configuration and material.
+* `/courses`: Default COURSES_PATH for holding course exercise configuration and material.
 
-	* `sample_course`: Different exercise types sampled.
+* `/course_store`: Default STORE_PATH for temporarily storing built course exercise configuration and material.
 
-* `/scripts`: Shell scripts that different grading actions utilize.
-
-* `/uploads`: Asynchronous graders store submission data in unique directories here.
-	After accepting submission a `user` subdirectory holds the user data.
-	Grading actions get this directory as a parameter and can change the
-	contents. When grading is finished and feedback sent, the submission
-	data is removed and submission is completely forgotten.
+* `/scripts`: Python modules for different types of builders.

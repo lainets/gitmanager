@@ -10,8 +10,16 @@ The applicaiton is implemented on Django 2.2 (`grader/settings.py`) and
 requires Python 3.7+.
 
 Gitmanager can be run stand alone without the full stack to test any part of
-the processgraders in the local system environment. Course and exercise
-configuration is in `courses` directory once built.
+the process in the local system environment. Course and exercise
+configuration is in COURSES_PATH directory (defaults to `courses`) once built and published.
+
+Course files are downloaded using git to the BUILD_PATH directory, where the
+course is then built. If the build is successfull, the course directory is then
+copied to the STORE_PATH directory. That directory is solely for storage, that
+version of the course is not available until the course is published. The course
+is published by A+ when A+ fetches and updates the course configuration. Once
+the course is published, the built course is copied from the STORE_PATH directory
+to the COURSES_PATH directory.
 
 ## Installing for development
 
@@ -89,25 +97,25 @@ and user must** be set in the configuration files.
 
     source ~/venv/bin/activate
     pip install uwsgi
-    cp ~/gitmanager/doc/etc-uwsgi-grader.ini ~/grader-uwsgi.ini
-    sudo cp ~grader/gitmanager/doc/etc-systemd-system-uwsgi.service /etc/systemd/system/grader-uwsgi.service
-    # EDIT ~/grader-uwsgi.ini
-    # EDIT /etc/systemd/system/grader-uwsgi.service, set the correct uwsgi path to ExecStart
+    cp ~/gitmanager/doc/etc-uwsgi-gitmanager.ini ~/gitmanager-uwsgi.ini
+    sudo cp ~/gitmanager/doc/etc-systemd-system-uwsgi.service /etc/systemd/system/gitmanager-uwsgi.service
+    # EDIT ~/gitmanager-uwsgi.ini
+    # EDIT /etc/systemd/system/gitmanager-uwsgi.service, set the correct uwsgi path to ExecStart
 
 Operate the workers:
 
     # as root
-    systemctl status grader-uwsgi
-    systemctl start grader-uwsgi
-    systemctl enable grader-uwsgi  # start on boot
+    systemctl status gitmanager-uwsgi
+    systemctl start gitmanager-uwsgi
+    systemctl enable gitmanager-uwsgi  # start on boot
     # Graceful application reload
-    touch ~grader/grader-uwsgi.ini
+    touch ~/gitmanager-uwsgi.ini
 
 ##### nginx
 
     apt-get install nginx
     sed -e "s/__HOSTNAME__/$(hostname)/g" \
-      ~grader/gitmanager/doc/etc-nginx-sites-available-grader > \
+      ~/gitmanager/doc/etc-nginx-sites-available-gitmanager > \
       /etc/nginx/sites-available/$(hostname).conf
     ln -s ../sites-available/$(hostname).conf /etc/nginx/sites-enabled/$(hostname).conf
     # Edit /etc/nginx/sites-available/$(hostname).conf if necessary
@@ -118,7 +126,7 @@ Operate the workers:
 ##### apache2
 
     apt-get install apache2 libapache2-mod-uwsgi
-    # Configure based on doc/etc-apache2-sites-available-grader
+    # Configure based on doc/etc-apache2-sites-available-gitmanager
     a2enmod headers
 
 ## Django application settings for deployment

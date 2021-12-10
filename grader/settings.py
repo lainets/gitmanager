@@ -177,12 +177,7 @@ DEFAULT_EXPIRY_MINUTES = 15
 
 # Course configuration path:
 # Every directory under this directory is expected to be a course configuration
-# FIXME: access/config.py contains hardcoded version of this value.
 COURSES_PATH = join(BASE_DIR, 'courses')
-
-# Exercise files submission path:
-# Django process requires write access to this directory.
-SUBMISSION_PATH = join(BASE_DIR, 'uploads')
 
 # How long (in seconds) to wait for a lock to the course store directory when trying to
 # store built course. Makes sure that the build process doesn't get stuck on

@@ -52,7 +52,7 @@ def exercise(
     Exports exercise data.
 
     Note! The a-plus json syntax only supports identical exercises apart from
-    translations. At the time of writing, mooc-grader does not enforce such
+    translations. At the time of writing, Git Manager does not enforce such
     design and configuration can be written that produces totally different
     exercise types per language. In this export, only the exercise details
     from the default language are exported along with any translations that

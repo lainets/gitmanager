@@ -17,11 +17,6 @@ from django.http.response import FileResponse as DjangoFileResponse, HttpRespons
 from util.typing import PathLike
 
 
-META_PATH = os.path.join(settings.SUBMISSION_PATH, "meta")
-if not os.path.exists(META_PATH):
-    os.makedirs(META_PATH)
-
-
 def read_meta(file_path: PathLike) -> Dict[str,str]:
     '''
     Reads a meta file comprised of lines in format: key = value.
