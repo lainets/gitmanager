@@ -191,25 +191,33 @@ class Exercise(Item):
             configure = {
                 "url": settings.DEFAULT_GRADER_URL,
             }
-            mounts = {}
+            files = {}
             for lang_data in self._config_obj.data.values():
                 mount = lang_data.get("container", {}).get("mount")
                 if mount:
-                    mounts[mount] = mount
-            configure["files"] = mounts
+                    files[mount] = mount
+
+                template = lang_data.get("template")
+                if template and template.startswith("./"):
+                    files[template] = template
+
+                template = lang_data.get("feedback_template")
+                if template and template.startswith("./"):
+                    files[template] = template
+
+                file = lang_data.get("instructions_file")
+                if file:
+                    if not isinstance(file, str):
+                        raise ValueError(f"instructions_file is not a string in {self.config}")
+                    if file.startswith("./"):
+                        files[file] = course_key + "/" + file[2:]
+                    else:
+                        files[file] = file
+
+            configure["files"] = files
 
             self.configure = ConfigureOptions.parse_obj(configure)
 
-        # DEPRECATED: add instructions_file to configure files
-        # this is for backwards compatibility and should be removed in the future
-        if self.configure and self._config_obj and self._config_obj.data.get("instructions_file"):
-            file = self._config_obj.data["instructions_file"]
-            if not isinstance(file, str):
-                raise ValueError("Assistant grading is allowed but viewing is not")
-            if file.startswith("./"):
-                self.configure.files[file] = course_key + "/" + file[2:]
-            else:
-                self.configure.files[file] = file
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
     def validate_assistant_permissions(cls, values: Dict[str, Any]):
