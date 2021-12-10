@@ -83,8 +83,8 @@ class PydanticModel(BaseModel, metaclass=PydanticModelMeta):
     def add_warning(self, msg: str, key: str = "__root__") -> None:
         self._warnings.setdefault(key, []).append(msg)
 
-    def get_warnings_nested(self, prefix: str = ""):
-        warnings = {prefix+k: v for k,v in self._warnings.items() if k != "__root__"}
+    def get_warnings_nested(self, prefix: str = "") -> Dict[str, List[str]]:
+        warnings = {f"{prefix}.{k}": v for k,v in self._warnings.items() if k != "__root__"}
         if "__root__" in self._warnings:
             warnings[prefix] = self._warnings["__root__"]
         for k,v in self:
@@ -98,7 +98,7 @@ def add_warnings_to_values_dict(dict: Dict[str, Any], key: str, msg: str) -> Non
 
 def get_all_warnings(value: Any, prefix: str = "", key: str = "") -> Dict[str, List[str]]:
     if isinstance(value, PydanticModel):
-        return value.get_warnings_nested(prefix + key + ".")
+        return value.get_warnings_nested(prefix + key)
     elif isinstance(value, list):
         warnings: Dict[str, List[str]] = {}
         for i, v in enumerate(value):
@@ -193,9 +193,10 @@ def validation_warning_str(obj: Any) -> str:
     warnings = get_all_warnings(obj)
     if warnings:
         num_errors = len(warnings)
-        out = f'{num_errors} validation warning{"" if num_errors == 1 else "s"} for {obj.__name__}'
-        for loc,warning in warnings:
-            out += loc + ": " + warning
+        out = f'{num_errors} validation warning{"" if num_errors == 1 else "s"} for {obj.__class__.__name__}'
+        for loc,warnings in warnings.items():
+            for warning in warnings:
+                out += f"\n{loc}: {warning}"
         return out
     else:
         return ""

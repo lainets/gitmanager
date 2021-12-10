@@ -345,9 +345,9 @@ def push_event(
             build_logger.error(validation_error_str(e))
             return
 
-        warning_str = validation_warning_str(config)
+        warning_str = validation_warning_str(config.data)
         if warning_str:
-            build_logger.warning(warning_str)
+            build_logger.warning(warning_str + "\n")
 
         # copy the course material to store
         if not store(config):
