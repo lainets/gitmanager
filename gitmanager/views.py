@@ -82,7 +82,7 @@ class EditCourse(View):
 
     def _get(self, request: Request, course: Course) -> Dict[str, Any]:
         obj = model_to_dict(course, fields=CourseForm.Meta.fields)
-        obj["git_hook"] = request.build_absolute_uri(reverse('manager-hook', args=[course.key]))
+        obj["git_hook"] = request.build_absolute_uri(reverse('manager-git-hook', args=[course.key]))
         return obj
 
     @login_required
@@ -139,7 +139,7 @@ def updates(request, key):
     return render(request, 'gitmanager/updates.html', {
         'course': course,
         'updates': course.updates.order_by('-request_time').all(),
-        'hook': request.build_absolute_uri(reverse('manager-hook', args=[key])),
+        'hook': request.build_absolute_uri(reverse('manager-git-hook', args=[key])),
     })
 
 
@@ -167,7 +167,44 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
-def hook(request, key):
+def hook(request, key: str, course: Course) -> None:
+    """Extracts GET/POST params and calls push_event"""
+    course.updates.create(
+        course=course,
+        request_ip=get_client_ip(request)
+    )
+
+    request_params = request.POST.dict()
+    request_params.update(request.GET.dict())
+
+    params = {k: request_params[k] == "on" or request_params[k] == "true" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
+    if request_params.get("build_image"):
+        params["build_image"] = request_params["build_image"]
+    if request_params.get("build_command"):
+        params["build_command"] = request_params["build_command"]
+
+    push_event(key, **params)
+
+
+@login_required
+def UI_hook(request, key: str) -> HttpResponse:
+    """Trigger build in UI"""
+    course = get_object_or_404(Course, key=key)
+
+    if not course.has_access(request, Permission.WRITE):
+        return HttpResponse(f"No access to course {key}", status=403)
+
+    if request.method == 'POST':
+        hook(request, key, course)
+
+    if request.META.get('HTTP_REFERER'):
+        return redirect('manager-updates', course.key)
+
+    return HttpResponse('ok')
+
+
+def git_hook(request, key: str) -> HttpResponse:
+    """Git hook for git services"""
     course = get_object_or_404(Course, key=key)
 
     if request.method == 'POST':
@@ -188,23 +225,6 @@ def hook(request, key):
                 status=400,
             )
 
-        course.updates.create(
-            course=course,
-            request_ip=get_client_ip(request)
-        )
-
-        request_params = request.POST.dict()
-        request_params.update(request.GET.dict())
-
-        params = {k: request_params[k] == "on" or request_params[k] == "true" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
-        if request_params.get("build_image"):
-            params["build_image"] = request_params["build_image"]
-        if request_params.get("build_command"):
-            params["build_command"] = request_params["build_command"]
-
-        push_event(key, **params)
-
-    if request.META.get('HTTP_REFERER'):
-        return redirect('manager-updates', course.key)
+        hook(request, key, course)
 
     return HttpResponse('ok')

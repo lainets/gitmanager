@@ -13,7 +13,7 @@
 	{% endif %}
 </p>
 <p>
-<form method="post" action="{% url 'manager-hook' course.key %}" class="form-inline">
+<form method="post" action="{% url 'manager-ui-hook' course.key %}" class="form-inline">
 	<div class="form-group">
 		<label>Hook</label>
 		<input type="text" class="form-control" value="{{ hook }}" size="60" readonly>
