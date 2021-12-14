@@ -1,9 +1,10 @@
 from enum import Enum
 
-from aplus_auth import settings as auth_settings
 from aplus_auth.auth.django import Request
 from aplus_auth.payload import Permission
 from django.db import models
+
+from util.login_required import has_access
 
 
 class Course(models.Model):
@@ -27,13 +28,7 @@ class Course(models.Model):
         if self.remote_id is None:
             return default
 
-        if auth_settings().DISABLE_LOGIN_CHECKS:
-            return True
-
-        if not hasattr(request, "auth") or request.auth is None:
-            return False
-
-        return request.auth.permissions.instances.has(permission, id=self.remote_id)
+        return has_access(request, permission, self.remote_id)
 
     def has_write_access(self, request: Request, default: bool = False):
         return self.has_access(request, Permission.WRITE, default)

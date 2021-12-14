@@ -11,7 +11,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 
-from util.login_required import login_required
+from util.login_required import has_access, login_required
 from .forms import CourseForm
 from .models import Course, UpdateStatus
 from .builder import push_event
@@ -70,12 +70,18 @@ class EditCourse(View):
             return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
 
         if not settings.APLUS_AUTH["DISABLE_LOGIN_CHECKS"]:
-            instance_id = request.POST.get("remote_id")
-            if not instance_id:
+            if "remote_id" not in request.POST:
                 return JsonResponse({"success": False, "error": "No remote_id in POST parameters"})
+
+            try:
+                instance_id = int(request.POST["remote_id"])
+            except:
+                return JsonResponse({"success": False, "error": "remote_id is not an integer"})
+
             if request.auth is None:
                 return JsonResponse({"success": False, "error": "No JWT payload"})
-            if not request.auth.permissions.instances.has(permission, id=instance_id):
+
+            if not has_access(request, permission, instance_id):
                 return JsonResponse({"success": False, "error": f"No access to instance {instance_id}"})
 
         return None
