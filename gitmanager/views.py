@@ -1,9 +1,15 @@
 import json
 import logging
+from typing import Any, Dict, Optional
+
+from aplus_auth.auth.django import Request
+from aplus_auth.payload import Permission
 from django.conf import settings
+from django.forms.models import model_to_dict
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.views import View
 
 from util.login_required import login_required
 from .forms import CourseForm
@@ -23,7 +29,7 @@ def courses(request):
 
 
 @login_required
-def edit(request, key=None):
+def edit(request, key = None):
     if key:
         course = get_object_or_404(Course, key=key)
         form = CourseForm(request.POST or None, instance=course)
@@ -40,6 +46,91 @@ def edit(request, key=None):
         'course': course,
         'form': form,
     })
+
+
+class EditCourse(View):
+    """
+    Edit course settings, or create a new course.
+
+    GET to get course settings.
+
+    POST to create a course.
+
+    PUT to edit a course.
+
+    Returns the course settings and the git hook URL in the 'git_hook' key.
+    """
+    def _check_access(self,
+            request: Request,
+            course: Optional[Course] = None,
+            permission: Permission = Permission.WRITE
+            ) -> Optional[HttpResponse]:
+
+        if course is not None and course.has_access(request, permission):
+            return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
+
+        if not settings.APLUS_AUTH["DISABLE_LOGIN_CHECKS"]:
+            instance_id = request.POST.get("remote_id")
+            if not instance_id:
+                return JsonResponse({"success": False, "error": "No remote_id in POST parameters"})
+            if request.auth is None:
+                return JsonResponse({"success": False, "error": "No JWT payload"})
+            if not request.auth.permissions.instances.has(permission, id=instance_id):
+                return JsonResponse({"success": False, "error": f"No access to instance {instance_id}"})
+
+        return None
+
+    def _get(self, request: Request, course: Course) -> Dict[str, Any]:
+        obj = model_to_dict(course, fields=CourseForm.Meta.fields)
+        obj["git_hook"] = request.build_absolute_uri(reverse('manager-hook', args=[course.key]))
+        return obj
+
+    @login_required
+    def get(self, request: Request, key: str, **kwargs) -> HttpResponse:
+        course = get_object_or_404(Course, key=key)
+
+        response = self._check_access(request, None, Permission.READ)
+        if response is not None:
+            return response
+
+        return JsonResponse(self._get(request, course))
+
+    @login_required
+    def post(self, request: Request, key: str, **kwargs) -> HttpResponse:
+        if not request.POST:
+            return JsonResponse({"success": False, "error": "No POST parameters given"})
+
+        if Course.objects.exists(key=key):
+            return HttpResponse(status=403)
+
+        response = self._check_access(request)
+        if response is not None:
+            return response
+
+        form = CourseForm(request.POST)
+        if form.is_valid():
+            course = form.save()
+            return JsonResponse(self._get(request, course))
+
+        return JsonResponse({"success": False, "error": form.errors})
+
+    @login_required
+    def put(self, request: Request, key: str, **kwargs) -> HttpResponse:
+        if not request.POST:
+            return JsonResponse({"success": False, "error": "No POST parameters given"})
+
+        course = get_object_or_404(Course, key=key)
+
+        response = self._check_access(request, course)
+        if response is not None:
+            return response
+
+        form = CourseForm(request.POST, instance=course)
+        if form.is_valid():
+            course = form.save()
+            return JsonResponse(self._get(request, course))
+
+        return JsonResponse({"success": False, "error": form.errors})
 
 
 @login_required
