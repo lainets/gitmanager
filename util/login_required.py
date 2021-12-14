@@ -1,8 +1,9 @@
 from typing import Callable
 
 from aplus_auth import settings as auth_settings
-from aplus_auth.auth.django import login_required as login_required_base, Request
+from aplus_auth.auth.django import login_required as login_required_base
 from aplus_auth.payload import Permission
+from django.http import HttpRequest
 from django.http.response import HttpResponseBase
 
 
@@ -10,7 +11,7 @@ ViewType = Callable[..., HttpResponseBase]
 login_required: Callable[[ViewType],ViewType] = login_required_base(redirect_url="/login?referer={url}")
 
 
-def has_access(request: Request, permission: Permission, instance_id: int) -> bool:
+def has_access(request: HttpRequest, permission: Permission, instance_id: int) -> bool:
     if auth_settings().DISABLE_LOGIN_CHECKS:
         return True
 

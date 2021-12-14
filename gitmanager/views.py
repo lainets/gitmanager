@@ -22,8 +22,10 @@ logger = logging.getLogger("grader.gitmanager")
 
 @login_required
 def courses(request):
+    courses = (course for course in Course.objects.all() if course.has_read_access(request, True))
+
     return render(request, 'gitmanager/courses.html', {
-        'courses': Course.objects.all(),
+        'courses': courses,
         'ssh_key': ssh_key,
     })
 
@@ -32,6 +34,8 @@ def courses(request):
 def edit(request, key = None):
     if key:
         course = get_object_or_404(Course, key=key)
+        if not course.has_write_access(request, True):
+            return HttpResponse(status=403)
         form = CourseForm(request.POST or None, instance=course)
     else:
         course = None
@@ -40,6 +44,8 @@ def edit(request, key = None):
         if name not in ("email_on_error", "update_automatically"):
             form.fields[name].widget.attrs = {'class': 'form-control'}
     if request.method == 'POST' and form.is_valid():
+        if "remote_id" in request.POST and not has_access(request, Permission.WRITE, request.POST["remote_id"]):
+            return HttpResponse(f"No access to instance id {request.POST['remote_id']}", status=403)
         form.save()
         return redirect('manager-courses')
     return render(request, 'gitmanager/edit.html', {
@@ -142,6 +148,8 @@ class EditCourse(View):
 @login_required
 def updates(request, key):
     course = get_object_or_404(Course, key=key)
+    if not course.has_read_access(request, True):
+        return HttpResponse(status=403)
     return render(request, 'gitmanager/updates.html', {
         'course': course,
         'updates': course.updates.order_by('-request_time').all(),
@@ -152,9 +160,11 @@ def updates(request, key):
 @login_required
 def build_log_json(request, key):
     try:
-        course = Course.objects.get(key=key)
+        course = get_object_or_404(Course, key=key)
     except Course.DoesNotExist:
         return JsonResponse({})
+    if not course.has_read_access(request, True):
+        return HttpResponse(status=403)
     latest_update = course.updates.order_by("-updated_time")[0]
     return JsonResponse({
         'build_log': latest_update.log,

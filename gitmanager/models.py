@@ -1,8 +1,8 @@
 from enum import Enum
 
-from aplus_auth.auth.django import Request
 from aplus_auth.payload import Permission
 from django.db import models
+from django.http.request import HttpRequest
 
 from util.login_required import has_access
 
@@ -24,16 +24,16 @@ class Course(models.Model):
     class META:
         ordering = ['key']
 
-    def has_access(self, request: Request, permission: Permission, default: bool = False) -> bool:
+    def has_access(self, request: HttpRequest, permission: Permission, default: bool = False) -> bool:
         if self.remote_id is None:
             return default
 
         return has_access(request, permission, self.remote_id)
 
-    def has_write_access(self, request: Request, default: bool = False):
+    def has_write_access(self, request: HttpRequest, default: bool = False):
         return self.has_access(request, Permission.WRITE, default)
 
-    def has_read_access(self, request: Request, default: bool = False):
+    def has_read_access(self, request: HttpRequest, default: bool = False):
         return self.has_access(request, Permission.READ, default)
 
 

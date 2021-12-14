@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from aplus_auth.auth.django import Request
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.http import HttpRequest, HttpResponse, JsonResponse, Http404
 from django.utils import translation
 from django.urls import reverse
@@ -30,7 +30,11 @@ def index(request):
     '''
     Signals that the grader is ready and lists available courses.
     '''
-    course_configs = CourseConfig.all()
+    # Only show courses user has access to
+    courses = (course for course in Course.objects.all() if course.has_read_access(request, True))
+
+    course_configs = CourseConfig.get_for(courses)
+
     if request.is_ajax():
         return JsonResponse({
             "ready": True,
@@ -46,6 +50,10 @@ def course(request, course_key):
     '''
     Signals that the course is ready to be graded and lists available exercises.
     '''
+    course = get_object_or_404(Course, key=course_key)
+    if not course.has_read_access(request, True):
+        return HttpResponse(status=403)
+
     error = None
     course_config = None
     exercises = None
@@ -55,12 +63,7 @@ def course(request, course_key):
         error = str(e)
     else:
         if course_config is None:
-            try:
-                Course.objects.get(key=course_key)
-            except:
-                raise Http404()
-            else:
-                error = "Failed to load course config (has it been built and published?)"
+            error = "Failed to load course config (has it been built and published?)"
         else:
             exercises = course_config.get_exercise_list()
 
@@ -95,11 +98,7 @@ def protected(request: Request, course_key: str, path: str):
     if os.path.normpath(path).startswith("../"):
         raise Http404()
 
-    try:
-        course: Course = Course.objects.get(key=course_key)
-    except Course.DoesNotExist:
-        raise Http404()
-
+    course = get_object_or_404(Course, key=course_key)
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
 
@@ -115,6 +114,10 @@ def protected(request: Request, course_key: str, path: str):
 
 
 def serve_exercise_file(request, course_key, exercise_key, basename, dict_key, type):
+    course = get_object_or_404(Course, key=course_key)
+    if not course.has_read_access(request, True):
+        return HttpResponse(status=403)
+
     lang = request.GET.get('lang', None)
     try:
         (course, exercise, lang) = _get_course_exercise_lang(course_key, exercise_key, lang)
@@ -163,6 +166,10 @@ def aplus_json(request: HttpRequest, course_key: str):
     Delivers the configuration as JSON for A+.
     '''
     errors = []
+
+    course = get_object_or_404(Course, key=course_key)
+    if not course.has_read_access(request, True):
+        return HttpResponse(status=403)
 
     try:
         config = CourseConfig.load_from_store(course_key)
@@ -234,6 +241,10 @@ def aplus_json(request: HttpRequest, course_key: str):
 
 @login_required
 def publish(request: HttpRequest, course_key: str) -> HttpResponse:
+    course = get_object_or_404(Course, key=course_key)
+    if not course.has_write_access(request, True):
+        return HttpResponse(status=403)
+
     try:
         errors = builder.publish(course_key)
     except Exception as e:

@@ -9,7 +9,7 @@ from pathlib import Path
 import logging
 import os
 import time
-from typing import Any, ClassVar, Dict, Optional, List, Tuple, Union
+from typing import Any, ClassVar, Dict, Iterable, Optional, List, Tuple, Union
 
 from django.conf import settings
 from pydantic.error_wrappers import ValidationError
@@ -180,7 +180,27 @@ class CourseConfig:
         return os.path.join(self.data.static_dir, *paths)
 
     @staticmethod
-    def all():
+    def get_for(courses: Iterable[CourseModel]):
+        configs = []
+        for course in courses:
+            try:
+                config = CourseConfig.get(course.key)
+            except ConfigError:
+                LOGGER.exception("Failed to load course: %s", course.key)
+            except ValidationError as e:
+                LOGGER.exception("Failed to load course: %s", course.key)
+                LOGGER.exception(validation_error_str(e))
+            else:
+                configs.append(config)
+                warnings = validation_warning_str(config)
+                if warnings:
+                    LOGGER.warning("Warnings in course config: %s", course.key)
+                    LOGGER.warning(warnings)
+
+        return configs
+
+    @staticmethod
+    def all(courses: Optional[Iterable[Course]] = None):
         '''
         Gets all course configs.
 
@@ -192,25 +212,12 @@ class CourseConfig:
         t = os.path.getmtime(settings.COURSES_PATH)
         if CourseConfig._dir_mtime < t:
             CourseConfig._courses.clear()
+
+            CourseConfig.get_for(CourseModel.objects.all())
+
             CourseConfig._dir_mtime = t
 
-            LOGGER.debug('Recreating course list.')
-            for course in CourseModel.objects.all():
-                try:
-                    config = CourseConfig.get(course.key)
-                except ConfigError:
-                    LOGGER.exception("Failed to load course: %s", course.key)
-                except ValidationError as e:
-                    LOGGER.exception("Failed to load course: %s", course.key)
-                    LOGGER.exception(validation_error_str(e))
-                else:
-                    warnings = validation_warning_str(config)
-                    if warnings:
-                        LOGGER.warning("Warnings in course config: %s", course.key)
-                        LOGGER.warning(warnings)
-
         return CourseConfig._courses.values()
-
 
     @staticmethod
     def get(course_key: str) -> Optional[CourseConfig]:
