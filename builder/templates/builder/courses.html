@@ -2,10 +2,9 @@
 
 {% block title %}{{ block.super }} :: Manager{% endblock %}
 
+{% block heading %}Cloned course repositories{% endblock %}
+
 {% block body %}
-<div class="page-header">
-  <h1>Cloned course repositories</h1>
-</div>
 <div class="panel panel-default">
   <div class="panel-heading">SSH key (add this as a deploy key to the course repository)</div>
   <div class="panel-body" style="overflow-wrap: anywhere;">{{ ssh_key }}</div>

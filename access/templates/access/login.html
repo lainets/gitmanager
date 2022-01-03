@@ -1,10 +1,11 @@
 {% extends 'gitmanager_frame.html' %}
 {% load i18n %}
 
+{% block logout_button %}{% endblock %}
+
+{% block heading %}Login{% endblock %}
+
 {% block body %}
-<div class="page-header">
-	<h1>Login</h1>
-</div>
 <form id="login-form">
     Access token: <input type="text" name="token"></input>
     <input type="submit" value="Login"></input>

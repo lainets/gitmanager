@@ -2,12 +2,11 @@
 
 {% block title %}{{ block.super }} :: Manager, Edit {{ course.key }}{% endblock %}
 
+{% block heading %}
+{% if course %}Edit {{ course.key }} repository settings{% else %}Add new course{% endif %}
+{% endblock %}
+
 {% block body %}
-<div class="page-header">
-  <h1>
-    {% if course %}Edit {{ course.key }} repository settings{% else %}Add new course{% endif %}
-  </h1>
-</div>
 <form method="post">
   {% for field in form %}
   <div class="form-group{% if field.errors %} has-error{% endif %}">

@@ -1,10 +1,9 @@
 {% extends 'gitmanager_frame.html' %}
 {% load i18n %}
 
+{% block heading %}{% trans "GITMANAGER_READY" %}{% endblock %}
+
 {% block body %}
-<div class="page-header">
-	<h1>{% trans "GITMANAGER_READY" %}</h1>
-</div>
 <p>
 	<a href="{% url 'manager-courses' %}" class="btn btn-default btn-sm">
 		{% trans "GIT_MANAGER" %}

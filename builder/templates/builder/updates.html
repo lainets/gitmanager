@@ -2,10 +2,9 @@
 
 {% block title %}{{ block.super }} :: Manager, Updates {{ course.key }}{% endblock %}
 
+{% block heading %}Update {{ course.key }}{% endblock %}
+
 {% block body %}
-<div class="page-header">
-	<h1>Update {{ course.key }}</h1>
-</div>
 <p>
 	Origin: {{course.git_origin }} {{ course.git_branch }}
 	{% if course.update_hook %}
