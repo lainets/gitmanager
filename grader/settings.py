@@ -256,15 +256,15 @@ from r_django_essentials.conf import *
 
 # get settings values from other sources
 update_settings_with_file(__name__,
-                          environ.get('GRADER_LOCAL_SETTINGS', 'local_settings'),
-                          quiet='GRADER_LOCAL_SETTINGS' in environ)
+                          environ.get('GITMANAGER_LOCAL_SETTINGS', 'local_settings'),
+                          quiet='GITMANAGER_LOCAL_SETTINGS' in environ)
 update_settings_from_module(__name__, 'settings_local', quiet=True) # Compatibility with older releases
 
 # Load settings from environment variables starting with ENV_SETTINGS_PREFIX (default GRADER_)
-ENV_SETTINGS_PREFIX = environ.get('ENV_SETTINGS_PREFIX', 'GRADER_')
+ENV_SETTINGS_PREFIX = environ.get('ENV_SETTINGS_PREFIX', 'GITMANAGER_')
 update_settings_from_environment(__name__, ENV_SETTINGS_PREFIX)
 
-update_secret_from_file(__name__, environ.get('GRADER_SECRET_KEY_FILE', 'secret_key'))
+update_secret_from_file(__name__, environ.get('GITMANAGER_SECRET_KEY_FILE', 'secret_key'))
 
 APLUS_AUTH.update(APLUS_AUTH_LOCAL)
 
