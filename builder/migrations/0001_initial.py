@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('updated_time', models.DateTimeField(auto_now=True)),
                 ('updated', models.BooleanField(default=False)),
                 ('log', models.TextField(default='')),
-                ('course_repo', models.ForeignKey(to='gitmanager.CourseRepo', on_delete=models.CASCADE, related_name='updates')),
+                ('course_repo', models.ForeignKey(to='builder.CourseRepo', on_delete=models.CASCADE, related_name='updates')),
             ],
         ),
     ]

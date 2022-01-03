@@ -8,7 +8,7 @@ https://docs.djangoproject.com/en/1.6/howto/deployment/wsgi/
 """
 
 import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "grader.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "gitmanager.settings")
 
 import sys
 path = os.path.dirname(os.path.dirname(__file__))

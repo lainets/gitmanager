@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('gitmanager', '0003_auto_20210622_0829'),
+        ('builder', '0003_auto_20210622_0829'),
     ]
 
     operations = [

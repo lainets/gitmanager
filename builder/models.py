@@ -21,7 +21,8 @@ class Course(models.Model):
     email_on_error = models.BooleanField(default=True)
     update_automatically = models.BooleanField(default=True)
 
-    class META:
+    class Meta:
+        app_label = "gitmanager"
         ordering = ['key']
 
     def has_access(self, request: HttpRequest, permission: Permission, default: bool = False) -> bool:
@@ -56,6 +57,7 @@ class CourseUpdate(models.Model):
     status = models.CharField(max_length=10, default=UpdateStatus.PENDING, choices=[(tag, tag.value) for tag in UpdateStatus])
     log = models.TextField(default=None, null=True, blank=True)
 
-    class META:
+    class Meta:
+        app_label = "gitmanager"
         ordering = ['-request_time']
 

@@ -26,7 +26,7 @@ from aplus_auth.requests import post
 
 from access.config import CourseConfig, load_meta, META
 from access.parser import ConfigError
-from gitmanager.configure import configure_graders, publish_graders
+from builder.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
 from util.git import get_commit_hash, pull
 from util.pydantic import validation_error_str, validation_warning_str
@@ -35,9 +35,9 @@ from util.typing import PathLike
 from .models import Course, CourseUpdate, UpdateStatus
 
 
-logger = logging.getLogger("grader.gitmanager")
+logger = logging.getLogger("builder.builder")
 
-build_logger = logging.getLogger("gitmanager.build")
+build_logger = logging.getLogger("builder.build")
 build_logger.setLevel(logging.DEBUG)
 
 

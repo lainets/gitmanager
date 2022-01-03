@@ -15,14 +15,14 @@ from django.views import View
 from access.config import CourseConfig
 from access.course import Exercise, Chapter, Parent
 from access.parser import ConfigError
-from gitmanager import builder
-from gitmanager.models import Course
+from builder import builder
+from builder.models import Course
 from util import export
 from util.files import FileResponse
 from util.login_required import login_required
 
 
-logger = logging.getLogger("gitmanager")
+logger = logging.getLogger("builder")
 
 
 @login_required

@@ -16,12 +16,12 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from access.config import CourseConfig
 from access.course import Exercise
-from gitmanager.models import Course
+from builder.models import Course
 from util.export import JSONEncoder
 from util.files import file_mappings
 
 
-logger = logging.getLogger("gitmanager.configure")
+logger = logging.getLogger("builder.configure")
 
 
 def configure_url(

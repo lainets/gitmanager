@@ -18,7 +18,7 @@ from util.files import read_meta
 from util.localize import DEFAULT_LANG
 from util.pydantic import Undefined, validation_error_str, validation_warning_str
 from util.static import static_path, symbolic_link
-from gitmanager.models import Course as CourseModel
+from builder.models import Course as CourseModel
 from .course import Course, Exercise, Parent, ExerciseConfig
 from .parser import ConfigParser, ConfigError
 

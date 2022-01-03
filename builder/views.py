@@ -17,14 +17,15 @@ from .models import Course, UpdateStatus
 from .builder import push_event
 from .apps import ssh_key
 
-logger = logging.getLogger("grader.gitmanager")
+
+logger = logging.getLogger("builder.views")
 
 
 @login_required
 def courses(request):
     courses = (course for course in Course.objects.all() if course.has_read_access(request, True))
 
-    return render(request, 'gitmanager/courses.html', {
+    return render(request, 'builder/courses.html', {
         'courses': courses,
         'ssh_key': ssh_key,
     })
@@ -48,7 +49,7 @@ def edit(request, key = None):
             return HttpResponse(f"No access to instance id {request.POST['remote_id']}", status=403)
         form.save()
         return redirect('manager-courses')
-    return render(request, 'gitmanager/edit.html', {
+    return render(request, 'builder/edit.html', {
         'course': course,
         'form': form,
     })
@@ -150,7 +151,7 @@ def updates(request, key):
     course = get_object_or_404(Course, key=key)
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
-    return render(request, 'gitmanager/updates.html', {
+    return render(request, 'builder/updates.html', {
         'course': course,
         'updates': course.updates.order_by('-request_time').all(),
         'hook': request.build_absolute_uri(reverse('manager-git-hook', args=[key])),

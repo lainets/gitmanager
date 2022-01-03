@@ -72,7 +72,7 @@ INSTALLED_APPS = (
     'staticfileserver', # override for runserver command, thus this needs to be before django contrib one
     'django.contrib.staticfiles',
     'access',
-    'gitmanager.apps.Config',
+    'builder.apps.Config',
     'huey.contrib.djhuey',
     'aplus_auth',
 )
@@ -217,7 +217,7 @@ LOGGING = {
       'handlers': ['email'],
       'propagate': True
     },
-    'gitmanager.build': {
+    'builder.build': {
       'level': 'ERROR',
       'handlers': [],
       'propagate': False,

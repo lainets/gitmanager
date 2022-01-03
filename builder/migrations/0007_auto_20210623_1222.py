@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('gitmanager', '0006_remove_courserepo_sphinx_version'),
+        ('builder', '0006_remove_courserepo_sphinx_version'),
     ]
 
     operations = [

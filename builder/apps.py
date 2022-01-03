@@ -12,6 +12,7 @@ ssh_key = None
 
 class Config(AppConfig):
     name="gitmanager"
+    path="builder"
     def ready(self) -> None:
         global ssh_key
 
