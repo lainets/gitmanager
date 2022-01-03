@@ -46,7 +46,7 @@ Install software
 
     sudo apt-get install python3 python3-dev python3-pip python3-venv
 
-Then, create virtual environment with grader requirements.
+Then, create virtual environment with gitmanager requirements.
 
     python3 -m venv venv
     source venv/bin/activate
@@ -85,7 +85,7 @@ user account.
 
 ##### Create temporary directory for sockets
 
-    echo "d /run/grader 0750 gitmanager www-data - -" | \
+    echo "d /run/gitmanager 0750 gitmanager www-data - -" | \
       sudo tee /etc/tmpfiles.d/gitmanager.conf > /dev/null
     sudo systemd-tmpfiles --create
 

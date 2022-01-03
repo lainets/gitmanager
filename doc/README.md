@@ -7,9 +7,9 @@
 
 * `/gitmanager`: Django project settings, urls and wsgi accessor.
 
-* `/templates`: Base templates for default grader pages.
+* `/templates`: Base templates for default Git Manager pages.
 
-* `/static`: Static files for default grader pages.
+* `/static`: Static files for default Git Manager pages.
 
 * `/access`: Django application presenting courses.
 

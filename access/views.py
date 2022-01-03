@@ -28,7 +28,7 @@ logger = logging.getLogger("builder")
 @login_required
 def index(request):
     '''
-    Signals that the grader is ready and lists available courses.
+    Signals that Git Manager is ready and lists available courses.
     '''
     # Only show courses user has access to
     courses = (course for course in Course.objects.all() if course.has_read_access(request, True))

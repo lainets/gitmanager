@@ -146,10 +146,6 @@ msgid "BUILD/MAKE_OUTPUT_RETRIEVAL"
 msgstr "Kurssin kääntämisen tulosteen haku"
 
 #: access/templates/access/course.html
-msgid "REQUIRES_GITMANAGER_PLUG-IN"
-msgstr "Vaatii gitmanager-liitännäisen"
-
-#: access/templates/access/course.html
 msgid "AVAILABLE_EXERCISES"
 msgstr "Saatavilla olevat tehtävät"
 
@@ -243,8 +239,8 @@ msgid "DOWNLOAD"
 msgstr "Lataa"
 
 #: access/templates/access/ready.html
-msgid "GRADER_READY"
-msgstr "Tarkistin on valmiina"
+msgid "GITMANAGER_READY"
+msgstr "Git Manager on valmiina"
 
 #: access/templates/access/ready.html
 msgid "GIT_MANAGER"

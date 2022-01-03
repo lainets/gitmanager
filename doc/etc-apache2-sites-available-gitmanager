@@ -1,14 +1,14 @@
 <VirtualHost *:80>
-	ServerAdmin root@grader-n.foo.bar
-	ServerName grader-n.foo.bar
+	ServerAdmin root@gitmanager-n.foo.bar
+	ServerName gitmanager-n.foo.bar
 
 	ErrorLog ${APACHE_LOG_DIR}/error.log
 	LogLevel info
 	CustomLog ${APACHE_LOG_DIR}/access.log combined
 
-	Alias /static/ /srv/grader/gitmanager/static/
-	Alias /robots.txt /srv/grader/gitmanager/static/robots.txt
-	<Directory /srv/grader/gitmanager/static/>
+	Alias /static/ /srv/gitmanager/gitmanager/static/
+	Alias /robots.txt /srv/gitmanager/gitmanager/static/robots.txt
+	<Directory /srv/gitmanager/gitmanager/static/>
 		Order allow,deny
 		allow from all
 		Header set Access-Control-Allow-Origin "*"
@@ -18,7 +18,7 @@
 	<Location />
 		Options FollowSymLinks
 		SetHandler uwsgi-handler
-		uWSGISocket /run/grader/uwsgi.socket
+		uWSGISocket /run/gitmanager/uwsgi.socket
 		uWSGIMaxVars 256
 	</Location>
 	<Location /static/>

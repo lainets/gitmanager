@@ -1,5 +1,5 @@
 ####
-# Default settings for MOOC Grader project.
+# Default settings for Git Manager project.
 # You should create local_settings.py and override any settings there.
 # You can copy local_settings.example.py and start from there.
 ##
@@ -260,7 +260,7 @@ update_settings_with_file(__name__,
                           quiet='GITMANAGER_LOCAL_SETTINGS' in environ)
 update_settings_from_module(__name__, 'settings_local', quiet=True) # Compatibility with older releases
 
-# Load settings from environment variables starting with ENV_SETTINGS_PREFIX (default GRADER_)
+# Load settings from environment variables starting with ENV_SETTINGS_PREFIX (default GITMANAGER_)
 ENV_SETTINGS_PREFIX = environ.get('ENV_SETTINGS_PREFIX', 'GITMANAGER_')
 update_settings_from_environment(__name__, ENV_SETTINGS_PREFIX)
 

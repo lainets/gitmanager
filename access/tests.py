@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-This module holds unit tests. It has nothing to do with the grader tests.
+This module holds unit tests.
 '''
 import time, os
 from django.conf import settings

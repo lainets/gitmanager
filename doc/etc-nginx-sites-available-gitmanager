@@ -1,5 +1,5 @@
-upstream django-grader {
-    server unix:/run/grader/uwsgi.socket;
+upstream django-gitmanager {
+    server unix:/run/gitmanager/uwsgi.socket;
 }
 server {
     listen 80;
@@ -18,22 +18,22 @@ server {
 
     location /static/ {
         rewrite ^/static(.*) $1 break;
-        root /srv/grader/gitmanager/static/;
+        root /srv/gitmanager/gitmanager/static/;
         try_files $uri @protected;
     }
 
     location @protected {
         rewrite ^ /protected$uri break;
-        uwsgi_pass django-grader;
+        uwsgi_pass django-gitmanager;
     }
 
     location /authorized_static {
         internal;
-        alias /srv/grader/gitmanager/courses;
+        alias /srv/gitmanager/gitmanager/courses;
     }
 
     location /robots.txt {
-        alias /srv/grader/gitmanager/static/robots.txt;
+        alias /srv/gitmanager/gitmanager/static/robots.txt;
     }
     location / {
 
@@ -41,7 +41,7 @@ server {
         #allow 192.168.1.0/24;
         #deny all;
 
-        uwsgi_pass django-grader;
+        uwsgi_pass django-gitmanager;
         include uwsgi_params;
     }
 }

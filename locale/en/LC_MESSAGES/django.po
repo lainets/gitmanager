@@ -148,10 +148,6 @@ msgid "BUILD/MAKE_OUTPUT_RETRIEVAL"
 msgstr "Build/make output retrieval"
 
 #: access/templates/access/course.html
-msgid "REQUIRES_GITMANAGER_PLUG-IN"
-msgstr "Requires the gitmanager plugin"
-
-#: access/templates/access/course.html
 msgid "AVAILABLE_EXERCISES"
 msgstr "Available assignments"
 
@@ -245,8 +241,8 @@ msgid "DOWNLOAD"
 msgstr "Download"
 
 #: access/templates/access/ready.html
-msgid "GRADER_READY"
-msgstr "Grader ready"
+msgid "GITMANAGER_READY"
+msgstr "Git Manager ready"
 
 #: access/templates/access/ready.html
 msgid "GIT_MANAGER"
