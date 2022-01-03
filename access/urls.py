@@ -1,17 +1,28 @@
-from django.conf.urls import url
+from django.urls import path, register_converter
 
 from access import views
+from access.converters import BasenameConverter
+
+register_converter(BasenameConverter, "basename")
 
 urlpatterns = [
-    url(r'^$', views.index, name='index'),
-    url(r'^model/([\w-]+)/([\w-]+)/([\w\d\_\-\.]*)$', views.exercise_model, name='model'),
-    url(r'^exercise_template/([\w-]+)/([\w-]+)/([\w\d\_\-\.]+)$', views.exercise_template, name='exercise_template'),
-    url(r'^([\w-]+)/$', views.course, name='course'),
-    url(r'^([\w-]+)/aplus-json$', views.aplus_json, name='aplus-json'),
-    url(r'^([\w-]+)/publish$', views.publish, name="publish"),
+    path("", views.index, name='index'),
+    path(
+        "model/<slug:course_key>/<slug:exercise_key>/<basename:basename>",
+        views.exercise_model,
+        name='model',
+    ),
+    path(
+        "exercise_template/<slug:course_key>/<slug:exercise_key>/<basename:basename>",
+        views.exercise_template,
+        name='exercise_template',
+    ),
+    path("<slug:course_key>/", views.course, name='course'),
+    path("<slug:course_key>/aplus-json", views.aplus_json, name='aplus-json'),
+    path("<slug:course_key>/publish", views.publish, name="publish"),
     # /protected/ is usually called after /static/ couldn't find the file
     # the assumption is that if the file is not found inside the STATIC_ROOT
     # folder, it is a protected file (or does not exist)
-    url(rf'^protected/([\w-]+)/(.+)$', views.protected, name='protected'),
-    url(r'^login$', views.LoginView.as_view(), name="login"),
+    path("protected/<slug:course_key>/<path:path>", views.protected, name='protected'),
+    path("login", views.LoginView.as_view(), name="login"),
 ]
