@@ -184,7 +184,7 @@ class CourseConfig:
         configs = []
         for course in courses:
             try:
-                config = CourseConfig.get(course.key)
+                config = CourseConfig.get(course.key, raise_on_error=True)
             except ConfigError:
                 LOGGER.exception("Failed to load course: %s", course.key)
             except ValidationError as e:
@@ -220,12 +220,14 @@ class CourseConfig:
         return CourseConfig._courses.values()
 
     @staticmethod
-    def get(course_key: str) -> Optional[CourseConfig]:
+    def get(course_key: str, *, raise_on_error: bool = False) -> Optional[CourseConfig]:
         '''
         Gets course config.
 
         @type course_key: C{str}
         @param course_key: a course key
+        @type raise_on_error: bool
+        @param raise_on_error: whether to raise an exception or return None on error
         @rtype: C{dict}
         @return: course config or None
         '''
@@ -244,7 +246,10 @@ class CourseConfig:
         try:
             config = CourseConfig.load_from_publish(course_key)
         except ConfigError:
-            return None
+            if raise_on_error:
+                raise
+            else:
+                return None
 
         CourseConfig._courses[course_key] = config
         if not static_path(config).exists():
