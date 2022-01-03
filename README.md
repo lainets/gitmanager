@@ -6,7 +6,7 @@ automatically built inside a configurable container. If the build passes
 validation, the course and its exercises are configured on A+ and compatible
 grading services.
 
-The applicaiton is implemented on Django 2.2 (`grader/settings.py`) and
+The application is implemented on Django 2.2 (`gitmanager/settings.py`) and
 requires Python 3.7+.
 
 Gitmanager can be run stand alone without the full stack to test any part of
@@ -131,7 +131,7 @@ Operate the workers:
 
 ## Django application settings for deployment
 
-When deploying, overwrite necessary configurations in `gitmanager/grader/local_settings.py`.
+When deploying, overwrite necessary configurations in `gitmanager/gitmanager/local_settings.py`.
 
 The application uses a database. If `sqlite3` is used (in `settings.py`), it must be installed:
 
@@ -142,11 +142,11 @@ Django must install the database schema (Python virtual environment must be acti
     python manage.py migrate
 
 To build courses synchronously with the HTTP requests, set `immediate = True`
-in the `HUEY` dict in `gitmanager/grader/local_settings.py`.
+in the `HUEY` dict in `gitmanager/gitmanager/local_settings.py`.
 
 To build courses asynchronously from the HTTP requests, a separate builder
 process and a message broker are need. The message broker is configured to be
-redis by default but it can be changed in `gitmanager/grader/local_settings.py`.
+redis by default but it can be changed in `gitmanager/gitmanager/local_settings.py`.
 The redis connection parameters can also be set there, or you can specify
 `REDIS_HOST` and `REDIS_HOST` environment variables. To run the builder process:
 

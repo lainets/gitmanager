@@ -1,11 +1,11 @@
 * For installation, see /README.md
 * For exercise configuration, see /courses/README.md
 
-# Grader Filesystem Walkthrough
+# Gitmanager Filesystem Walkthrough
 
 * `/doc`: Description of the system and material for system administrators.
 
-* `/grader`: Django project settings, urls and wsgi accessor.
+* `/gitmanager`: Django project settings, urls and wsgi accessor.
 
 * `/templates`: Base templates for default grader pages.
 

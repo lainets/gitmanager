@@ -9,8 +9,8 @@ db.sqlite3
 uploads/
 settings_local.py
 local_settings.py
-grader/local_settings.py
-grader/secret_key.py
+gitmanager/local_settings.py
+gitmanager/secret_key.py
 .ssh/*
 !.ssh/.keep
 

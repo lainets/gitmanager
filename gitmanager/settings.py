@@ -118,10 +118,10 @@ TEMPLATES = [
 #    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 #)
 
-ROOT_URLCONF = 'grader.urls'
+ROOT_URLCONF = 'gitmanager.urls'
 # LOGIN_REDIRECT_URL = "/"
 # LOGIN_ERROR_URL = "/login/"
-WSGI_APPLICATION = 'grader.wsgi.application'
+WSGI_APPLICATION = 'gitmanager.wsgi.application'
 
 # Database (override in local_settings.py)
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
