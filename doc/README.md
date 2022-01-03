@@ -7,6 +7,8 @@
 
 * `/gitmanager`: Django project settings, urls and wsgi accessor.
 
+* `/builder`: Git functionality, course building and exercise configuring.
+
 * `/templates`: Base templates for default Git Manager pages.
 
 * `/static`: Static files for default Git Manager pages.
