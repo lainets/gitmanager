@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from aplus_auth.auth.django import Request
-from django.shortcuts import get_object_or_404, render
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse, Http404
+from django.shortcuts import get_object_or_404, render
 from django.utils import translation
 from django.urls import reverse
 from django.views import View
@@ -272,7 +273,8 @@ class LoginView(View):
             return HttpResponse("Invalid token", status=401)
         else:
             response = HttpResponse()
-            response.set_cookie("AuthToken", str(request.auth))
+            # secure=not settings.DEBUG so that we do not need https when developing
+            response.set_cookie("AuthToken", str(request.auth), secure=not settings.DEBUG, httponly=True)
             return response
 
 
