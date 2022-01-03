@@ -11,8 +11,7 @@ LOGGER = logging.getLogger('main')
 ssh_key = None
 
 class Config(AppConfig):
-    name="gitmanager"
-    path="builder"
+    name="builder"
     def ready(self) -> None:
         global ssh_key
 

@@ -22,7 +22,6 @@ class Course(models.Model):
     update_automatically = models.BooleanField(default=True)
 
     class Meta:
-        app_label = "gitmanager"
         ordering = ['key']
 
     def has_access(self, request: HttpRequest, permission: Permission, default: bool = False) -> bool:
@@ -58,6 +57,5 @@ class CourseUpdate(models.Model):
     log = models.TextField(default=None, null=True, blank=True)
 
     class Meta:
-        app_label = "gitmanager"
         ordering = ['-request_time']
 
