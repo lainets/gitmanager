@@ -34,7 +34,7 @@ def index(request):
     # Only show courses user has access to
     courses = (course for course in Course.objects.all() if course.has_read_access(request, True))
 
-    course_configs = CourseConfig.get_for(courses)
+    course_configs, errors = CourseConfig.get_for(courses)
 
     if request.is_ajax():
         return JsonResponse({
@@ -43,6 +43,7 @@ def index(request):
         })
     return render(request, 'access/ready.html', {
         "courses": course_configs,
+        "errors": errors,
     })
 
 

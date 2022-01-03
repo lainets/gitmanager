@@ -3,6 +3,16 @@
 
 {% block heading %}{% trans "GITMANAGER_READY" %}{% endblock %}
 
+{% block error %}
+{% if errors %}
+	<div class="alert alert-danger" role="alert">
+		{% for error in errors %}
+			{{ error }}<br>
+		{% endfor %}
+	</div>
+{% endif %}
+{% endblock %}
+
 {% block body %}
 <p>
 	<a href="{% url 'manager-courses' %}" class="btn btn-default btn-sm">

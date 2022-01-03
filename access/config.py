@@ -180,24 +180,28 @@ class CourseConfig:
         return os.path.join(self.data.static_dir, *paths)
 
     @staticmethod
-    def get_for(courses: Iterable[CourseModel]):
+    def get_for(courses: Iterable[CourseModel]) -> Tuple[List[CourseConfig], List[str]]:
         configs = []
+        errors = []
         for course in courses:
             try:
                 config = CourseConfig.get(course.key, raise_on_error=True)
-            except ConfigError:
+            except ConfigError as e:
                 LOGGER.exception("Failed to load course: %s", course.key)
+                errors.append(f"Failed to load course {course.key}: {str(e)}")
             except ValidationError as e:
                 LOGGER.exception("Failed to load course: %s", course.key)
                 LOGGER.exception(validation_error_str(e))
+                errors.append(f"Failed to load course {course.key} due to a validation error")
             else:
                 configs.append(config)
                 warnings = validation_warning_str(config)
                 if warnings:
                     LOGGER.warning("Warnings in course config: %s", course.key)
                     LOGGER.warning(warnings)
+                    errors.append(f"Course {course.key} has validation warnings")
 
-        return configs
+        return configs, errors
 
     @staticmethod
     def all(courses: Optional[Iterable[Course]] = None):
