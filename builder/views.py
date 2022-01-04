@@ -41,9 +41,7 @@ def edit(request, key = None):
     else:
         course = None
         form = CourseForm(request.POST or None)
-    for name in form.fields:
-        if name not in ("email_on_error", "update_automatically"):
-            form.fields[name].widget.attrs = {'class': 'form-control'}
+
     if request.method == 'POST' and form.is_valid():
         if "remote_id" in request.POST and not has_access(request, Permission.WRITE, form.instance.remote_id):
             return HttpResponse(f"No access to instance id {request.POST['remote_id']}", status=403)

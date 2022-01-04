@@ -1,10 +1,15 @@
 from enum import Enum
+import secrets
 
 from aplus_auth.payload import Permission
 from django.db import models
 from django.http.request import HttpRequest
 
 from util.login_required import has_access
+
+
+def generate_secret() -> str:
+    return secrets.token_hex(32)
 
 
 class Course(models.Model):
@@ -20,6 +25,9 @@ class Course(models.Model):
     update_hook = models.URLField(blank=True)
     email_on_error = models.BooleanField(default=True)
     update_automatically = models.BooleanField(default=True)
+    # Do NOT set this to None, null values are only allowed for backwards compatibility
+    # nullness should be removed in the future when possible
+    webhook_secret = models.CharField(unique=True, null=True, max_length=64, default=generate_secret)
 
     class Meta:
         ordering = ['key']
@@ -30,11 +38,18 @@ class Course(models.Model):
 
         return has_access(request, permission, self.remote_id)
 
-    def has_write_access(self, request: HttpRequest, default: bool = False):
+    def has_write_access(self, request: HttpRequest, default: bool = False) -> bool:
         return self.has_access(request, Permission.WRITE, default)
 
-    def has_read_access(self, request: HttpRequest, default: bool = False):
+    def has_read_access(self, request: HttpRequest, default: bool = False) -> bool:
         return self.has_access(request, Permission.READ, default)
+
+    def reset_webhook_secret(self) -> str:
+        """
+        Generates a new secret and returns it. Does NOT save the model!
+        """
+        self.webhook_secret = generate_secret()
+        return self.webhook_secret
 
 
 class UpdateStatus(Enum):
