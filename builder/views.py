@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -218,6 +220,47 @@ def UI_hook(request, key: str) -> HttpResponse:
     return HttpResponse('ok')
 
 
+def verify_hmac(received_signature, secret, body) -> bool:
+    signature = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(received_signature, f"sha256={signature}")
+
+def try_verify_github(request, course: Course) -> Optional[str]:
+    received_signature = request.headers.get("X-Hub-Signature-256", None)
+    if not received_signature:
+        return "No X-Hub-Signature-256 header"
+
+    if not verify_hmac(received_signature, course.webhook_secret, request.body):
+        return "Signatures didn't match"
+
+    return None
+
+def try_verify_gitlab(request, course: Course) -> Optional[str]:
+    secret = request.headers.get("X-Gitlab-Token", None)
+    if not secret:
+        return "No X-Gitlab-Token header"
+
+    if not hmac.compare_digest(course.webhook_secret, secret):
+        return "Secrets didn't match"
+
+    return None
+
+
+def get_post_data(request) -> Optional[Dict[str, Any]]:
+    json_data = ""
+    if request.content_type == "application/x-www-form-urlencoded":
+        json_data = request.POST.get("payload")
+    else:
+        json_data = request.body.decode(request.encoding or settings.DEFAULT_CHARSET)
+
+    try:
+        data = json.loads(json_data)
+    except ValueError as e:
+        logger.warning(f"Invalid json data or unknown content type to webhook. Error: {e}")
+        return None
+
+    return data
+
+
 def git_hook(request, key: str) -> HttpResponse:
     """Git hook for git services"""
     course = get_object_or_404(Course, key=key)
@@ -225,18 +268,36 @@ def git_hook(request, key: str) -> HttpResponse:
     if request.method == 'POST':
         branch = None
         if request.META.get('HTTP_X_GITLAB_EVENT'):
-            try:
-                data = json.loads(request.body.decode(request.encoding or settings.DEFAULT_CHARSET))
-            except ValueError as e:
-                logger.warning("Invalid json data from gitlab. Error: %s", e)
-                pass
+            if course.webhook_secret is None:
+                logger.warning(f"webhook secret for course '{key}' is None. Skipping secret verification.")
             else:
-                branch = data.get('ref', '')
-                branch = branch[11:] if branch.startswith('refs/heads/') else None
+                error = try_verify_gitlab(request, course)
+                if error:
+                    logger.warning(f"Hook verification failed: {error}")
+                    return HttpResponse(error, status=403)
+
+            data = get_post_data(request)
+            if data:
+                branch = data.get('ref', '').rpartition("/")[2]
+        elif request.META.get('HTTP_X_GITHUB_EVENT'):
+            if course.webhook_secret is None:
+                logger.warning(f"webhook secret for course '{key}' is None. Skipping secret verification.")
+            else:
+                error = try_verify_github(request, course)
+                if error:
+                    logger.warning(f"Hook verification failed: {error}")
+                    return HttpResponse(error, status=403)
+
+            data = get_post_data(request)
+            if data:
+                branch = data.get('ref', '').rpartition("/")[2]
+        else:
+            logger.warning(f"Unknown git service: {request.headers}\n{request.body}")
+            return HttpResponse("Unknown git service", status=400)
 
         if branch is not None and branch != course.git_branch:
             return HttpResponse(
-                "ignored. update to '{}', but expected '{}'".format(branch, course.git_branch),
+                f"Ignored. Update to '{branch}', but expected '{course.git_branch}'",
                 status=400,
             )
 
