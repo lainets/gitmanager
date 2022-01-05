@@ -366,6 +366,12 @@ class Course(PydanticModel):
                 nurls.append(url)
         self.head_urls = nurls
 
+    @root_validator(allow_reuse=True, pre=True)
+    def change_language_to_lang(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        if "language" in values and "lang" not in values:
+            values["lang"] = values.pop("language")
+        return values
+
     @validator('modules', allow_reuse=True)
     def validate_module_keys(cls, modules: List[Module]) -> List[Module]:
         keys = []
