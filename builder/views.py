@@ -159,6 +159,7 @@ def updates(request, key):
         'course': course,
         'updates': course.updates.order_by('-request_time').all(),
         'hook': request.build_absolute_uri(reverse('manager-git-hook', args=[key])),
+        'has_write_access': course.has_write_access(request, False),
     })
 
 

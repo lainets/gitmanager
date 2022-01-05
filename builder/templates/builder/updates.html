@@ -11,6 +11,14 @@
 	<br />Hooks forward: {{ course.update_hook }}
 	{% endif %}
 </p>
+{% if has_write_access %}
+<div class="form-inline">
+    <div class="form-group">
+		<label>Webhook secret</label>
+		<input type="text" class="form-control" value="{{ course.webhook_secret }}" size="60" readonly="">
+	</div>
+</div>
+{% endif %}
 <p>
 <form method="post" action="{% url 'manager-git-hook' course.key %}" class="form-inline">
 	<div class="form-group">
