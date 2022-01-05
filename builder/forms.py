@@ -1,9 +1,16 @@
 from django import forms
+from django.forms import widgets
 
 from .models import Course
 
 
+class A(widgets.TextInput):
+    template_name="builder/widgets/read_only_with_reset_button.html"
+
 class CourseForm(forms.ModelForm):
+    # disabled makes webhook_secret uneditable
+    webhook_secret = forms.CharField(disabled=True, required=False, widget=A())
+
     class Meta:
         model = Course
         fields = [
@@ -19,9 +26,6 @@ class CourseForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # makes webhook_secret uneditable
-        self.fields['webhook_secret'].disabled = True
 
         for name in self.fields:
             if name not in ("email_on_error", "update_automatically"):

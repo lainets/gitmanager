@@ -40,6 +40,11 @@ def edit(request, key = None):
         course = get_object_or_404(Course, key=key)
         if not course.has_write_access(request, True):
             return HttpResponse(status=403)
+
+        if "regenerate_secret" in request.POST:
+            course.reset_webhook_secret()
+            course.save()
+
         form = CourseForm(request.POST or None, instance=course)
     else:
         course = None
@@ -49,7 +54,10 @@ def edit(request, key = None):
         if "remote_id" in request.POST and not has_access(request, Permission.WRITE, form.instance.remote_id):
             return HttpResponse(f"No access to instance id {request.POST['remote_id']}", status=403)
         form.save()
-        return redirect('manager-courses')
+
+        if "regenerate_secret" not in request.POST:
+            return redirect('manager-courses')
+
     return render(request, 'builder/edit.html', {
         'course': course,
         'form': form,
