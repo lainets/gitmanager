@@ -184,42 +184,6 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
-def hook(request, key: str, course: Course) -> None:
-    """Extracts GET/POST params and calls push_event"""
-    course.updates.create(
-        course=course,
-        request_ip=get_client_ip(request)
-    )
-
-    request_params = request.POST.dict()
-    request_params.update(request.GET.dict())
-
-    params = {k: request_params[k] == "on" or request_params[k] == "true" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
-    if request_params.get("build_image"):
-        params["build_image"] = request_params["build_image"]
-    if request_params.get("build_command"):
-        params["build_command"] = request_params["build_command"]
-
-    push_event(key, **params)
-
-
-@login_required
-def UI_hook(request, key: str) -> HttpResponse:
-    """Trigger build in UI"""
-    course = get_object_or_404(Course, key=key)
-
-    if not course.has_access(request, Permission.WRITE):
-        return HttpResponse(f"No access to course {key}", status=403)
-
-    if request.method == 'POST':
-        hook(request, key, course)
-
-    if request.META.get('HTTP_REFERER'):
-        return redirect('manager-updates', course.key)
-
-    return HttpResponse('ok')
-
-
 def verify_hmac(received_signature, secret, body) -> bool:
     signature = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(received_signature, f"sha256={signature}")
@@ -261,11 +225,17 @@ def get_post_data(request) -> Optional[Dict[str, Any]]:
     return data
 
 
-def git_hook(request, key: str) -> HttpResponse:
+def hook(request: Request, key: str, **kwargs) -> HttpResponse:
     """Git hook for git services"""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
     course = get_object_or_404(Course, key=key)
 
-    if request.method == 'POST':
+    if request.user.is_authenticated:
+        if not course.has_access(request, Permission.WRITE):
+            return HttpResponse(f"No access to course {key}", status=403)
+    else:
         branch = None
         if request.META.get('HTTP_X_GITLAB_EVENT'):
             if course.webhook_secret is None:
@@ -301,6 +271,23 @@ def git_hook(request, key: str) -> HttpResponse:
                 status=400,
             )
 
-        hook(request, key, course)
+    course.updates.create(
+        course=course,
+        request_ip=get_client_ip(request)
+    )
+
+    request_params = request.POST.dict()
+    request_params.update(request.GET.dict())
+
+    params = {k: request_params[k] == "on" or request_params[k] == "true" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
+    if request_params.get("build_image"):
+        params["build_image"] = request_params["build_image"]
+    if request_params.get("build_command"):
+        params["build_command"] = request_params["build_command"]
+
+    push_event(key, **params)
+
+    if request.META.get('HTTP_REFERER'):
+        return redirect('manager-updates', course.key)
 
     return HttpResponse('ok')
