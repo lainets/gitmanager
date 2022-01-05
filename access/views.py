@@ -177,7 +177,7 @@ def aplus_json(request: HttpRequest, course_key: str):
         config = CourseConfig.load_from_store(course_key)
     except ConfigError as e:
         try:
-            config = CourseConfig.load_from_publish(course_key)
+            config = CourseConfig.get(course_key)
         except ConfigError as e2:
             try:
                 Course.objects.get(key=course_key)
