@@ -1,14 +1,34 @@
+from functools import partial, wraps
 from typing import Callable
+import urllib.parse
 
 from aplus_auth import settings as auth_settings
 from aplus_auth.auth.django import login_required as login_required_base
 from aplus_auth.payload import Permission
 from django.http import HttpRequest
-from django.http.response import HttpResponseBase
+from django.http.response import HttpResponse, HttpResponseBase, HttpResponseRedirect
 
+login_redirect_url = "/login?referer={url}"
 
 ViewType = Callable[..., HttpResponseBase]
-login_required: Callable[[ViewType],ViewType] = login_required_base(redirect_url="/login?referer={url}")
+login_required: Callable[[ViewType],ViewType] = login_required_base(redirect_url=login_redirect_url)
+
+
+def login_required_method(func: ViewType = None, *, redirect_url=login_redirect_url, status=401) -> ViewType:
+    if func is None:
+        return partial(login_required_method, redirect_url=redirect_url, status=status)
+
+    @wraps(func)
+    def wrapper(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        nonlocal redirect_url, func
+        if (not hasattr(request, "user") or not request.user.is_authenticated) and not auth_settings().DISABLE_LOGIN_CHECKS:
+            if redirect_url:
+                url = redirect_url.format(url=urllib.parse.quote_plus(request.path))
+                return HttpResponseRedirect(url)
+            else:
+                return HttpResponse(status=status)
+        return func(self, request, *args, **kwargs)
+    return wrapper
 
 
 def has_access(request: HttpRequest, permission: Permission, instance_id: int) -> bool:

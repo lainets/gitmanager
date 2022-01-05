@@ -8,12 +8,13 @@ from aplus_auth.auth.django import Request
 from aplus_auth.payload import Permission
 from django.conf import settings
 from django.forms.models import model_to_dict
+from django.http.request import QueryDict
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 
-from util.login_required import has_access, login_required
+from util.login_required import has_access, login_required, login_required_method
 from .forms import CourseForm
 from .models import Course, UpdateStatus
 from .builder import push_event
@@ -67,58 +68,58 @@ class EditCourse(View):
 
     Returns the course settings and the git hook URL in the 'git_hook' key.
     """
-    def _check_access(self,
-            request: Request,
-            course: Optional[Course] = None,
-            permission: Permission = Permission.WRITE
-            ) -> Optional[HttpResponse]:
-
-        if course is not None and course.has_access(request, permission):
-            return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
-
+    def _check_access(self, request: Request, require_remote_id: bool = True) -> Optional[HttpResponse]:
+        """
+        Checks that the requester has write access to the remote_id specified in the POST data.
+        """
         if not settings.APLUS_AUTH["DISABLE_LOGIN_CHECKS"]:
-            if "remote_id" not in request.POST:
+            if "remote_id" in request.POST:
+                try:
+                    instance_id = int(request.POST["remote_id"])
+                except:
+                    return JsonResponse({"success": False, "error": "remote_id is not an integer"})
+
+                if request.auth is None:
+                    return JsonResponse({"success": False, "error": "No JWT payload"})
+
+                if not has_access(request, Permission.WRITE, instance_id):
+                    return JsonResponse({"success": False, "error": f"No access to instance {instance_id}"})
+            elif require_remote_id:
                 return JsonResponse({"success": False, "error": "No remote_id in POST parameters"})
-
-            try:
-                instance_id = int(request.POST["remote_id"])
-            except:
-                return JsonResponse({"success": False, "error": "remote_id is not an integer"})
-
-            if request.auth is None:
-                return JsonResponse({"success": False, "error": "No JWT payload"})
-
-            if not has_access(request, permission, instance_id):
-                return JsonResponse({"success": False, "error": f"No access to instance {instance_id}"})
 
         return None
 
     def _get(self, request: Request, course: Course) -> Dict[str, Any]:
         obj = model_to_dict(course, fields=CourseForm.Meta.fields)
         obj["git_hook"] = request.build_absolute_uri(reverse('manager-git-hook', args=[course.key]))
+        if not course.has_access(request, Permission.WRITE):
+            # we do not want to give a secret that allows writing to a person without write access
+            del obj["webhook_secret"]
         return obj
 
-    @login_required
+    @login_required_method(redirect_url=None)
     def get(self, request: Request, key: str, **kwargs) -> HttpResponse:
         course = get_object_or_404(Course, key=key)
 
-        response = self._check_access(request, None, Permission.READ)
-        if response is not None:
-            return response
+        if not course.has_access(request, Permission.READ):
+            return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
 
         return JsonResponse(self._get(request, course))
 
-    @login_required
+    @login_required_method(redirect_url=None)
     def post(self, request: Request, key: str, **kwargs) -> HttpResponse:
         if not request.POST:
             return JsonResponse({"success": False, "error": "No POST parameters given"})
 
-        if Course.objects.exists(key=key):
-            return HttpResponse(status=403)
+        if Course.objects.filter(key=key).exists():
+            return HttpResponse("Course already exists", status=400)
 
         response = self._check_access(request)
         if response is not None:
             return response
+
+        if request.POST.get("key") != key:
+            return HttpResponse("Key in POST params does not match key in URL", status=400)
 
         form = CourseForm(request.POST)
         if form.is_valid():
@@ -127,18 +128,21 @@ class EditCourse(View):
 
         return JsonResponse({"success": False, "error": form.errors})
 
-    @login_required
+    @login_required_method(redirect_url=None)
     def put(self, request: Request, key: str, **kwargs) -> HttpResponse:
-        if not request.POST:
+        data = QueryDict(request.body, mutable=True)
+        if not data:
             return JsonResponse({"success": False, "error": "No POST parameters given"})
 
         course = get_object_or_404(Course, key=key)
+        if not course.has_access(request, Permission.WRITE):
+            return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
 
-        response = self._check_access(request, course)
+        response = self._check_access(request, False)
         if response is not None:
             return response
 
-        form = CourseForm(request.POST, instance=course)
+        form = CourseForm(data, instance=course)
         if form.is_valid():
             course = form.save()
             return JsonResponse(self._get(request, course))
