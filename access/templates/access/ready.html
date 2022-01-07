@@ -23,7 +23,7 @@
 <div class="list-group">
 	{% for course in courses %}
 	<a href="{% url 'course' course.key %}" class="list-group-item">
-		{{ course.data.name }}
+		{{ course.course_name }}
 	</a>
 	{% endfor %}
 </ul>

@@ -322,7 +322,7 @@ NumberingType = Literal["none", "arabic", "roman", "hidden"]
 
 
 class Course(PydanticModel):
-    name: str
+    name: Localized[str]
     modules: List[Module]
     lang: Union[str, List[str]] = DEFAULT_LANG
     archive_time: NotRequired[AnyDate]

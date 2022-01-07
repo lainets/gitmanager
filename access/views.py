@@ -84,6 +84,7 @@ def course(request, course_key):
         return JsonResponse(data)
 
     render_context = {
+        'course_name': course_config.course_name if course_config is not None else course_key,
         'course': course_config.data if course_config is not None else {"name": course_key},
         'exercises': exercises,
         'plus_config_url': request.build_absolute_uri(reverse(

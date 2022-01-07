@@ -12,6 +12,7 @@ import time
 from typing import Any, ClassVar, Dict, Iterable, Optional, List, Tuple, Union
 
 from django.conf import settings
+from django.utils import translation
 from pydantic.error_wrappers import ValidationError
 
 from util.files import read_meta
@@ -150,6 +151,14 @@ class CourseConfig:
             )
 
         return exercise._config_obj
+
+    def get_course_name(self, lang: Optional[str] = None) -> str:
+        lang = lang or translation.get_language() or self.lang
+        return self.data.name.get(lang[:2], self.key)
+
+    @property
+    def course_name(self) -> str:
+        return self.get_course_name()
 
     @staticmethod
     def relative_path_to(key: str = "", *paths: str) -> str:

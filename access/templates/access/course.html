@@ -1,7 +1,7 @@
 {% extends 'gitmanager_frame.html' %}
 {% load i18n %}
 
-{% block title %}Git Manager :: {{ course.name }}{% endblock %}
+{% block title %}Git Manager :: {{ course_name }}{% endblock %}
 
 {% block error %}
 {% if error %}
@@ -11,7 +11,7 @@
 {% endif %}
 {% endblock %}
 
-{% block heading %}{{ course.name }}{% endblock %}
+{% block heading %}{{ course_name }}{% endblock %}
 
 {% block body %}
 <h3>{% trans "SERVICE_URLS_FOR_A+" %}</h3>
