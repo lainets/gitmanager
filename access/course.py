@@ -215,6 +215,21 @@ class Exercise(Item):
                     else:
                         files[file] = file
 
+                view_type = lang_data.get("view_type")
+                if view_type:
+                    if not isinstance(view_type, str):
+                        raise ValueError(f"view_type is not a string in {self.config}")
+
+                    if view_type.startswith("."):
+                        path = view_type[1:].rsplit(".", 1)[0]
+                        path = path.replace(".", "/") + ".py"
+                        parts = path.rsplit("/", 1)
+                        # if __init__.py exists, it is probably a package so send the whole directory
+                        if len(parts) == 2 and Path(course_dir, parts[0], "__init__.py").exists():
+                            files[parts[0]] = parts[0]
+                        else:
+                            files[path] = path
+
             configure["files"] = files
 
             self.configure = ConfigureOptions.parse_obj(configure)
