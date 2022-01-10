@@ -1,5 +1,17 @@
-Course and exercise configuration
+Course and exercise configuration and build
 =================================
+
+## Build environment variables
+
+The following environment variables are available to the build container:
+
+- COURSE_KEY: the Git Manager specific course key. E.g. aplus_manual_master or
+c1234_2021
+- COURSE_ID: database id of the course on A+. E.g. 142
+- STATIC_URL_PATH: URL to the course static files (no host or scheme).
+E.g. /static/default or /static/aplus_manual_master
+- STATIC_CONTENT_HOST: full static file URL (including scheme and host).
+E.g. https://gitmanager.cs.aalto.fi/static/default
 
 ## Configuration files
 
