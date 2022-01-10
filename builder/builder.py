@@ -78,7 +78,7 @@ def build(course: Course, path: Path, image: Optional[str] = None, command: Opti
         build_logger.info(f"Build image and command overridden: {build_image}, {build_command}\n\n")
     else:
         build_image = settings.DEFAULT_IMAGE
-        build_command = None
+        build_command = command
         if meta:
             if "build_image" in meta:
                 build_image = meta["build_image"]
@@ -89,11 +89,13 @@ def build(course: Course, path: Path, image: Optional[str] = None, command: Opti
             if "build_command" in meta:
                 build_command = meta["build_command"]
                 build_logger.info(f"Using build command: {build_command}\n\n")
+            elif build_command is not None:
+                build_logger.info(f"Build command overriden: {build_command}\n\n")
             elif not "build_image" in meta:
                 build_command = settings.DEFAULT_CMD
                 build_logger.info(f"No build_command in {META}, using the default: {build_command}\n\n")
             else:
-                build_logger.info(f"No build_command in {META}, using the image default\n\n")
+                build_logger.info(f"No build_command in {META} or service settings, using the image default\n\n")
         else:
             build_logger.info(f"No {META} file, using the default build image: {build_image}\n\n")
 
