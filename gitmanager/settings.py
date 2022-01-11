@@ -27,12 +27,18 @@ FRONTEND_URL = None # e.g. "https://<aplus_host>"
 # default grader URL used for configuring
 DEFAULT_GRADER_URL = None # e.g. "https://<grader_host>/configure"
 
-# Local messaging library settings
+# Authentication and authorization library settings
+# see https://pypi.org/project/aplus-auth/ for explanations
 APLUS_AUTH_LOCAL = {
+    #"UID": "...", # set to "gitmanager" below, can be changed
     "PRIVATE_KEY": None,
     "PUBLIC_KEY": None,
-    "REMOTE_AUTHENTICATOR_KEY": None,
-    "REMOTE_AUTHENTICATOR_URL": None, # e.g. "https://<aplus_host>/api/v2/get-token/"
+    "REMOTE_AUTHENTICATOR_UID": None, # The UID of the remote authenticator, e.g. "aplus"
+    "REMOTE_AUTHENTICATOR_KEY": None, # The public key of the remote authenticator
+    "REMOTE_AUTHENTICATOR_URL": None, # probably "https://<A+ domain>/api/v2/get-token/"
+    #"UID_TO_KEY": {...}
+    #"TRUSTED_UIDS": [...],
+    #"TRUSTING_REMOTES": [...],
     #"DISABLE_JWT_SIGNING": False,
     #"DISABLE_LOGIN_CHECKS": False,
 }
@@ -60,6 +66,7 @@ redis_port = environ.get("REDIS_PORT", 6379)
 ##########################################################################
 
 APLUS_AUTH: Dict[str, Any] = {
+    "UID": "gitmanager",
     "AUTH_CLASS": "access.auth.Authentication",
 }
 

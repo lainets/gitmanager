@@ -41,7 +41,7 @@ def has_access(request: HttpRequest, permission: Permission, instance_id: int) -
     # if the key is self signed and the permissions are empty, we assume it is
     # a 'master' key with access to everything
     has_empty_perms = next(iter(request.auth.permissions), None) is None
-    if has_empty_perms and request.auth.iss == auth_settings().PUBLIC_KEY:
+    if has_empty_perms and request.auth.iss == auth_settings().UID:
         return True
 
     return request.auth.permissions.instances.has(permission, id=instance_id)
