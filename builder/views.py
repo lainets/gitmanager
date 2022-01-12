@@ -49,6 +49,7 @@ def edit(request, key = None):
     else:
         course = None
         form = CourseForm(request.POST or None)
+        del form.fields["webhook_secret"]
 
     if request.method == 'POST' and form.is_valid():
         if "remote_id" in request.POST and not has_access(request, Permission.WRITE, form.instance.remote_id):
