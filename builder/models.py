@@ -51,6 +51,17 @@ class Course(models.Model):
         self.webhook_secret = generate_secret()
         return self.webhook_secret
 
+    def __str__(self) -> str:
+        return f"Course: {self.key}, id: {self.remote_id}, branch: {self.git_branch}, origin: {self.git_origin}"
+
+    def __repr__(self) -> str:
+        return (
+            f"Course("
+            f"key={self.key}, remote_id={self.remote_id}, git_origin={self.git_branch}, "
+            f"git_branch={self.git_origin}, update_hook={self.update_hook}, "
+            f"email_on_error={self.email_on_error}, update_automatically={self.update_automatically}"
+            ")"
+        )
 
 class UpdateStatus(Enum):
     PENDING="PENDING"
@@ -74,3 +85,13 @@ class CourseUpdate(models.Model):
     class Meta:
         ordering = ['-request_time']
 
+    def __str__(self) -> str:
+        return f"Course: {self.course.key} {self.status} {self.request_ip}, requested: {self.request_time}, updated: {self.updated_time}"
+
+    def __repr__(self) -> str:
+        return (
+            f"CourseUpdate("
+            f"course__key={self.course.key}, request_ip={self.request_ip}, request_time={self.request_time}, "
+            f"updated_time={self.updated_time}, status={self.status}"
+            ")"
+        )
