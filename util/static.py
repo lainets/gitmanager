@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 import urllib.parse
 
 from django.conf import settings
+from builder.models import Course
 
 from util.files import rm_path
 from util.pydantic import Undefined
@@ -30,6 +31,16 @@ def symbolic_link(course_config: "CourseConfig"):
     dst = static_path(course_config)
     rm_path(dst)
 
+    try:
+        remote_id = Course.objects.get(key=course_config.key).remote_id
+    except Course.DoesNotExist:
+        id_dst = None
+    else:
+        # dst as if the remote_id was the course key
+        # allows static file access using the remote_id instead of the key
+        id_dst = static_path_from_key(str(remote_id))
+        rm_path(id_dst)
+
     static_dir = course_config.static_path_to()
     if static_dir is not None:
         static_dir = course_config.path_to(course_config.key, static_dir)
@@ -37,8 +48,12 @@ def symbolic_link(course_config: "CourseConfig"):
             for path in course_config.data.unprotected_paths:
                 (dst / path).parent.mkdir(parents=True, exist_ok=True)
                 (dst / path).symlink_to(static_dir / path)
+            if id_dst is not None and course_config.data.unprotected_paths:
+                id_dst.symlink_to(dst)
         else:
             dst.symlink_to(static_dir)
+            if id_dst is not None:
+                id_dst.symlink_to(dst)
 
 
 def static_url_path(course_key: str, *paths: PathLike):
