@@ -1,24 +1,39 @@
 {% extends 'gitmanager_frame.html' %}
+{% load i18n %}
 
 {% block title %}{{ block.super }} :: Manager, Updates {{ course.key }}{% endblock %}
 
 {% block heading %}Update {{ course.key }}{% endblock %}
 
 {% block body %}
+{% if has_write_access %}
+<table>
+	<tr>
+		<td style="padding-right: 10px;">
+			<label>Webhook secret</label>
+		</td>
+		<td><input type="text" class="form-control" value="{{ course.webhook_secret }}" size="60" readonly=""></td>
+	</tr>
+	<tr>
+		<td style="padding-right: 10px;">
+			<label>Remote id</label>
+		</td>
+		<td><input type="text" class="form-control" value="{{ course.remote_id }}" size="60" readonly=""></td>
+	</tr>
+	<tr>
+		<td style="padding-right: 10px;">
+			<label>{% trans "A+_CONFIGURATION_JSON" %}</label>
+		</td>
+		<td><input type="text" class="form-control" value="{% url 'aplus-json' course.key %}" size="60" readonly=""></td>
+	</tr>
+</table>
+{% endif %}
 <p>
 	Origin: {{course.git_origin }} {{ course.git_branch }}
 	{% if course.update_hook %}
 	<br />Hooks forward: {{ course.update_hook }}
 	{% endif %}
 </p>
-{% if has_write_access %}
-<div class="form-inline">
-    <div class="form-group">
-		<label>Webhook secret</label>
-		<input type="text" class="form-control" value="{{ course.webhook_secret }}" size="60" readonly="">
-	</div>
-</div>
-{% endif %}
 <p>
 <form method="post" action="{% url 'manager-git-hook' course.key %}" class="form-inline">
 	<div class="form-group">
