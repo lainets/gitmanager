@@ -20,6 +20,7 @@ from builder import builder
 from builder.models import Course
 from util import export
 from util.files import FileResponse
+from util.log import SecurityLog
 from util.login_required import login_required
 
 
@@ -168,6 +169,8 @@ def aplus_json(request: HttpRequest, course_key: str):
     '''
     Delivers the configuration as JSON for A+.
     '''
+    SecurityLog.info(request, "APLUS-JSON", f"{course_key}")
+
     errors = []
 
     course = get_object_or_404(Course, key=course_key)
@@ -244,6 +247,8 @@ def aplus_json(request: HttpRequest, course_key: str):
 
 @login_required
 def publish(request: HttpRequest, course_key: str) -> HttpResponse:
+    SecurityLog.info(request, "PUBLISH", f"{course_key}")
+
     course = get_object_or_404(Course, key=course_key)
     if not course.has_write_access(request, True):
         return HttpResponse(status=403)

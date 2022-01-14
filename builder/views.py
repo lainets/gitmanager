@@ -14,6 +14,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 
+from util.log import SecurityLog
 from util.login_required import has_access, login_required, login_required_method
 from .forms import CourseForm
 from .models import Course, UpdateStatus
@@ -42,6 +43,7 @@ def edit(request, key = None):
             return HttpResponse(status=403)
 
         if "regenerate_secret" in request.POST:
+            SecurityLog.info(request, f"EDIT-COURSE reset_webhook_secret")
             course.reset_webhook_secret()
             course.save()
 
@@ -54,7 +56,8 @@ def edit(request, key = None):
     if request.method == 'POST' and form.is_valid():
         if "remote_id" in request.POST and not has_access(request, Permission.WRITE, form.instance.remote_id):
             return HttpResponse(f"No access to instance id {request.POST['remote_id']}", status=403)
-        form.save()
+
+        form.save(request)
 
         if "regenerate_secret" not in request.POST:
             return redirect('manager-courses')
@@ -132,7 +135,7 @@ class EditCourse(View):
 
         form = CourseForm(request.POST)
         if form.is_valid():
-            course = form.save()
+            course = form.save(request)
             return JsonResponse(self._get(request, course))
 
         return JsonResponse({"success": False, "error": form.errors})
@@ -153,7 +156,7 @@ class EditCourse(View):
 
         form = CourseForm(data, instance=course)
         if form.is_valid():
-            course = form.save()
+            course = form.save(request)
             return JsonResponse(self._get(request, course))
 
         return JsonResponse({"success": False, "error": form.errors})
@@ -249,6 +252,8 @@ def hook(request: Request, key: str, **kwargs) -> HttpResponse:
     if request.user.is_authenticated:
         if not course.has_access(request, Permission.WRITE):
             return HttpResponse(f"No access to course {key}", status=403)
+
+        SecurityLog.info(request, "INITIATE-BUILD", f"{key}")
     else:
         branch = None
         if request.META.get('HTTP_X_GITLAB_EVENT'):
@@ -284,6 +289,8 @@ def hook(request: Request, key: str, **kwargs) -> HttpResponse:
                 f"Ignored. Update to '{branch}', but expected '{course.git_branch}'",
                 status=400,
             )
+
+        SecurityLog.info(request, "INITIATE-BUILD", f"{key} {request.headers} {request.body}")
 
     course.updates.create(
         course=course,

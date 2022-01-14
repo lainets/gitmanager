@@ -1,6 +1,7 @@
 from django import forms
 from django.forms import widgets
 
+from util.log import SecurityLog
 from .models import Course
 
 
@@ -30,3 +31,10 @@ class CourseForm(forms.ModelForm):
         for name in self.fields:
             if name not in ("email_on_error", "update_automatically"):
                 self.fields[name].widget.attrs = {'class': 'form-control'}
+
+    def save(self, request):
+        if self.initial:
+            SecurityLog.info(request, "EDIT-COURSE", f"{self.initial} {self.cleaned_data}")
+        else:
+            SecurityLog.info(request, "NEW-COURSE", f"... {self.cleaned_data}")
+        super().save()

@@ -7,7 +7,13 @@ class User(AnonymousUser):
         self.id = id
         self.is_authenticated = True
 
+    def __str__(self) -> str:
+        return str(self.id)
 
-class Authentication(ServiceAuthentication[AnonymousUser]):
+    def __repr__(self) -> str:
+        return f"User(id={self.id})"
+
+
+class Authentication(ServiceAuthentication[User]):
     def get_user(self, request: Request, id: str, payload: Payload) -> User:
         return User(id)
