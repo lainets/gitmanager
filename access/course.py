@@ -353,7 +353,7 @@ class Course(PydanticModel):
     enrollment_audience: NotRequired[Literal["internal", "external", "all"]]
     enrollment_end: NotRequired[AnyDate]
     enrollment_start: NotRequired[AnyDate]
-    head_urls: List[Union[AnyHttpUrl, Path]] = []
+    head_urls: NotRequired[List[Union[AnyHttpUrl, Path]]]
     index_mode: NotRequired[Literal["results", "toc", "last", "experimental"]]
     lifesupport_time: NotRequired[AnyDate]
     module_numbering: NotRequired[NumberingType]
@@ -367,19 +367,20 @@ class Course(PydanticModel):
         for c in self.modules:
             c.postprocess(course_key=course_key, **kwargs)
 
-        nurls: List[Union[AnyHttpUrl, Path]] = []
-        for url in self.head_urls:
-            if isinstance(url, Path):
-                if url.is_absolute():
-                    url = url.relative_to("/")
-                httpurl = static_url(course_key, url)
-                if httpurl is None:
-                    self.add_warning(f"settings.STATIC_CONTENT_HOST not set (by admin). Cannot determine host for {url}", "head_urls")
-                    continue
-                nurls.append(httpurl)
-            else:
-                nurls.append(url)
-        self.head_urls = nurls
+        if self.head_urls is not Undefined:
+            nurls: List[Union[AnyHttpUrl, Path]] = []
+            for url in self.head_urls:
+                if isinstance(url, Path):
+                    if url.is_absolute():
+                        url = url.relative_to("/")
+                    httpurl = static_url(course_key, url)
+                    if httpurl is None:
+                        self.add_warning(f"settings.STATIC_CONTENT_HOST not set (by admin). Cannot determine host for {url}", "head_urls")
+                        continue
+                    nurls.append(httpurl)
+                else:
+                    nurls.append(url)
+            self.head_urls = nurls
 
     @root_validator(allow_reuse=True, pre=True)
     def change_language_to_lang(cls, values: Dict[str, Any]) -> Dict[str, Any]:
