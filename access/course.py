@@ -12,7 +12,7 @@ from pydantic.fields import PrivateAttr
 from pydantic.types import NonNegativeInt, PositiveInt, confloat
 
 from util.localize import Localized, DEFAULT_LANG
-from util.pydantic import PydanticModel, NotRequired, add_warnings_to_values_dict
+from util.pydantic import PydanticModel, NotRequired, Undefined, add_warnings_to_values_dict
 from util.static import static_url
 from .parser import ConfigParser
 
