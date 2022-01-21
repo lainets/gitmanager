@@ -137,8 +137,6 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': join(BASE_DIR, 'db.sqlite3'),
-        # NOTE: Above setting can't be changed if girmanager is used.
-        # cron.sh expects database to be in that file.
     }
 }
 ##########################################################################

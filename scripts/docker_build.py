@@ -1,7 +1,7 @@
 """
 If the app runs inside docker, BUILD_PATH must be mounted to a directory on the host.
 Set HOST_BUILD_PATH inside BUILD_MODULE_SETTINGS to be that directory. This is so
-that we can call docker and mount said directoty to the build container.
+that we can call docker and mount said directory to the build container.
 """
 
 import logging
