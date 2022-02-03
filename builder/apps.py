@@ -1,16 +1,16 @@
-from multiprocessing import Process, Queue
-import subprocess
-from pathlib import Path
 import logging
-import os
+from pathlib import Path
+import subprocess
 
-from django.apps import AppConfig
+from django.apps import AppConfig as DjangoAppConfig
 from django.conf import settings
+
 
 LOGGER = logging.getLogger('main')
 ssh_key = None
 
-class Config(AppConfig):
+
+class AppConfig(DjangoAppConfig):
     name="builder"
     def ready(self) -> None:
         global ssh_key

@@ -79,7 +79,7 @@ INSTALLED_APPS = (
     'staticfileserver', # override for runserver command, thus this needs to be before django contrib one
     'django.contrib.staticfiles',
     'access',
-    'builder.apps.Config',
+    'builder',
     'huey.contrib.djhuey',
     'aplus_auth',
 )
@@ -124,6 +124,9 @@ TEMPLATES = [
 #    "django.core.files.uploadhandler.MemoryFileUploadHandler",
 #    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 #)
+
+# default model primary key field
+DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
 ROOT_URLCONF = 'gitmanager.urls'
 # LOGIN_REDIRECT_URL = "/"
