@@ -79,7 +79,7 @@ class CourseUpdate(models.Model):
     request_ip = models.CharField(max_length=40)
     request_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(default=None, null=True, blank=True)
-    status = models.CharField(max_length=10, default=UpdateStatus.PENDING, choices=[(tag, tag.value) for tag in UpdateStatus])
+    status = models.CharField(max_length=10, default=UpdateStatus.PENDING.value, choices=[(tag.value, tag.value) for tag in UpdateStatus])
     log = models.TextField(default=None, null=True, blank=True)
 
     class Meta:
