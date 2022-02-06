@@ -280,6 +280,7 @@ APLUS_AUTH.update(APLUS_AUTH_LOCAL)
 from pathlib import Path
 Path(BUILD_PATH).mkdir(parents=True, exist_ok=True)
 Path(STORE_PATH).mkdir(parents=True, exist_ok=True)
+Path(COURSES_PATH).mkdir(parents=True, exist_ok=True)
 
 # Drop x-frame policy when debugging
 if DEBUG:
