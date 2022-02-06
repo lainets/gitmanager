@@ -2,11 +2,16 @@
 '''
 This module holds unit tests.
 '''
-import time, os
+import copy
+import os
+import time
+
 from django.conf import settings
 from django.test import TestCase
 
 from access.config import CourseConfig
+from access.parser import ConfigParser
+from builder.models import Course as CourseModel
 
 
 class ConfigTestCase(TestCase):
@@ -23,20 +28,25 @@ class ConfigTestCase(TestCase):
 
     def setUp(self):
         settings.COURSES_PATH = os.path.join(os.path.dirname(__file__), 'test_data')
-        self.config = CourseConfig
+        settings.STATIC_ROOT = os.path.join(settings.BASE_DIR, 'static')
+        self.course = CourseModel.objects.create(
+            key='test_course',
+            email_on_error=False,
+            update_automatically=False,
+        )
 
     def get_course_key(self):
-        course_configs = self.config.all()
+        course_configs = list(CourseConfig.all())
         self.assertGreater(len(course_configs), 0, "No courses configured")
-        return course_configs[0]['key']
+        return course_configs[0].key
 
     def test_rst_parsing(self):
-        from access.config import get_rst_as_html
+        from access.parser import get_rst_as_html
         self.assertEqual(get_rst_as_html('A **foobar**.'), '<p>A <strong>foobar</strong>.</p>\n')
 
     def test_parsing(self):
-        course_root = {'lang': 'en'}
-        data = self.config._process_exercise_data(course_root, self.TEST_DATA)
+        data = copy.deepcopy(self.TEST_DATA)
+        data = ConfigParser.process_tags(data, 'en')
         self.assertEqual(data["en"]["text"], data["fi"]["text"])
         self.assertEqual(data["en"]["title"], "A Title")
         self.assertEqual(data["en"]["nested"]["number"], 1)
@@ -46,28 +56,27 @@ class ConfigTestCase(TestCase):
     def test_cache(self):
         course_key = self.get_course_key()
 
-        root = self.config._course_root(course_key)
-        mtime = root["mtime"]
-        ptime = root["ptime"]
+        root = CourseConfig.get(course_key)
+        mtime = root.mtime
+        ptime = root.ptime
         self.assertGreater(ptime, mtime)
 
         # Ptime changes if cache is missed.
-        root = self.config._course_root(course_key)
-        self.assertEqual(root["mtime"], mtime)
-        self.assertEqual(root["ptime"], ptime)
+        root = CourseConfig.get(course_key)
+        self.assertEqual(root.mtime, mtime)
+        self.assertEqual(root.ptime, ptime)
 
     def test_cache_reload(self):
         course_key = self.get_course_key()
 
-        root = self.config._course_root(course_key)
-        mtime = root["mtime"]
-        ptime = root["ptime"]
+        root = CourseConfig.get(course_key)
+        mtime = root.mtime
+        ptime = root.ptime
         self.assertGreater(ptime, mtime)
 
         time.sleep(0.01)
-        os.utime(root["file"])
-        root = self.config._course_root(course_key)
-        self.assertGreater(root["ptime"], root["mtime"])
-        self.assertGreater(root["mtime"], mtime)
-        self.assertGreater(root["ptime"], ptime)
-
+        os.utime(root.file)
+        root = CourseConfig.get(course_key)
+        self.assertGreater(root.ptime, root.mtime)
+        self.assertGreater(root.mtime, mtime)
+        self.assertGreater(root.ptime, ptime)
