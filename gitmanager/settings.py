@@ -237,6 +237,7 @@ from redis import ConnectionPool
 pool = ConnectionPool(host=redis_host, port=redis_port, max_connections=50, db=0)
 
 HUEY = {
+    'immediate': False,
     'huey_class': 'huey.RedisHuey',
     'results': False,  # Whether to store return values of tasks
     # see redis.Connection in https://redis-py.readthedocs.io/en/stable/ for possible settings
