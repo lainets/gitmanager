@@ -284,11 +284,12 @@ Chapter.update_forward_refs()
 class SimpleDuration(PydanticModel):
     __root__: str
 
-    @root_validator(allow_reuse=True, pre=True)
-    def simple_duration(cls, delta: Any):
+    @root_validator
+    def simple_duration(cls, values: dict):
+        delta = values.get('__root__')
         if not isinstance(delta, str):
             raise ValueError("A duration must be a string")
-        if not len(delta) > 0:
+        if not delta:
             raise ValueError("An empty string cannot be turned into a duration")
 
         try:
@@ -297,7 +298,7 @@ class SimpleDuration(PydanticModel):
             raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
 
         if delta[-1] in ("y", "m", "w", "d", "h"):
-            return delta
+            return values
         else:
             raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
 
