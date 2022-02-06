@@ -241,7 +241,6 @@ class CourseConfig:
         @param course_key: a course key
         @type raise_on_error: bool
         @param raise_on_error: whether to raise an exception or return None on error
-        @rtype: C{dict}
         @return: course config or None
         '''
 
