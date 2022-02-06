@@ -1,10 +1,10 @@
-Django~=3.2.12
+Django ~= 3.2.12
 git+https://github.com/apluslms/django-essentials.git@1.4.0#egg=django-essentials==1.4.0
-requests~=2.25.1
-PyYAML~=5.4.1
-docutils~=0.17.1
-huey~=2.3.2
-redis~=3.5.3
-pydantic~=1.8.2
-aplus-auth~=0.2.0
-requests-toolbelt~=0.9.1
+requests ~= 2.25.1
+PyYAML ~= 5.4.1
+docutils ~= 0.17.1
+huey ~= 2.3.2
+redis ~= 3.5.3
+pydantic ~= 1.8.2
+aplus-auth ~= 0.2.0
+requests-toolbelt ~= 0.9.1
