@@ -1,4 +1,3 @@
-from enum import Enum
 import secrets
 
 from aplus_auth.payload import Permission
@@ -63,23 +62,24 @@ class Course(models.Model):
             ")"
         )
 
-class UpdateStatus(Enum):
-    PENDING="PENDING"
-    RUNNING="RUNNING"
-    SUCCESS="SUCCESS"
-    FAILED="FAILED"
-    SKIPPED="SKIPPED"
-
 
 class CourseUpdate(models.Model):
     '''
     An update to course repo from the origin.
     '''
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "PENDING"
+        RUNNING = "RUNNING", "RUNNING"
+        SUCCESS = "SUCCESS", "SUCCESS"
+        FAILED = "FAILED", "FAILED"
+        SKIPPED = "SKIPPED", "SKIPPED"
+
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='updates')
     request_ip = models.CharField(max_length=40)
     request_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(default=None, null=True, blank=True)
-    status = models.CharField(max_length=10, default=UpdateStatus.PENDING.value, choices=[(tag.value, tag.value) for tag in UpdateStatus])
+    status = models.CharField(max_length=10, default=Status.PENDING, choices=Status.choices)
     log = models.TextField(default=None, null=True, blank=True)
 
     class Meta:

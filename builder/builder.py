@@ -32,7 +32,7 @@ from util.git import get_commit_hash, pull
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
 from util.typing import PathLike
-from .models import Course, CourseUpdate, UpdateStatus
+from .models import Course, CourseUpdate
 
 
 logger = logging.getLogger("builder.builder")
@@ -334,7 +334,7 @@ def push_event(
     for update in updates:
         update.delete()
     # get pending updates
-    updates = CourseUpdate.objects.filter(course=course, status=UpdateStatus.PENDING).order_by("request_time").all()
+    updates = CourseUpdate.objects.filter(course=course, status=CourseUpdate.Status.PENDING).order_by("request_time").all()
 
     updates = list(updates)
     if len(updates) == 0:
@@ -342,7 +342,7 @@ def push_event(
 
     # skip all but the most recent update
     for update in updates[:-1]:
-        update.status = UpdateStatus.SKIPPED
+        update.status = CourseUpdate.Status.SKIPPED
         update.save()
 
     update = updates[-1]
@@ -353,7 +353,7 @@ def push_event(
     log_handler = logging.StreamHandler(log_stream)
     build_logger.addHandler(log_handler)
     try:
-        update.status = UpdateStatus.RUNNING
+        update.status = CourseUpdate.Status.RUNNING
         update.save()
 
         build_path = CourseConfig.build_path_to(course_key)
@@ -412,7 +412,7 @@ def push_event(
             return
 
         # all went well
-        update.status = UpdateStatus.SUCCESS
+        update.status = CourseUpdate.Status.SUCCESS
     except:
         build_logger.error("Build failed.\n")
         build_logger.error(traceback.format_exc() + "\n")
@@ -429,8 +429,8 @@ def push_event(
             build_logger.info("Doing an automatic update...")
             notify_update(course)
     finally:
-        if update.status != UpdateStatus.SUCCESS:
-            update.status = UpdateStatus.FAILED
+        if update.status != CourseUpdate.Status.SUCCESS:
+            update.status = CourseUpdate.Status.FAILED
 
             if course.email_on_error:
                 send_error_mail(course, f"Course {course_key} build failed", log_stream.getvalue())

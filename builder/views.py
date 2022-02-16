@@ -17,7 +17,7 @@ from django.views import View
 from util.log import SecurityLog
 from util.login_required import has_access, login_required, login_required_method
 from .forms import CourseForm
-from .models import Course, UpdateStatus
+from .models import Course, CourseUpdate
 from .builder import push_event
 from .apps import ssh_key
 
@@ -188,7 +188,7 @@ def build_log_json(request, key):
         'build_log': latest_update.log,
         'request_ip': latest_update.request_ip,
         'request_time': latest_update.request_time,
-        'updated': latest_update.status != UpdateStatus.PENDING,
+        'updated': latest_update.status != CourseUpdate.Status.PENDING,
         'updated_time': latest_update.updated_time,
         'status': latest_update.status,
     })
