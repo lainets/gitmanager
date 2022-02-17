@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Git Manager\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-08-25 14:03+0000\n"
+"POT-Creation-Date: 2022-02-17 10:02+0000\n"
 "PO-Revision-Date: 2019-10-12 20:00+0300\n"
 "Last-Translator: Ella Anttila <ella.anttila@aalto.fi>\n"
 "Language-Team: Finnish <>\n"
@@ -16,128 +16,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: access/templates/access/_error_summary.html
-#: access/templates/access/async_accepted.html
-msgid "SUBMISSION_FAILED"
-msgstr "Palautuksen vastaanottaminen epäonnistui"
-
-#: access/templates/access/_error_summary.html
-msgid "CHECK_ANSWERS_BEFORE_TRYING_AGAIN"
-msgstr "Tarkista vastauksesi ja yritä uudelleen:"
-
-#: access/templates/access/accept_files_default.html
-msgid "SELECT_FILES_FOR_GRADING"
-msgstr "Valitse arvosteltavat tiedostot"
-
-#: access/templates/access/accept_files_form.html
-#: access/templates/access/accept_general_form.html
-#, python-format
-msgid "SUBMIT_ONLY_NUM_FILES_OF_FOLLOWING -- %(num_files)s"
-msgstr "Palauta vain %(num_files)s seuraavista tiedostoista."
-
-#: access/templates/access/accept_files_form.html
-#: access/templates/access/accept_general_form.html
-#: access/templates/access/accept_git_form.html
-#: access/templates/access/accept_post_form.html
-#: access/templates/access/graded_form.html
-msgid "SUBMIT"
-msgstr "Lähetä"
-
-#: access/templates/access/accept_general_default.html
-#: access/templates/access/accept_post_default.html
-msgid "ENTER_SUBMISSION"
-msgstr "Kirjoita ratkaisusi"
-
-#: access/templates/access/accept_git_form.html
-msgid "GIT_ENTER_REPOSITORY_ADDRESS"
-msgstr "Syötä arvosteltavan projektisi Git-osoite"
-
-#: access/templates/access/accept_git_form.html
-#: access/templates/access/accept_git_user.html
-msgid "GIT_WORKFLOW_REMINDER"
-msgstr "Muistitko git add - git commit - git push?"
-
-#: access/templates/access/accept_git_user.html
-msgid "GIT_ENTER_USER_ID"
-msgstr "Anna käyttäjätunnuksesi arvostelua varten"
-
-#: access/templates/access/accept_git_user.html
-msgid "GIT_REQUEST_GRADING_OF_REPO"
-msgstr "Pyydä versiosäilöni arvostelua"
-
-#: access/templates/access/active_element_default.html
-#: access/templates/access/exercise_frame.html
-msgid "ERROR_INVALID_ADDRESS"
-msgstr "Syötetty osoite ei kelpaa."
-
-#: access/templates/access/active_element_default.html
-msgid "ERROR_FORM_CAN_BE_SUBMITTED_ONLY_ONCE"
-msgstr ""
-"Sama lomake voidaan lähettää vain kerran. Aloita uudelleen tehtävänannosta."
-
-#: access/templates/access/active_element_default.html
-#: access/templates/access/exercise_frame.html
-msgid "ERROR_MISSING_REQUIRED_FIELDS"
-msgstr "Täytä kaikki pakolliset kentät."
-
-#: access/templates/access/active_element_feedback.html
-#: access/templates/access/task_success.html
-#, python-format
-msgid "POINTS -- %(points)s, %(max_points)s"
-msgstr "Pisteet %(points)s/%(max_points)s"
-
-#: access/templates/access/ajax.html
-#, python-format
-msgid "POINTS_YOU_GOT -- %(points)s, %(max_points)s"
-msgstr "Sait %(points)s/%(max_points)s pistettä vastauksestasi."
-
-#: access/templates/access/async_accepted.html
-msgid "WARNING_GRADING_WAS_SYNCHRONOUS"
-msgstr ""
-"Arvostelujonoa ei ole konfiguroitu. Tämä palautus arvosteltiin "
-"synkronisesti, mikä estää muita palveluja toimimasta samaan aikaan. EI "
-"VALMIS TUOTANTOKÄYTTÖÖN!"
-
-#: access/templates/access/async_accepted.html
-msgid "ERROR_OCCURED_CONTACT_STAFF"
-msgstr ""
-"Palautuksen käsittelyssä tapahtui virhe. Ota yhteys kurssihenkilökuntaan."
-
-#: access/templates/access/async_accepted.html
-msgid "SUBMISSION_RECEIVED"
-msgstr "Palautus on vastaanotettu"
-
-#: access/templates/access/async_accepted.html
-#, python-format
-msgid ""
-"WARNING_MISSING_CODE_FOR_RESULT_DELIVERY_TEMPORARY_AVAILABLE -- %(key)s, "
-"%(url)s"
-msgstr ""
-"<code>%(key)s</code> puuttuu ja se vaaditaan tulosten toimittamiseen! "
-"Tuloksia voi väliaikaisesti katsella osoitteessa <a href=\"%(url)s\">"
-"%(url)s</a>."
-
-#: access/templates/access/async_accepted.html
-msgid "SUBMISSION_IN_GRADING_NOW"
-msgstr ""
-"Palautuksesi on arvosteltavana. Tulos on mahdollista nähdä tällä sivulla, "
-"kun arvosteluprosessi on suoritettu loppuun. Huomaa, että arvostelu voi "
-"kestää useita kymmeniä sekunteja. Saatat joutua lataamaan tämän sivun "
-"uudelleen nähdäksesi palautteen. Tämän viestin voi sulkea."
-
-#: access/templates/access/async_accepted.html
-#, python-format
-msgid "SUBMISSION_IN_GRADING_QUEUE -- %(queue)s"
-msgstr ""
-"Palautuksesi on arvostelujonossa. Jonossa on edellä %(queue)s palautusta. "
-"Tulos näytetään tällä sivulla, kun arvosteluprosessi on suoritettu. Joudut "
-"lataamaan sivun uudelleen nähdäksesi palautteen."
-
 #: access/templates/access/course.html
 msgid "SERVICE_URLS_FOR_A+"
 msgstr "Palveluosoitteet A+:aa varten"
 
-#: access/templates/access/course.html
+#: access/templates/access/course.html builder/templates/builder/updates.html
 msgid "A+_CONFIGURATION_JSON"
 msgstr "A+:n konfiguraatio-JSON"
 
@@ -148,95 +31,6 @@ msgstr "Kurssin kääntämisen tulosteen haku"
 #: access/templates/access/course.html
 msgid "AVAILABLE_EXERCISES"
 msgstr "Saatavilla olevat tehtävät"
-
-#: access/templates/access/create_form_default.html
-msgid "WHOLE_SECTION_WITHIN_LINE_MARKED_AS_INCORRECT"
-msgstr ""
-"Kaikki kysymykset kysymysosion sisällä merkitään vääriksi vastauksiksi "
-"mikäli yksi kysymyksistä on väärin."
-
-#: access/templates/access/exercise_config_error.html
-msgid "EXERCISE_CONFIGURATION_ERROR_NOTIFY_COURSE_STAFF_WITH_MESSAGE"
-msgstr ""
-"Tehtävän asetuksissa on virhe. Ole ystävällinen ja ilmoita asiasta "
-"henkilökunnalle. Liitä mukaan seuraava viesti:"
-
-#: access/templates/access/exercise_frame.html
-#, python-format
-msgid "ERROR_SUBMIT_NUM_FILES_SINGULAR -- %(num_files)s"
-msgid_plural "ERROR_SUBMIT_NUM_FILES_PLURAL -- %(num_files)s"
-msgstr[0] "Sinun täytyy palauttaa %(num_files)s tiedosto."
-msgstr[1] "Sinun täytyy palauttaa %(num_files)s tiedostoa."
-
-#: access/templates/access/exercise_frame.html
-msgid "ERROR_EVERY_FILE_REQUIRED"
-msgstr "Palautus vaatii kaikki tiedostot."
-
-#: access/templates/access/exercise_frame.html
-msgid "ERROR_INVALID_CHECKSUM"
-msgstr ""
-"Tarkistesumma puuttuu tai on epäkelpo. Älä muokkaa lomakkeen piilotettuja "
-"kenttiä!"
-
-#: access/templates/access/feedback_template_did_not_use_result_alert.html
-msgid "WARNING_FEEDBACK_DID_NOT_ACCESS_RESULT"
-msgstr ""
-"<p>\n"
-"Palautepohja ei käyttänyt <code>result</code>-dictiä, joten alla oleva "
-"palaute luultavasti puuttuu tai on puutteellinen. Pohjan tulisi käyttää "
-"ainakin yhtä arvoista <code>points</code>, <code>max_points</code>, "
-"<code>error</code> tai <code>out</code>. Ole hyvä ja tarkista tehtävän YAML-"
-"tiedostossa määritelty <code>feedback_template</code>.\n"
-"</p>\n"
-"<p>\n"
-"Jos olet opiskelija, ole hyvä ja kerro kurssihenkilökunnalle mitä olit "
-"tekemässä viestin saadessasi, sekä tämän viestin sisältö.\n"
-"</p> "
-
-#: access/templates/access/graded_form.html
-#: access/templates/access/graded_form_feedback.html
-msgid "INCORRECT"
-msgstr "Vastauksesi on väärin."
-
-#: access/templates/access/graded_form.html
-msgid "CORRECT"
-msgstr "Oikein"
-
-#: access/templates/access/graded_form.html
-#, python-format
-msgid "POINTS_SINGULAR -- %(points)s"
-msgid_plural "POINTS_PLURAL -- %(points)s"
-msgstr[0] "%(points)s piste"
-msgstr[1] "%(points)s pistettä"
-
-#: access/templates/access/graded_form.html
-msgid "NEUTRAL_OPTION_DESCRIPTION"
-msgstr "neutraali vaihtoehto, joka ei vaikuta kokonaispisteisiin"
-
-#: access/templates/access/graded_form_feedback.html
-msgid "FEEDBACK_CORRECT_WITH_PUNCTUATION"
-msgstr "Oikein!"
-
-#: access/templates/access/graded_form_feedback.html
-msgid "FEEDBACK_INCORRECT_WITH_PUNCTUATION"
-msgstr "Vastauksesi on väärin."
-
-#: access/templates/access/graded_form_feedback.html
-msgid "YOU_CAN_CHECK_CORRECT_ANSWERS_ABOVE"
-msgstr "Yllä näet oikeat vastaukset."
-
-#: access/templates/access/graded_form_feedback.html
-msgid "NEUTRAL_ANSWERS_MARKED_WITH_QUESTION_MARK"
-msgstr "Kysymysmerkillä merkityt vaihtoehdot eivät vaikuta kokonaispisteisiin."
-
-#: access/templates/access/graded_form_feedback.html
-#, python-format
-msgid "CORRECT_ANSWER_IS -- %(correct)s"
-msgstr "Oikea vastaus on: %(correct)s"
-
-#: access/templates/access/personalized_content_default.html
-msgid "DOWNLOAD"
-msgstr "Lataa"
 
 #: access/templates/access/ready.html
 msgid "GITMANAGER_READY"
@@ -250,47 +44,6 @@ msgstr "Git-hallinnointi"
 msgid "AVAILABLE_COURSES"
 msgstr "Saatavilla olevat kurssit"
 
-#: access/templates/access/task_success.html
-#, python-format
-msgid "TOTAL_POINTS -- %(points)s, %(max_points)s"
-msgstr "Kokonaispisteet %(points)s/%(max_points)s"
-
-#: access/templates/access/task_success.html
-msgid "APPENDIXES"
-msgstr "Liitteet"
-
-#: access/templates/access/task_system_error.html templates/500.html
-msgid "INTERNAL_SERVER_ERROR"
-msgstr "Järjestelmävirhe"
-
-#: access/templates/access/task_system_error.html templates/500.html
-msgid "INTERNAL_SERVER_ERROR_DESCRIPTION"
-msgstr ""
-"Hups, järjestelmässä näyttää olevan ongelmia! Pahoittelemme häiriötä. Yritä "
-"myöhemmin uudelleen tai ota yhteyttä kurssihenkilökuntaan."
-
-#: access/templates/access/task_timeout.html
-msgid "TIMEOUT_WHILE_GRADING"
-msgstr "Arvostelu katkaistiin"
-
-#: access/templates/access/task_timeout.html
-msgid "TIMEOUT_WHILE_GRADING_DESCRIPTION"
-msgstr ""
-"Hups, palautuksesi arvostelu kesti yli maksimiajan! Pahoittelemme häiriötä. "
-"Yritä myöhemmin uudelleen tai ota yhteyttä kurssihenkilökuntaan."
-
-#: access/types/forms.py
-msgid "HINT_MULTIPLE_CHOICES_SELECTABLE"
-msgstr "Voit valita useita vaihtoehtoja"
-
-#: access/types/forms.py
-msgid "HINT_MULTIPLE_CORRECT_ANSWERS_ACCEPTED"
-msgstr "Useita oikeita vastauksia."
-
-#: access/types/forms.py
-msgid "HINT_CORRECT_PARTS_IN_YOUR_ANSWER"
-msgstr "Oikeat osat vastauksessasi: "
-
 #: templates/404.html
 msgid "NOT_FOUND"
 msgstr "Sivua ei löytynyt"
@@ -300,3 +53,13 @@ msgid "NOT_FOUND_DESCRIPTION"
 msgstr ""
 "Hups, olemme saattaneet kirjoittaa jotain väärin! Pahoittelemme häiriötä. "
 "Yritä myöhemmin uudelleen tai ota yhteyttä kurssihenkilökuntaan."
+
+#: templates/500.html
+msgid "INTERNAL_SERVER_ERROR"
+msgstr "Järjestelmävirhe"
+
+#: templates/500.html
+msgid "INTERNAL_SERVER_ERROR_DESCRIPTION"
+msgstr ""
+"Hups, järjestelmässä näyttää olevan ongelmia! Pahoittelemme häiriötä. Yritä "
+"myöhemmin uudelleen tai ota yhteyttä kurssihenkilökuntaan."
