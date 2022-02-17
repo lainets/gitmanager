@@ -24,7 +24,7 @@
 		<td style="padding-right: 10px;">
 			<label>{% trans "A+_CONFIGURATION_JSON" %}</label>
 		</td>
-		<td><input type="text" class="form-control" value="{% url 'aplus-json' course.key %}" size="60" readonly=""></td>
+		<td><input type="text" class="form-control" value="{{ aplus_json_url }}" size="60" readonly=""></td>
 	</tr>
 </table>
 {% endif %}
