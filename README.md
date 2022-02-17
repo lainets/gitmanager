@@ -6,7 +6,7 @@ automatically built inside a configurable container. If the build passes
 validation, the course and its exercises are configured on A+ and compatible
 grading services.
 
-The application is implemented on Django 2.2 (`gitmanager/settings.py`) and
+The application is implemented on Django 3.2 (`gitmanager/settings.py`) and
 requires Python 3.7+.
 
 Gitmanager can be run stand alone without the full stack to test any part of
