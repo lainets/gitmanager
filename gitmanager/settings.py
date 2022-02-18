@@ -270,7 +270,6 @@ from r_django_essentials.conf import *
 update_settings_with_file(__name__,
                           environ.get('GITMANAGER_LOCAL_SETTINGS', 'local_settings'),
                           quiet='GITMANAGER_LOCAL_SETTINGS' in environ)
-update_settings_from_module(__name__, 'settings_local', quiet=True) # Compatibility with older releases
 
 # Load settings from environment variables starting with ENV_SETTINGS_PREFIX (default GITMANAGER_)
 ENV_SETTINGS_PREFIX = environ.get('ENV_SETTINGS_PREFIX', 'GITMANAGER_')
