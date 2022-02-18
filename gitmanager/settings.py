@@ -226,7 +226,7 @@ LOGGING = {
       'propagate': True
     },
     'builder.build': {
-      'level': 'ERROR',
+      'level': 'DEBUG',
       'handlers': [],
       'propagate': False,
     },
