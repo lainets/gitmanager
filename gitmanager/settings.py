@@ -256,7 +256,11 @@ HUEY = {
         'flush_locks': True, # this might cause problems if there are multiple workers and one restarts
     },
 }
-
+huey_immediate = environ.get('HUEY_IMMEDIATE', None)
+if huey_immediate is not None:
+    HUEY.update({
+        'immediate': huey_immediate in ('true', 'True', 'yes', 'on'),
+    })
 
 
 ###############################################################################
