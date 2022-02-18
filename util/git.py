@@ -61,7 +61,7 @@ def has_origin(path: str, origin: str) -> bool:
 def pull(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> bool:
     success = False
     do_clone = True
-    if Path(path, ".git"):
+    if Path(path, ".git").exists():
         if has_origin(path, origin):
             do_clone = False
             success = checkout(path, origin, branch, logger=logger)
