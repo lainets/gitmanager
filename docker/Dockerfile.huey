@@ -1,0 +1,24 @@
+ARG FULL_TAG=latest
+FROM apluslms/run-gitmanager:$FULL_TAG
+
+ENV CONTAINER_TYPE="gitmanagerhuey" \
+    GITMANAGER_LOCAL_SETTINGS="/srv/gitmanagerhuey-cont-settings.py" \
+    GITMANAGER_SECRET_KEY_FILE="/local/gitmanagerhuey/secret_key.py" \
+    gitmanagerhuey_NO_DATABASE="true" \
+    DATABASE_IS_EMPTY='' \
+    HUEY_IMMEDIATE="false"
+
+# Disable the PostgreSQL server.
+# This worker connects to the gitmanager web app's database over the network.
+RUN touch /etc/services.d/postgresql/down \
+  # Combine Django settings for the task queue worker (Huey).
+ && cp /srv/gitmanager-cont-settings.py /srv/gitmanagerhuey-cont-settings.py \
+ && cat /srv/gitmanagerhuey-custom-cont-settings.py >> /srv/gitmanagerhuey-cont-settings.py \
+  # Course directory for the worker.
+  # The course directory may be mounted here so that the container does not need to clone any git repos.
+ && mkdir -p /srv/courseshuey/ \
+ && :
+
+
+WORKDIR /srv/gitmanager/
+CMD [ "-u", "gitmanager", "--", "manage", "run_huey" ]

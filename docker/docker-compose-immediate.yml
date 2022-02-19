@@ -1,0 +1,48 @@
+version: '3'
+
+# Run a-plus, grader and gitmanager.
+# The course is built in the gitmanager and a-plus imports the course from the gitmanager.
+# Gitmanager uses Huey's immediate mode, in other words,
+# there is no worker for the build queue.
+# The gitmanager container runs the build tasks immediately
+# with an in-memory storage (no Redis needed).
+# The course git repo is mounted to the gitmanager container and
+# gitmanager git-clones the course for the build.
+# The disadvantage is that git-cloning includes only committed changes, that is,
+# uncommitted changes are not part of the build in this configuration.
+
+volumes:
+  data:
+services:
+  grader:
+    image: apluslms/run-mooc-grader:1.13
+    volumes:
+      - data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/aplus:/tmp/aplus
+      #- $HOME/mooc-grader/:/srv/grader/:ro
+    ports:
+      - "8080:8080"
+  plus:
+    image: apluslms/run-aplus-front:1.13
+    environment:
+      USE_GITMANAGER: 'true'
+    volumes:
+      - data:/data
+      #- $HOME/a-plus/:/srv/aplus/:ro
+    ports:
+      - "8000:8000"
+  gitmanager:
+    image: apluslms/run-gitmanager:1.13
+    volumes:
+      - data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/aplus:/tmp/aplus
+      - .:/srv/courses/git_repo/default:ro
+      #- $HOME/gitmanager/:/srv/gitmanager/:ro
+    ports:
+      - "8070:8070"
+    depends_on:
+      - grader
+      - plus
+

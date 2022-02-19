@@ -1,0 +1,14 @@
+version: '3'
+
+# Run tests:
+# docker-compose -f docker/docker-compose.test.yml up gitmanager_unit
+
+services:
+  gitmanager_unit:
+    build:
+      context: ../
+      dockerfile: .github/workflows/Dockerfile
+    volumes:
+      - ../:/gitmanager
+    working_dir: /gitmanager
+    command: python3 manage.py test

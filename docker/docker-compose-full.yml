@@ -1,0 +1,62 @@
+version: '3'
+
+# Run a-plus, grader, gitmanager and Huey worker for the gitmanager course builds.
+# The course is mounted to the Huey worker container, which builds the course.
+# The gitmanager web app and Huey worker containers share a mounted coursebuild volume.
+# The worker copies the built course to the course store directory after the build and
+# the web app copies the built course from the course store directory in the publish phase.
+# The Huey worker container connects to the PostgreSQL database in the gitmanager container.
+
+volumes:
+  data:
+  coursebuild:
+services:
+  grader:
+    image: apluslms/run-mooc-grader:1.13
+    volumes:
+      - data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/aplus:/tmp/aplus
+      #- $HOME/mooc-grader/:/srv/grader/:ro
+    ports:
+      - "8080:8080"
+  plus:
+    image: apluslms/run-aplus-front:1.13
+    environment:
+      USE_GITMANAGER: 'true'
+    volumes:
+      - data:/data
+      #- $HOME/a-plus/:/srv/aplus/:ro
+    ports:
+      - "8000:8000"
+  gitmanager:
+    image: apluslms/run-gitmanager:1.13
+    environment:
+      HUEY_IMMEDIATE: 'false'
+    volumes:
+      - data:/data
+      - coursebuild:/srv/courses
+      #- $HOME/gitmanager/:/srv/gitmanager/:ro
+    ports:
+      - "8070:8070"
+    depends_on:
+      - redis
+      - plus
+      - grader
+  huey:
+    # consumer of the gitmanager task queue = course builder
+    image: apluslms/run-gitmanager-huey:1.13
+    volumes:
+      - data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/aplus:/tmp/aplus
+      - coursebuild:/srv/courses
+      - .:/srv/courseshuey/default:ro
+      - .:/srv/courses/git_repo/default:ro
+      #- $HOME/gitmanager/:/srv/gitmanager/:ro
+    depends_on:
+      - gitmanager
+  redis:
+    image: redis:6
+    command: redis-server --save 60 1 --loglevel warning
+

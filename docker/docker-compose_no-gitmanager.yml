@@ -1,0 +1,29 @@
+version: '3'
+
+# Run a-plus and grader without gitmanager.
+# A-plus imports the course from the grader.
+# The built course must be mounted to the grader.
+
+volumes:
+  data:
+services:
+  grader:
+    image: apluslms/run-mooc-grader:1.13
+    volumes:
+      - data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/aplus:/tmp/aplus
+      - .:/srv/courses/default:ro
+      #- $HOME/mooc-grader/:/srv/grader/:ro
+    ports:
+      - "8080:8080"
+  plus:
+    image: apluslms/run-aplus-front:1.13
+    volumes:
+      - data:/data
+      #- $HOME/a-plus/:/srv/aplus/:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - grader
+
