@@ -35,4 +35,4 @@ The same code should be mounted to both gitmanager and huey containers.
 ## Git Manager tests
 
 Git Manager unit tests can be run with this Docker Compose file:
-`docker-compose-test.yml`.
+`docker-compose-tests.yml`.

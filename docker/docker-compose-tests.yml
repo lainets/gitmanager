@@ -1,7 +1,7 @@
 version: '3'
 
 # Run tests:
-# docker-compose -f docker/docker-compose-test.yml up gitmanager_unit
+# docker-compose -f docker/docker-compose-tests.yml up gitmanager_unit
 
 services:
   gitmanager_unit:
