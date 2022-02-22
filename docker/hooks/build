@@ -1,0 +1,27 @@
+#!/bin/sh
+
+ver="$DOCKER_TAG"
+
+for layer in "" "huey"; do
+    if [ "$layer" ]; then
+        tag="$layer-$ver"
+        file="${DOCKERFILE_PATH}.${layer}"
+    else
+        tag="$ver"
+        file="$DOCKERFILE_PATH"
+    fi
+
+    echo "############################################################"
+    echo "### building layer '$layer'"
+    echo "### $ docker build --build-arg FULL_TAG=$ver"
+    echo "### >  -t $DOCKER_REPO:$tag ."
+
+    docker build --build-arg "FULL_TAG=$ver" \
+                 -t $DOCKER_REPO:$tag -f "$file" .
+    res=$?
+    if [ $res -ne 0 ]; then
+        echo "Building layer '$layer' returned $res" >&2
+        exit $res
+    fi
+done
+
