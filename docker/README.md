@@ -7,9 +7,9 @@ container (course builder).
 
 Building the images (from the gitmanager repo root):
 * `docker build -t apluslms/run-gitmanager:latest -f docker/Dockerfile .`
-* `docker build -t apluslms/run-gitmanager-huey:latest --build-arg FULL_TAG=latest docker/Dockerfile.huey .`
+* `docker build -t apluslms/run-gitmanager:huey-latest --build-arg FULL_TAG=latest docker/Dockerfile.huey .`
 
-`run-gitmanager-huey` uses `run-gitmanager` as the base image.
+`Dockerfile.huey` uses `run-gitmanager` as the base image.
 The build argument `FULL_TAG` defines the image tag of the base image.
 
 ## Docker Compose file examples
