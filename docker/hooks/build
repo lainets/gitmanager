@@ -4,7 +4,7 @@ ver="$DOCKER_TAG"
 
 # Docker Hub builds seem to break if the absolute file path $DOCKERFILE_PATH
 # is used in the build command.
-dockerfilepath="docker/Dockerfile"
+dockerfilepath="Dockerfile"
 
 for layer in "" "huey"; do
     if [ "$layer" ]; then
@@ -19,6 +19,7 @@ for layer in "" "huey"; do
     echo "### building layer '$layer'"
     echo "### $ docker build --build-arg FULL_TAG=$ver"
     echo "### >  -t $DOCKER_REPO:$tag ."
+    echo "### PWD=$(pwd)"
 
     docker build --build-arg "FULL_TAG=$ver" \
                  -t "$DOCKER_REPO":"$tag" -f "$file" .
