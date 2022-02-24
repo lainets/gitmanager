@@ -22,7 +22,7 @@ for layer in "" "huey"; do
     echo "### PWD=$(pwd)"
 
     docker build --build-arg "FULL_TAG=$ver" \
-                 -t "$DOCKER_REPO":"$tag" -f "$file" .
+                 -t "$DOCKER_REPO":"$tag" -f "$file" ..
     res=$?
     if [ $res -ne 0 ]; then
         echo "Building layer '$layer' returned $res" >&2
