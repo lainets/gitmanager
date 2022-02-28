@@ -167,37 +167,36 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 	* `module_types`,`exercise_types`: keyed maps of default values
 	* `numerate_ignoring_modules`: (optional/a+) true to numerate I:1...n, II:n+1...m
 
-3. ### <grader_config>/<config path>
+3. ### `<grader_config>/<config path>`
 
 This file must end in `.json` or `.yaml`, and be in the respective format.
-<config path> may omit the filename extension.
+`<config path>` may omit the filename extension.
 
-	* The file name acts as an exercise key, which is used in
-		* URLs: `/course_key/exercise_key`
-		* Must match the exercise list in `index.[json|yaml]`
-	* May override the following fields from the exercise config specified in index.json/yaml:
-		* `name`, `title`
-		* `description`
-		* `url`
-		* `exercise_info`
-		* `model_answer`
-		* `exercise_template`
-	* `include` (optional): Include configuration files rendered from templates.
-		* `file`: A path to an exercise configuration file. May contain optional Django template syntax, which allows passing of parameters with the `template_context` key.
-		* `force` (optional): Defaults to false. If true, all keys and their contents in the file where the `include` key is located will be overwritten with the corresponding keys and contents from the file which is being included. If false, a ConfigError is thrown if the include file contains keys which already exist in the file where the keys are being included.
-		* `template_context` (optional): Context dictionary containing key value pairs for rendering the included file.
-	* `instructions_file` (optional) (DEPRECATED): A path to a file that will be automatically added
-	to the configuration files list.
-    If the path starts with `./`, it will be prepended with the course key.
-	DEPRECATION: Sometime in the future, this file will not be added automatically.
-	* `model_files` (optional): It is a list of model answers that are available only after the deadline has passed. Possibly overrides `model_answer`, see Precedence below.
-		The `model_files` take file paths as input. These paths are relative to the root of the course repository,
-		e.g., `exercises/hello_world/model.py`.
-	* `template_files` (optional): List of template files for the student (e.g., base code or skeleton code that the student starts to modify). Possibly overrides `exercise_template`, see Precedence below.
-		A+ shows the templates in the exercise navigation bar.
-		Give a list of file paths as the value. The file paths start from the root of the course repository,
-		e.g., `exercises/hello_world/submission.py`.
-	* Any additional fields needed by the grading service
+* The file name acts as an exercise key, which is used in
+	* URLs: `/course_key/exercise_key`
+	* Must match the exercise list in `index.[json|yaml]`
+* May override the following fields from the exercise config specified in index.json/yaml:
+	* `name`, `title`
+	* `description`
+	* `url`
+	* `exercise_info`
+	* `model_answer`
+	* `exercise_template`
+* `include` (optional): Include configuration files rendered from templates.
+	* `file`: A path to an exercise configuration file. May contain optional Django template syntax, which allows passing of parameters with the `template_context` key.
+	* `force` (optional): Defaults to false. If true, all keys and their contents in the file where the `include` key is located will be overwritten with the corresponding keys and contents from the file which is being included. If false, a ConfigError is thrown if the include file contains keys which already exist in the file where the keys are being included.
+	* `template_context` (optional): Context dictionary containing key value pairs for rendering the included file.
+* `instructions_file` (optional) (DEPRECATED): A path to a file that will be automatically added to the configuration files list.
+If the path starts with `./`, it will be prepended with the course key.
+DEPRECATION: Sometime in the future, this file will not be added automatically.
+* `model_files` (optional): It is a list of model answers that are available only after the deadline has passed. Possibly overrides `model_answer`, see Precedence below.
+The `model_files` take file paths as input. These paths are relative to the root of the course repository,
+e.g., `exercises/hello_world/model.py`.
+* `template_files` (optional): List of template files for the student (e.g., base code or skeleton code that the student starts to modify). Possibly overrides `exercise_template`, see Precedence below.
+A+ shows the templates in the exercise navigation bar.
+Give a list of file paths as the value. The file paths start from the root of the course repository,
+e.g., `exercises/hello_world/submission.py`.
+* Any additional fields needed by the grading service
 
 #### Precedence for `model_answer` and `exercise_template`
 
