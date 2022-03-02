@@ -303,7 +303,7 @@ class SimpleDuration(PydanticModel):
             raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
 
 AnyDuration = Union[timedelta, SimpleDuration]
-AnyDate = Union[date, datetime, str] # TODO: get rid of str. Not sure if even neccessary
+AnyDate = Union[datetime, date, str] # TODO: get rid of str. Not sure if even neccessary
 
 
 Float0to1 = confloat(ge=0, le=1)
