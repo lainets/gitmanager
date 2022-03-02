@@ -393,20 +393,20 @@ class Course(PydanticModel):
 
     @validator('modules', allow_reuse=True)
     def validate_module_keys(cls, modules: List[Module]) -> List[Module]:
-        keys = []
+        keys = set()
         for m in modules:
             if m.key in keys:
                 raise ValueError(f"Duplicate module key: {m.key}")
-            keys.append(m.key)
+            keys.add(m.key)
         return modules
 
     @validator('configures', allow_reuse=True)
     def validate_configures(cls, configures: List[ConfigureOptions]):
-        urls = []
+        urls = set()
         for c in configures:
             if c.url in urls:
                 raise ValueError(f"Duplicate configure URL: {c.url}")
-            urls.append(c.url)
+            urls.add(c.url)
 
         return configures
 
