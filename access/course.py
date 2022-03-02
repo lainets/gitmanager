@@ -303,7 +303,9 @@ class SimpleDuration(PydanticModel):
             raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
 
 AnyDuration = Union[timedelta, SimpleDuration]
-AnyDate = Union[datetime, date, str] # TODO: get rid of str. Not sure if even neccessary
+AnyDate = Union[datetime, date, str]
+# FIXME: str in AnyDate passes invalid dates and any strings.
+# str should be removed. However, removing it causes crashes with the Undefined type.
 
 
 Float0to1 = confloat(ge=0, le=1)
