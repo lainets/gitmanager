@@ -358,24 +358,19 @@ def push_event(
 
         build_path = CourseConfig.build_path_to(course_key)
 
-        if not skip_git:
-            if course.git_origin:
-                pull_status = pull(str(build_path), course.git_origin, course.git_branch, logger=build_logger)
-                if not pull_status:
-                    return
-            else:
-                build_logger.warning(f"Course origin not set: skipping git update\n")
-
-                # we assume that a missing git origin means local development
-                # inside the course directory, thus:
-                # copy the course material to the tmp folder
-                rm_path(build_path)
-                shutil.copytree(path, build_path, symlinks=True)
-        else:
+        if skip_git:
             build_logger.info("Skipping git update.")
+        elif course.git_origin:
+            pull_status = pull(str(build_path), course.git_origin, course.git_branch, logger=build_logger)
+            if not pull_status:
+                return
+        else:
+            build_logger.warning(f"Course origin not set: skipping git update\n")
+
+        elapsed(times)
 
         if not skip_build:
-            # build in tmp folder
+            # build in build_path folder
             build_status = build(course, Path(build_path), image = build_image, command = build_command)
             if not build_status:
                 return
