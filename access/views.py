@@ -24,7 +24,7 @@ from util.log import SecurityLog
 from util.login_required import login_required
 
 
-logger = logging.getLogger("builder")
+logger = logging.getLogger("access.views")
 
 
 @login_required
