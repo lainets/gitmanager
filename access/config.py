@@ -61,6 +61,7 @@ class CourseConfig:
     # instance variables
     key: str
     dir: str
+    grader_config_dir: str
     meta: dict
     file: str
     mtime: float
@@ -135,18 +136,11 @@ class CourseConfig:
 
         exercise = self.exercises[exercise_key]
 
-        if exercise.config.is_absolute():
+        config_file_info = exercise.config_file_info(self.dir, self.grader_config_dir)
+        if config_file_info:
             self._config_obj = ExerciseConfig.load(
                 exercise_key,
-                str(exercise.config)[1:],
-                CourseConfig._conf_dir(self.dir, {}),
-                self.lang,
-            )
-        else:
-            exercise._config_obj = ExerciseConfig.load(
-                exercise_key,
-                str(exercise.config),
-                CourseConfig._conf_dir(self.dir, self.meta),
+                *config_file_info,
                 self.lang,
             )
 
@@ -323,11 +317,13 @@ class CourseConfig:
 
                 del data["exercise_types"]
 
+        grader_config_dir = CourseConfig._conf_dir(course_dir, meta)
+
         course = Course.parse_obj(data)
         course.postprocess(
             course_key = course_key,
-            course_dir = CourseConfig._conf_dir(course_dir, {}),
-            grader_config_dir = CourseConfig._conf_dir(course_dir, meta),
+            course_dir = course_dir,
+            grader_config_dir = grader_config_dir,
             default_lang = default_lang,
         )
 
@@ -352,6 +348,7 @@ class CourseConfig:
         return CourseConfig(
             key = course_key,
             dir = course_dir,
+            grader_config_dir = grader_config_dir,
             meta = meta,
             file = f,
             mtime = t,

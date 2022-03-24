@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Set, TypeVar, Union
+from typing import Any, Dict, Generator, List, Literal, Optional, Set, Tuple, Type, TypeVar, Union
 from datetime import date, datetime, timedelta
 import os
 import time
@@ -47,7 +47,7 @@ class ExerciseConfig(PydanticModel):
         return list(self.data.values())[0]
 
     @staticmethod
-    def load(exercise_key: str, filename: str, course_dir: str, lang: str) -> "ExerciseConfig":
+    def load(exercise_key: str, course_dir: str, filename: str, lang: str) -> "ExerciseConfig":
         '''
         Default loader to find and parse file.
 
@@ -110,6 +110,17 @@ class Parent(PydanticModel):
             keys.extend(c.child_keys())
         return keys
 
+    _ClsT = TypeVar("_ClsT", bound="Parent")
+    def gather_types(self, clss: Type[_ClsT]) -> Generator[_ClsT, None, None]:
+        """
+        Recursively yields all the children of particular type.
+        """
+        if isinstance(self, clss):
+            yield self
+
+        for c in self.children:
+            yield from c.gather_types(clss)
+
 
 class Item(Parent):
     key: str
@@ -160,6 +171,25 @@ class Exercise(Item):
     points_to_pass: NotRequired[NonNegativeInt]
     _config_obj: Optional[ExerciseConfig] = PrivateAttr(default=None)
 
+    def config_file_info(self, course_dir: str, grader_config_dir: str) -> Optional[Tuple[str, str]]:
+        """
+        Returns a tuple of the relative config file path and the absolute directory path, or None if
+        config is Undefined.
+        """
+        if self.config is not Undefined:
+            if self.config.is_absolute():
+                return (
+                    course_dir,
+                    str(self.config)[1:],
+                )
+            else:
+                return (
+                    grader_config_dir,
+                    str(self.config),
+                )
+        else:
+            return None
+
     def postprocess(self, *, course_key: str, course_dir: str, grader_config_dir: str, default_lang: str, **kwargs: Any):
         super().postprocess(
             course_key = course_key,
@@ -170,21 +200,13 @@ class Exercise(Item):
         )
 
         LOGGER.debug('Loading exercise "%s/%s"', course_dir, self.key)
-        if self.config:
-            if self.config.is_absolute():
-                self._config_obj = ExerciseConfig.load(
-                    self.key,
-                    str(self.config)[1:],
-                    course_dir,
-                    default_lang,
-                )
-            else:
-                self._config_obj = ExerciseConfig.load(
-                    self.key,
-                    str(self.config),
-                    grader_config_dir,
-                    default_lang,
-                )
+        config_file_info = self.config_file_info(course_dir, grader_config_dir)
+        if config_file_info:
+            self._config_obj = ExerciseConfig.load(
+                self.key,
+                *config_file_info,
+                default_lang,
+            )
 
         # DEPRECATED: default configure settings
         # this is for backwards compatibility and should be removed in the future
@@ -384,6 +406,10 @@ class Course(PydanticModel):
                 else:
                     nurls.append(url)
             self.head_urls = nurls
+
+    def exercises(self) -> Generator[Exercise, None, None]:
+        for m in self.modules:
+            yield from m.gather_types(Exercise)
 
     @root_validator(allow_reuse=True, pre=True)
     def change_language_to_lang(cls, values: Dict[str, Any]) -> Dict[str, Any]:

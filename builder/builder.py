@@ -24,7 +24,7 @@ from pydantic.error_wrappers import ValidationError
 from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import post
 
-from access.config import CourseConfig, load_meta, META
+from access.config import INDEX, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
@@ -254,8 +254,52 @@ def store(config: CourseConfig) -> bool:
         build_logger.info("File lock acquired.")
 
         build_logger.info("Copying the built materials")
+
         rm_path(store_path)
-        copytree(config.dir, store_path)
+
+        dst = CourseConfig.store_path_to(course_key, config.data.static_dir or "")
+        Path(dst).parent.mkdir(parents=True, exist_ok=True)
+        copytree(
+            CourseConfig.build_path_to(course_key, config.data.static_dir or ""),
+            dst,
+        )
+
+        grader_config_dir = str(Path(config.grader_config_dir).relative_to(config.dir))
+
+        copy_files = [META]
+
+        for exercise in config.data.exercises():
+            config_file_info = exercise.config_file_info(
+                "",
+                grader_config_dir
+            )
+            if config_file_info:
+                copy_files.append(os.path.join(*config_file_info))
+
+            if exercise._config_obj:
+                exercise_data = exercise._config_obj.data
+                if "template_files" in exercise_data:
+                    copy_files.extend(exercise_data["template_files"])
+                if "model_files" in exercise_data:
+                    copy_files.extend(exercise_data["model_files"])
+
+                for include_data in exercise_data.get("include", []):
+                    copy_files.append(include_data["file"])
+
+        index_file = str(Path(config.file).relative_to(config.dir))
+        dst = CourseConfig.store_path_to(course_key, index_file)
+        Path(dst).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(config.file, dst)
+
+        for file in copy_files:
+            src = CourseConfig.build_path_to(course_key, file)
+            if not os.path.exists(src):
+                continue
+
+            dst = CourseConfig.store_path_to(course_key, file)
+            Path(dst).parent.mkdir(parents=True, exist_ok=True)
+
+            shutil.copyfile(src, dst)
 
         with open(store_defaults_path, "w") as f:
             json.dump(exercise_defaults, f)
@@ -366,8 +410,6 @@ def push_event(
                 return
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
-
-        elapsed(times)
 
         if not skip_build:
             # build in build_path folder
