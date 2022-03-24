@@ -3,6 +3,7 @@ from json.decoder import JSONDecodeError
 import logging
 import os.path
 from pathlib import Path
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from aplus_auth.auth.django import Request
@@ -25,6 +26,7 @@ from util.login_required import login_required
 
 
 logger = logging.getLogger("access.views")
+elapsed_logger = logging.getLogger("aelapsed")
 
 
 @login_required
@@ -169,12 +171,22 @@ def exercise_template(request, course_key, exercise_key, basename):
     return serve_exercise_file(request, course_key, exercise_key, basename, "template_files", "Template")
 
 
+ctime = 0
+def elapsed():
+    global ctime
+    ltime = ctime
+    ctime = time.perf_counter()
+    elapsed_logger.info(ctime - ltime)
+
 @login_required
 def aplus_json(request: HttpRequest, course_key: str):
     '''
     Delivers the configuration as JSON for A+.
     '''
     SecurityLog.info(request, "APLUS-JSON", f"{course_key}")
+
+    global ctime
+    ctime = time.perf_counter()
 
     errors = []
 
@@ -221,7 +233,11 @@ def aplus_json(request: HttpRequest, course_key: str):
         errors.append("Could not find exercise defaults file. Try rebuilding the course")
         exercise_defaults = {}
 
+    elapsed()
+
     data = config.data.dict(exclude={"modules", "static_dir", "unprotected_paths"})
+
+    elapsed()
 
     # TODO: this should really be done before the course validation happens
     def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:
@@ -251,6 +267,8 @@ def aplus_json(request: HttpRequest, course_key: str):
         modules.append(mf)
     data["modules"] = modules
 
+    elapsed()
+
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     data["errors"] = errors
     data["publish_url"] = request.build_absolute_uri(reverse("publish", args=(course_key, )))
@@ -260,6 +278,8 @@ def aplus_json(request: HttpRequest, course_key: str):
 @login_required
 def publish(request: HttpRequest, course_key: str) -> HttpResponse:
     SecurityLog.info(request, "PUBLISH", f"{course_key}")
+
+    elapsed()
 
     course = get_object_or_404(Course, key=course_key)
     if not course.has_write_access(request, True):
@@ -271,12 +291,16 @@ def publish(request: HttpRequest, course_key: str) -> HttpResponse:
         logger.exception(e)
         return JsonResponse({"errors": str(e), "success": False})
 
+    elapsed()
+
     # link static dir and check correctness
     prodconfig = CourseConfig.get_or_none(course_key)
     if prodconfig is None:
         err = "Failed to read config after publishing. This shouldn't happen. You can try rebuilding the course"
         logger.error(err)
         return JsonResponse({"errors": err, "success": False})
+
+    elapsed()
 
     return JsonResponse({"errors": errors, "success": True})
 

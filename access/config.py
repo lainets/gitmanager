@@ -29,6 +29,7 @@ META = "apps.meta"
 INDEX = "index"
 
 LOGGER = logging.getLogger('main')
+elapsed_logger = logging.getLogger("celapsed")
 
 
 def _type_dict(dict_item: Dict[str, Any], dict_types: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
@@ -345,27 +346,40 @@ class CourseConfig:
         '''
         cache_key = CourseConfig.cache_key(course_key, source)
 
+        times = []
+        elapsed(times)
+
         # Try cached version.
         try:
             config = cache.get(cache_key)
+            elapsed(times, "cache get")
         except ValueError as e:
             LOGGER.error(f"Failed to get config from cache: {e}")
         else:
             if config and config.is_valid():
+                elapsed_logger.info(times)
                 return config
 
         LOGGER.debug('Loading course "%s"' % (course_key))
 
         config = CourseConfig.load(course_key, source)
 
+        elapsed(times, "config load")
+
         try:
             cache.set(cache_key, config)
         except ValueError as e:
             LOGGER.error(f"Failed to set config to cache: {e}")
 
+        elapsed(times, "cache set")
+
         if source == ConfigSource.PUBLISH:
             if not static_path(config).exists():
                 symbolic_link(config)
+
+        elapsed(times, "symlinks")
+
+        elapsed_logger.info(times)
 
         return config
 
@@ -509,3 +523,10 @@ class CourseConfig:
                 except OSError:
                     return False
         return exercise_config.mtime >= max_include_timestamp
+
+def elapsed(times, msg=None):
+    import time
+    ctime = time.perf_counter()
+    if times:
+        times[-1] = (ctime - times[-1], msg)
+    times.append(ctime)

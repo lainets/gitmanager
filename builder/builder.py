@@ -39,6 +39,7 @@ logger = logging.getLogger("builder.builder")
 
 build_logger = logging.getLogger("builder.build")
 build_logger.setLevel(logging.DEBUG)
+elapsed_logger = logging.getLogger("belapsed")
 
 
 def _import_path(path: str) -> ModuleType:
@@ -237,6 +238,9 @@ def store(config: CourseConfig) -> bool:
     """
     course_key = config.key
 
+    times = []
+    elapsed(times)
+
     build_logger.info("Configuring graders...")
     # send configs to graders' stores
     exercise_defaults, errors = configure_graders(config)
@@ -244,6 +248,8 @@ def store(config: CourseConfig) -> bool:
         for e in errors:
             build_logger.error(e)
         return False
+
+    elapsed(times, "configure graders")
 
     store_path, store_defaults_path, store_version_path = CourseConfig.file_paths(course_key, source=ConfigSource.STORE)
 
@@ -255,12 +261,16 @@ def store(config: CourseConfig) -> bool:
 
         rm_path(store_path)
 
+        elapsed(times, "rm")
+
         dst = CourseConfig.path_to(course_key, config.data.static_dir or "", source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
         copytree(
             CourseConfig.path_to(course_key, config.data.static_dir or "", source=ConfigSource.BUILD),
             dst,
         )
+
+        elapsed(times, "copy static dir")
 
         grader_config_dir = str(Path(config.grader_config_dir).relative_to(config.dir))
 
@@ -292,6 +302,8 @@ def store(config: CourseConfig) -> bool:
             for file in copy_files
         }
 
+        elapsed(times, "find files")
+
         index_file = str(Path(config.file).relative_to(config.dir))
         dst = CourseConfig.path_to(course_key, index_file, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
@@ -309,6 +321,10 @@ def store(config: CourseConfig) -> bool:
 
             shutil.copyfile(src, dst)
             shutil.copystat(src, dst)
+
+        elapsed(times, "copy files")
+        build_logger.info(times)
+        elapsed_logger.info(times)
 
         with open(store_defaults_path, "w") as f:
             json.dump(exercise_defaults, f)
@@ -367,6 +383,14 @@ def publish(course_key: str) -> List[str]:
     return errors + publish_graders(config)
 
 
+def elapsed(times, msg=None):
+    import time
+    ctime = time.perf_counter()
+    if times:
+        times[-1] = (ctime - times[-1], msg)
+    times.append(ctime)
+
+
 # lock_task to make sure that two updates don't happen at the same
 # time. Would be better to lock it for each repo separately but it isn't really
 # needed
@@ -404,6 +428,9 @@ def push_event(
 
     path = CourseConfig.path_to(course_key)
 
+    times = []
+    elapsed(times)
+
     log_stream = StringIO()
     log_handler = logging.StreamHandler(log_stream)
     build_logger.addHandler(log_handler)
@@ -422,6 +449,8 @@ def push_event(
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
 
+        elapsed(times, "git update")
+
         if not skip_build:
             # build in build_path folder
             build_status = build(course, Path(build_path), image = build_image, command = build_command)
@@ -430,10 +459,14 @@ def push_event(
         else:
             build_logger.info("Skipping build.")
 
+        elapsed(times, "build")
+
         value, error = is_self_contained(build_path)
         if not value:
             build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
+
+        elapsed(times, "containment check")
 
         id_path = CourseConfig.version_id_path(course_key, source=ConfigSource.BUILD)
         with open(id_path, "w") as f:
@@ -450,14 +483,20 @@ def push_event(
             build_logger.error(validation_error_str(e))
             return
 
+        elapsed(times, "load from build")
+
         warning_str = validation_warning_str(config.data)
         if warning_str:
             build_logger.warning(warning_str + "\n")
+
+        elapsed(times, "validation warning str")
 
         # copy the course material to store
         if not store(config):
             build_logger.error("Failed to store built course")
             return
+
+        elapsed(times, "store")
 
         # all went well
         update.status = CourseUpdate.Status.SUCCESS
@@ -476,12 +515,17 @@ def push_event(
         else:
             build_logger.info("Doing an automatic update...")
             notify_update(course)
+
+        elapsed(times, "automatic update")
     finally:
         if update.status != CourseUpdate.Status.SUCCESS:
             update.status = CourseUpdate.Status.FAILED
 
             if course.email_on_error:
                 send_error_mail(course, f"Course {course_key} build failed", log_stream.getvalue())
+
+        build_logger.info(times)
+        elapsed_logger.info(times)
 
         update.log = log_stream.getvalue()
         build_logger.removeHandler(log_handler)
