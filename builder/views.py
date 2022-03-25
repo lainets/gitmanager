@@ -110,8 +110,11 @@ class EditCourse(View):
         return obj
 
     @login_required_method(redirect_url=None)
-    def get(self, request: Request, key: str, **kwargs) -> HttpResponse:
-        course = get_object_or_404(Course, key=key)
+    def get(self, request: Request, key: Optional[str] = None, remote_id: Optional[int] = None, **kwargs) -> HttpResponse:
+        if key:
+            course = get_object_or_404(Course, key=key)
+        else:
+            course = get_object_or_404(Course, remote_id=remote_id)
 
         if not course.has_access(request, Permission.READ):
             return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
@@ -119,19 +122,23 @@ class EditCourse(View):
         return JsonResponse(self._get(request, course))
 
     @login_required_method(redirect_url=None)
-    def post(self, request: Request, key: str, **kwargs) -> HttpResponse:
+    def post(self, request: Request, key: Optional[str] = None, remote_id: Optional[int] = None, **kwargs) -> HttpResponse:
         if not request.POST:
             return JsonResponse({"success": False, "error": "No POST parameters given"})
 
-        if Course.objects.filter(key=key).exists():
-            return HttpResponse("Course already exists", status=400)
+        if key and Course.objects.filter(key=key).exists():
+            return HttpResponse(f"Course with key '{key}' already exists", status=400)
+        elif remote_id and Course.objects.filter(remote_id=remote_id).exists():
+            return HttpResponse(f"Course with id '{remote_id}' already exists", status=400)
 
         response = self._check_access(request)
         if response is not None:
             return response
 
-        if request.POST.get("key") != key:
+        if key and request.POST.get("key") != key:
             return HttpResponse("Key in POST params does not match key in URL", status=400)
+        elif remote_id and int(request.POST.get("remote_id")) != remote_id:
+            return HttpResponse("Remote id in POST params does not match id in URL", status=400)
 
         form = CourseForm(request.POST)
         if form.is_valid():
@@ -141,12 +148,15 @@ class EditCourse(View):
         return JsonResponse({"success": False, "error": form.errors})
 
     @login_required_method(redirect_url=None)
-    def put(self, request: Request, key: str, **kwargs) -> HttpResponse:
+    def put(self, request: Request, key: Optional[str] = None, remote_id: Optional[int] = None, **kwargs) -> HttpResponse:
         data = QueryDict(request.body, mutable=True)
         if not data:
             return JsonResponse({"success": False, "error": "No POST parameters given"})
 
-        course = get_object_or_404(Course, key=key)
+        if key:
+            course = get_object_or_404(Course, key=key)
+        else:
+            course = get_object_or_404(Course, remote_id=remote_id)
         if not course.has_access(request, Permission.WRITE):
             return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
 

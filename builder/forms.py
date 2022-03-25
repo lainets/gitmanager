@@ -37,4 +37,4 @@ class CourseForm(forms.ModelForm):
             SecurityLog.info(request, "EDIT-COURSE", f"{self.initial} {self.cleaned_data}")
         else:
             SecurityLog.info(request, "NEW-COURSE", f"... {self.cleaned_data}")
-        super().save()
+        return super().save()
