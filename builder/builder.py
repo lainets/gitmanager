@@ -327,12 +327,13 @@ def publish(course_key: str) -> List[str]:
     store_version_path = CourseConfig.version_id_path(CourseConfig.store_path_to(), course_key)
 
     config = None
+    errors = []
     if Path(store_path).exists():
         with FileLock(store_path):
             try:
                 config = CourseConfig.load_from_store(course_key)
-            except ConfigError:
-                pass
+            except ConfigError as e:
+                errors.append(f"Failed to load newly built course for this reason: {e}")
             else:
                 renames([
                     (store_path, prod_path),
@@ -340,20 +341,22 @@ def publish(course_key: str) -> List[str]:
                     (store_version_path, prod_version_path),
                 ])
 
-    if config is None:
-        if Path(prod_path).exists():
-            with FileLock(prod_path):
-                try:
-                    config = CourseConfig.load_from_publish(course_key)
-                except ConfigError:
-                    pass
+    if config is None and Path(prod_path).exists():
+        with FileLock(prod_path):
+            try:
+                config = CourseConfig.load_from_publish(course_key)
+            except ConfigError as e:
+                errors.append(f"Failed to load already published config: {e}")
 
     if config is None:
-        raise Exception(f"Config not found for {course_key} - the course probably has not been built")
-    else:
-        symbolic_link(config)
+        if errors:
+            raise Exception("\n".join(errors))
+        else:
+            raise Exception(f"Course directory not found for {course_key} - the course probably has not been built")
 
-    return publish_graders(config)
+    symbolic_link(config)
+
+    return errors + publish_graders(config)
 
 
 # lock_task to make sure that two updates don't happen at the same
