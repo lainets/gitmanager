@@ -177,12 +177,21 @@ def aplus_json(request: HttpRequest, course_key: str):
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
 
-    try:
-        config = CourseConfig.load_from_store(course_key)
-    except ConfigError as e:
+    config = None
+    defaults_path = ""
+    if os.path.exists(CourseConfig.store_path_to(course_key)):
+        try:
+            config = CourseConfig.load_from_store(course_key)
+        except ConfigError as e:
+            errors.append(f"Failed to load newly built course due to this error: {e}")
+            errors.append("Attempting to load previous version of the course...")
+        else:
+            defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+
+    if config is None:
         try:
             config = CourseConfig.get(course_key, raise_on_error=True)
-        except ConfigError as e2:
+        except ConfigError as e:
             try:
                 Course.objects.get(key=course_key)
             except:
@@ -190,12 +199,10 @@ def aplus_json(request: HttpRequest, course_key: str):
             else:
                 return JsonResponse({
                     "success": False,
-                    "errors": ["Failed to load course config (has it been built?):", str(e), str(e2)],
+                    "errors": errors + [f"Failed to load course (has it been built?) due to this error: {e}"],
                 })
 
         defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
-    else:
-        defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
 
     if Path(defaults_path).exists():
         try:
@@ -203,7 +210,7 @@ def aplus_json(request: HttpRequest, course_key: str):
         except (JSONDecodeError, OSError) as e:
             return JsonResponse({
                 "success": False,
-                "errors": ["Failed to load course exercise defaults JSON: " + str(e)],
+                "errors": errors + ["Failed to load course exercise defaults JSON: " + str(e)],
             })
     else:
         errors.append("Could not find exercise defaults file. Try rebuilding the course")
