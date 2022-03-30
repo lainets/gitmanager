@@ -277,14 +277,14 @@ def store(config: CourseConfig) -> bool:
                 copy_files.append(os.path.join(*config_file_info))
 
             if exercise._config_obj:
-                exercise_data = exercise._config_obj.data
-                if "template_files" in exercise_data:
-                    copy_files.extend(exercise_data["template_files"])
-                if "model_files" in exercise_data:
-                    copy_files.extend(exercise_data["model_files"])
+                for lang_data in exercise._config_obj.data.values():
+                    if "template_files" in lang_data:
+                        copy_files.extend(lang_data["template_files"])
+                    if "model_files" in lang_data:
+                        copy_files.extend(lang_data["model_files"])
 
-                for include_data in exercise_data.get("include", []):
-                    copy_files.append(include_data["file"])
+                    for include_data in lang_data.get("include", []):
+                        copy_files.append(include_data["file"])
 
         index_file = str(Path(config.file).relative_to(config.dir))
         dst = CourseConfig.store_path_to(course_key, index_file)
