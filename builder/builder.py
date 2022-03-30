@@ -294,6 +294,7 @@ def store(config: CourseConfig) -> bool:
         for file in copy_files:
             src = CourseConfig.build_path_to(course_key, file)
             if not os.path.exists(src):
+                build_logger.warning(f"Couldn't find file '{file}'")
                 continue
 
             dst = CourseConfig.store_path_to(course_key, file)
