@@ -266,7 +266,7 @@ def store(config: CourseConfig) -> bool:
 
         grader_config_dir = str(Path(config.grader_config_dir).relative_to(config.dir))
 
-        copy_files = [META]
+        copy_files = {META}
 
         for exercise in config.data.exercises():
             config_file_info = exercise.config_file_info(
@@ -274,17 +274,17 @@ def store(config: CourseConfig) -> bool:
                 grader_config_dir
             )
             if config_file_info:
-                copy_files.append(os.path.join(*config_file_info))
+                copy_files.add(os.path.join(*config_file_info))
 
             if exercise._config_obj:
                 for lang_data in exercise._config_obj.data.values():
                     if "template_files" in lang_data:
-                        copy_files.extend(lang_data["template_files"])
+                        copy_files.update(lang_data["template_files"])
                     if "model_files" in lang_data:
-                        copy_files.extend(lang_data["model_files"])
+                        copy_files.update(lang_data["model_files"])
 
                     for include_data in lang_data.get("include", []):
-                        copy_files.append(include_data["file"])
+                        copy_files.add(include_data["file"])
 
         index_file = str(Path(config.file).relative_to(config.dir))
         dst = CourseConfig.store_path_to(course_key, index_file)
