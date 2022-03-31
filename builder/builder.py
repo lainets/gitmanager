@@ -266,7 +266,10 @@ def store(config: CourseConfig) -> bool:
 
         grader_config_dir = str(Path(config.grader_config_dir).relative_to(config.dir))
 
-        copy_files = {META}
+        copy_files = set()
+
+        if os.path.exists(CourseConfig.build_path_to(course_key, META)):
+            copy_files.add(META)
 
         for exercise in config.data.exercises():
             config_file_info = exercise.config_file_info(
