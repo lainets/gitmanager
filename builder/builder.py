@@ -289,6 +289,11 @@ def store(config: CourseConfig) -> bool:
                     for include_data in lang_data.get("include", []):
                         copy_files.add(include_data["file"])
 
+        copy_files = {
+            file[1:] if file.startswith("/") else file
+            for file in copy_files
+        }
+
         index_file = str(Path(config.file).relative_to(config.dir))
         dst = CourseConfig.store_path_to(course_key, index_file)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
