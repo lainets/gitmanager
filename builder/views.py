@@ -87,13 +87,13 @@ class EditCourse(View):
 
     Returns the course settings and the git hook URL in the 'git_hook' key.
     """
-    def _check_access(self, request: Request, require_remote_id: bool = True) -> Optional[HttpResponse]:
+    def _check_access(self, request: Request, data: QueryDict, require_remote_id: bool = True) -> Optional[HttpResponse]:
         """
         Checks that the requester has write access to the remote_id specified in the POST data.
         """
         if not settings.APLUS_AUTH["DISABLE_LOGIN_CHECKS"]:
-            if "remote_id" in request.POST:
-                instance_id = try_parse_int(request.POST["remote_id"])
+            if "remote_id" in data:
+                instance_id = try_parse_int(data["remote_id"])
                 if instance_id is None:
                     return JsonResponse({"success": False, "error": "remote_id is not an integer"})
 
@@ -137,7 +137,7 @@ class EditCourse(View):
         elif remote_id and Course.objects.filter(remote_id=remote_id).exists():
             return HttpResponse(f"Course with id '{remote_id}' already exists", status=400)
 
-        response = self._check_access(request)
+        response = self._check_access(request, request.POST)
         if response is not None:
             return response
 
@@ -166,7 +166,7 @@ class EditCourse(View):
         if not course.has_access(request, Permission.WRITE):
             return JsonResponse({"success": False, "error": f"No access to instance {course.remote_id}"})
 
-        response = self._check_access(request, False)
+        response = self._check_access(request, data, False)
         if response is not None:
             return response
 
