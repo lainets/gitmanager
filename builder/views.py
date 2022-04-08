@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
+from aplus_auth import settings as auth_settings
 from aplus_auth.auth.django import Request
 from aplus_auth.payload import Permission
 from django.conf import settings
@@ -91,19 +92,15 @@ class EditCourse(View):
         """
         Checks that the requester has write access to the remote_id specified in the POST data.
         """
-        if not settings.APLUS_AUTH["DISABLE_LOGIN_CHECKS"]:
-            if "remote_id" in data:
-                instance_id = try_parse_int(data["remote_id"])
-                if instance_id is None:
-                    return JsonResponse({"success": False, "error": "remote_id is not an integer"})
+        if "remote_id" in data:
+            instance_id = try_parse_int(data["remote_id"])
+            if instance_id is None:
+                return JsonResponse({"success": False, "error": "remote_id is not an integer"})
 
-                if request.auth is None:
-                    return JsonResponse({"success": False, "error": "No JWT payload"})
-
-                if not has_access(request, Permission.WRITE, instance_id):
-                    return JsonResponse({"success": False, "error": f"No access to instance {instance_id}"})
-            elif require_remote_id:
-                return JsonResponse({"success": False, "error": "No remote_id in POST parameters"})
+            if not has_access(request, Permission.WRITE, instance_id):
+                return JsonResponse({"success": False, "error": f"No access to instance {instance_id}"})
+        elif not auth_settings().DISABLE_LOGIN_CHECKS and require_remote_id:
+            return JsonResponse({"success": False, "error": "No remote_id in POST parameters"})
 
         return None
 
