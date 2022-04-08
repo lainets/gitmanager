@@ -25,6 +25,13 @@ from .apps import ssh_key
 logger = logging.getLogger("builder.views")
 
 
+def try_parse_int(item: str):
+    try:
+        return int(item)
+    except:
+        return None
+
+
 @login_required
 def courses(request):
     courses = (course for course in Course.objects.all() if course.has_read_access(request, True))
@@ -86,9 +93,8 @@ class EditCourse(View):
         """
         if not settings.APLUS_AUTH["DISABLE_LOGIN_CHECKS"]:
             if "remote_id" in request.POST:
-                try:
-                    instance_id = int(request.POST["remote_id"])
-                except:
+                instance_id = try_parse_int(request.POST["remote_id"])
+                if instance_id is None:
                     return JsonResponse({"success": False, "error": "remote_id is not an integer"})
 
                 if request.auth is None:
@@ -137,7 +143,7 @@ class EditCourse(View):
 
         if key and request.POST.get("key") != key:
             return HttpResponse("Key in POST params does not match key in URL", status=400)
-        elif remote_id and int(request.POST.get("remote_id")) != remote_id:
+        elif remote_id and try_parse_int(request.POST.get("remote_id")) != remote_id:
             return HttpResponse("Remote id in POST params does not match id in URL", status=400)
 
         form = CourseForm(request.POST)
