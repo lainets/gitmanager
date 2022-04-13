@@ -99,9 +99,6 @@ def course(request, course_key):
 
 @login_required
 def protected(request: Request, course_key: str, path: str):
-    if os.path.normpath(path).startswith("../"):
-        raise Http404()
-
     course = get_object_or_404(Course, key=course_key)
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
@@ -114,7 +111,15 @@ def protected(request: Request, course_key: str, path: str):
     if static_path is None:
         raise Http404()
 
-    return FileResponse(CourseConfig.relative_path_to(course_key, static_path))
+    basepath = CourseConfig.relative_path_to(course_key, config.static_path_to() or "")
+    filepath = CourseConfig.relative_path_to(course_key, static_path)
+    # Check that the file is within the course's static folder
+    try:
+        Path(filepath).relative_to(basepath)
+    except:
+        raise Http404()
+
+    return FileResponse(filepath)
 
 
 def serve_exercise_file(request, course_key, exercise_key, basename, dict_key, type):
