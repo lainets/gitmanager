@@ -13,7 +13,7 @@ from django.utils import translation
 from django.urls import reverse
 from django.views import View
 
-from access.config import CourseConfig
+from access.config import ConfigSource, CourseConfig
 from access.course import Exercise, Chapter, Parent
 from access.parser import ConfigError
 from builder import builder
@@ -184,18 +184,18 @@ def aplus_json(request: HttpRequest, course_key: str):
 
     config = None
     defaults_path = ""
-    if os.path.exists(CourseConfig.store_path_to(course_key)):
+    if os.path.exists(CourseConfig.path_to(course_key, source=ConfigSource.STORE)):
         try:
-            config = CourseConfig.load_from_store(course_key)
+            config = CourseConfig.get(course_key, source=ConfigSource.STORE, raise_on_error=True)
         except ConfigError as e:
             errors.append(f"Failed to load newly built course due to this error: {e}")
             errors.append("Attempting to load previous version of the course...")
         else:
-            defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
+            defaults_path = CourseConfig.path_to(course_key + ".defaults.json", source=ConfigSource.STORE)
 
     if config is None:
         try:
-            config = CourseConfig.get(course_key, raise_on_error=True)
+            config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH, raise_on_error=True)
         except ConfigError as e:
             try:
                 Course.objects.get(key=course_key)

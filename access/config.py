@@ -5,6 +5,7 @@ Courses are listed in the database.
 from __future__ import annotations
 import copy
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 import logging
 import os
@@ -50,6 +51,12 @@ def _type_dict(dict_item: Dict[str, Any], dict_types: Dict[str, Dict[str, Any]])
 
 def load_meta(course_dir: Union[str, Path]) -> Dict[str,str]:
     return read_meta(os.path.join(course_dir, META))
+
+
+class ConfigSource(Enum):
+    BUILD = 0
+    STORE = 1
+    PUBLISH = 2
 
 
 @dataclass
@@ -162,16 +169,20 @@ class CourseConfig:
         return os.path.join(key, *paths)
 
     @staticmethod
-    def path_to(key: str = "", *paths: str) -> str:
-        return os.path.join(settings.COURSES_PATH, CourseConfig.relative_path_to(key, *paths))
-
-    @staticmethod
-    def build_path_to(key: str = "", *paths: str) -> str:
-        return os.path.join(settings.BUILD_PATH, CourseConfig.relative_path_to(key, *paths))
-
-    @staticmethod
-    def store_path_to(key: str = "", *paths: str) -> str:
-        return os.path.join(settings.STORE_PATH, CourseConfig.relative_path_to(key, *paths))
+    def path_to(key: str = "", *paths: str, source: ConfigSource = ConfigSource.PUBLISH) -> str:
+        """
+        Returns the path to a file under a course.
+        Leave 'key' empty to get a path relative to the root directory instead of the course directory.
+        """
+        relative_path = CourseConfig.relative_path_to(key, *paths)
+        if source == ConfigSource.PUBLISH:
+            return os.path.join(settings.COURSES_PATH, relative_path)
+        elif source == ConfigSource.STORE:
+            return os.path.join(settings.STORE_PATH, relative_path)
+        elif source == ConfigSource.BUILD:
+            return os.path.join(settings.BUILD_PATH, relative_path)
+        else:
+            raise ValueError(f"Unknown config source '{source}'")
 
     @staticmethod
     def version_id_path(root: str, key: str = "") -> str:
@@ -227,7 +238,7 @@ class CourseConfig:
         return CourseConfig._courses.values()
 
     @staticmethod
-    def get(course_key: str, *, raise_on_error: bool = False) -> Optional[CourseConfig]:
+    def get(course_key: str, source: ConfigSource = ConfigSource.PUBLISH, *, raise_on_error: bool = False) -> Optional[CourseConfig]:
         '''
         Gets course config.
 
@@ -239,7 +250,7 @@ class CourseConfig:
         '''
 
         # Try cached version.
-        if course_key in CourseConfig._courses:
+        if source == ConfigSource.PUBLISH and course_key in CourseConfig._courses:
             config = CourseConfig._courses[course_key]
             try:
                 if config.mtime >= os.path.getmtime(config.file):
@@ -250,36 +261,27 @@ class CourseConfig:
         LOGGER.debug('Loading course "%s"' % (course_key))
 
         try:
-            config = CourseConfig.load_from_publish(course_key)
+            config = CourseConfig.load(course_key, source)
         except ConfigError:
             if raise_on_error:
                 raise
             else:
                 return None
 
-        CourseConfig._courses[course_key] = config
-        if not static_path(config).exists():
-            symbolic_link(config)
+        if source == ConfigSource.PUBLISH:
+            CourseConfig._courses[course_key] = config
+            if not static_path(config).exists():
+                symbolic_link(config)
 
         return config
 
     @staticmethod
-    def load_from_publish(course_key: str) -> CourseConfig:
-        """Loads a course config from the publish directory"""
-        return CourseConfig.load(CourseConfig.path_to(), course_key)
+    def load(course_key: str, source: ConfigSource = ConfigSource.PUBLISH) -> CourseConfig:
+        """Loads a course form the specified source directory"""
+        return CourseConfig._load(CourseConfig.path_to(source=source), course_key)
 
     @staticmethod
-    def load_from_store(course_key: str) -> CourseConfig:
-        """Loads a course config from the store directory"""
-        return CourseConfig.load(CourseConfig.store_path_to(), course_key)
-
-    @staticmethod
-    def load_from_build(course_key: str) -> CourseConfig:
-        """Loads a course config from the build directory"""
-        return CourseConfig.load(CourseConfig.build_path_to(), course_key)
-
-    @staticmethod
-    def load(root_dir: str, course_key: str) -> CourseConfig:
+    def _load(root_dir: str, course_key: str) -> CourseConfig:
         """Loads a course config from the given root directory"""
         course_dir = os.path.join(root_dir, course_key)
 
