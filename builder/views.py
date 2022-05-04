@@ -263,11 +263,10 @@ def hook(request: Request, key: str, **kwargs) -> HttpResponse:
 
     course = get_object_or_404(Course, key=key)
 
-    if request.user.is_authenticated:
-        if not course.has_access(request, Permission.WRITE):
-            return HttpResponse(f"No access to course {key}", status=403)
-
+    if course.has_access(request, Permission.WRITE):
         SecurityLog.info(request, "INITIATE-BUILD", f"{key}")
+    elif request.user.is_authenticated:
+        return HttpResponse(f"No access to course {key}", status=403)
     else:
         branch = None
         if request.META.get('HTTP_X_GITLAB_EVENT'):
