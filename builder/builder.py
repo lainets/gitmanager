@@ -24,7 +24,7 @@ from pydantic.error_wrappers import ValidationError
 from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import post
 
-from access.config import INDEX, CourseConfig, load_meta, META
+from access.config import INDEX, ConfigSource, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
@@ -245,9 +245,9 @@ def store(config: CourseConfig) -> bool:
             build_logger.error(e)
         return False
 
-    store_path = CourseConfig.store_path_to(course_key)
-    store_defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
-    store_version_path = CourseConfig.version_id_path(CourseConfig.store_path_to(), course_key)
+    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
+    store_defaults_path = CourseConfig.path_to(course_key + ".defaults.json", source=ConfigSource.STORE)
+    store_version_path = CourseConfig.version_id_path(CourseConfig.path_to(source=ConfigSource.STORE), course_key)
 
     build_logger.info("Acquiring file lock...")
     with FileLock(store_path, timeout=settings.BUILD_FILELOCK_TIMEOUT):
@@ -257,10 +257,10 @@ def store(config: CourseConfig) -> bool:
 
         rm_path(store_path)
 
-        dst = CourseConfig.store_path_to(course_key, config.data.static_dir or "")
+        dst = CourseConfig.path_to(course_key, config.data.static_dir or "", source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
         copytree(
-            CourseConfig.build_path_to(course_key, config.data.static_dir or ""),
+            CourseConfig.path_to(course_key, config.data.static_dir or "", source=ConfigSource.BUILD),
             dst,
         )
 
@@ -268,7 +268,7 @@ def store(config: CourseConfig) -> bool:
 
         copy_files = set()
 
-        if os.path.exists(CourseConfig.build_path_to(course_key, META)):
+        if os.path.exists(CourseConfig.path_to(course_key, META, source=ConfigSource.BUILD)):
             copy_files.add(META)
 
         for exercise in config.data.exercises():
@@ -295,17 +295,17 @@ def store(config: CourseConfig) -> bool:
         }
 
         index_file = str(Path(config.file).relative_to(config.dir))
-        dst = CourseConfig.store_path_to(course_key, index_file)
+        dst = CourseConfig.path_to(course_key, index_file, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(config.file, dst)
 
         for file in copy_files:
-            src = CourseConfig.build_path_to(course_key, file)
+            src = CourseConfig.path_to(course_key, file, source=ConfigSource.BUILD)
             if not os.path.exists(src):
                 build_logger.warning(f"Couldn't find file '{file}'")
                 continue
 
-            dst = CourseConfig.store_path_to(course_key, file)
+            dst = CourseConfig.path_to(course_key, file, source=ConfigSource.STORE)
             Path(dst).parent.mkdir(parents=True, exist_ok=True)
 
             shutil.copyfile(src, dst)
@@ -331,16 +331,16 @@ def publish(course_key: str) -> List[str]:
     prod_path = CourseConfig.path_to(course_key)
     prod_defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
     prod_version_path = CourseConfig.version_id_path(CourseConfig.path_to(), course_key)
-    store_path = CourseConfig.store_path_to(course_key)
-    store_defaults_path = CourseConfig.store_path_to(course_key + ".defaults.json")
-    store_version_path = CourseConfig.version_id_path(CourseConfig.store_path_to(), course_key)
+    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
+    store_defaults_path = CourseConfig.path_to(course_key + ".defaults.json", source=ConfigSource.STORE)
+    store_version_path = CourseConfig.version_id_path(CourseConfig.path_to(source=ConfigSource.STORE), course_key)
 
     config = None
     errors = []
     if Path(store_path).exists():
         with FileLock(store_path):
             try:
-                config = CourseConfig.load_from_store(course_key)
+                config = CourseConfig.get(course_key, source=ConfigSource.STORE, raise_on_error=True)
             except ConfigError as e:
                 errors.append(f"Failed to load newly built course for this reason: {e}")
             else:
@@ -353,7 +353,7 @@ def publish(course_key: str) -> List[str]:
     if config is None and Path(prod_path).exists():
         with FileLock(prod_path):
             try:
-                config = CourseConfig.load_from_publish(course_key)
+                config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH, raise_on_error=True)
             except ConfigError as e:
                 errors.append(f"Failed to load already published config: {e}")
 
@@ -412,7 +412,7 @@ def push_event(
         update.status = CourseUpdate.Status.RUNNING
         update.save()
 
-        build_path = CourseConfig.build_path_to(course_key)
+        build_path = CourseConfig.path_to(course_key, source=ConfigSource.BUILD)
 
         if skip_git:
             build_logger.info("Skipping git update.")
@@ -436,13 +436,13 @@ def push_event(
             build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
 
-        id_path = CourseConfig.version_id_path(CourseConfig.build_path_to(), course_key)
+        id_path = CourseConfig.version_id_path(CourseConfig.path_to(source=ConfigSource.BUILD), course_key)
         with open(id_path, "w") as f:
             f.write(_get_version_id(build_path))
 
         # try loading the configs to validate them
         try:
-            config = CourseConfig.load_from_build(course_key)
+            config = CourseConfig.load(course_key, ConfigSource.BUILD)
             config.get_exercise_list()
         except ConfigError as e:
             build_logger.warning("Failed to load config")
