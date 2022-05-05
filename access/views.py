@@ -191,7 +191,7 @@ def aplus_json(request: HttpRequest, course_key: str):
             errors.append(f"Failed to load newly built course due to this error: {e}")
             errors.append("Attempting to load previous version of the course...")
         else:
-            defaults_path = CourseConfig.path_to(course_key + ".defaults.json", source=ConfigSource.STORE)
+            defaults_path = CourseConfig.defaults_path(course_key, source=ConfigSource.STORE)
 
     if config is None:
         try:
@@ -207,7 +207,7 @@ def aplus_json(request: HttpRequest, course_key: str):
                     "errors": errors + [f"Failed to load course (has it been built?) due to this error: {e}"],
                 })
 
-        defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
+        defaults_path = CourseConfig.defaults_path(course_key, source=ConfigSource.PUBLISH)
 
     if Path(defaults_path).exists():
         try:
