@@ -8,3 +8,4 @@ redis ~= 3.5.3
 pydantic ~= 1.8.2
 aplus-auth ~= 0.2.0
 requests-toolbelt ~= 0.9.1
+pymemcache ~= 3.5.2

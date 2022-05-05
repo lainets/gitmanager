@@ -10,9 +10,10 @@ from pathlib import Path
 import logging
 import os
 import time
-from typing import Any, ClassVar, Dict, Iterable, Optional, List, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, List, Tuple, Union
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import translation
 from pydantic.error_wrappers import ValidationError
 
@@ -61,12 +62,9 @@ class ConfigSource(Enum):
 
 @dataclass
 class CourseConfig:
-    # class variables
-    # variables marked ClassVar do not get a field in the dataclass
-    _courses: ClassVar[Dict[str, CourseConfig]] = {}
-    _dir_mtime: ClassVar[float] = 0
     # instance variables
     key: str
+    root_dir: str
     dir: str
     grader_config_dir: str
     meta: dict
@@ -153,6 +151,20 @@ class CourseConfig:
 
         return exercise._config_obj
 
+    def is_valid(self) -> bool:
+        """Checks whether the config is still valid"""
+        version_id = CourseConfig.read_version_id(self.root_dir, self.key)
+        if version_id != self.version_id:
+            return False
+
+        try:
+            if self.mtime >= os.path.getmtime(self.file):
+                return True
+        except OSError:
+            pass
+
+        return False
+
     def get_course_name(self, lang: Optional[str] = None) -> str:
         lang = lang or translation.get_language() or self.lang
         return self.data.name.get(lang[:2], self.key)
@@ -225,48 +237,56 @@ class CourseConfig:
         return os.path.join(self.data.static_dir, *paths)
 
     @staticmethod
-    def get_for(courses: Iterable[CourseModel]) -> Tuple[List[CourseConfig], List[str]]:
+    def get_many(course_keys: Iterable[str], source: ConfigSource = ConfigSource.PUBLISH) -> Tuple[List[CourseConfig], List[str]]:
+        course_keys = list(course_keys)
+        config_map = cache.get_many(CourseConfig.cache_key(key, source) for key in course_keys)
+
+        loaded_configs = {}
         configs = []
         errors = []
-        for course in courses:
-            try:
-                config = CourseConfig.get(course.key)
-            except ConfigError as e:
-                LOGGER.exception("Failed to load course: %s", course.key)
-                errors.append(f"Failed to load course {course.key}: {str(e)}")
-            except ValidationError as e:
-                LOGGER.exception("Failed to load course: %s", course.key)
-                LOGGER.exception(validation_error_str(e))
-                errors.append(f"Failed to load course {course.key} due to a validation error")
+        for key in course_keys:
+            cache_key = CourseConfig.cache_key(key, source)
+            if cache_key in config_map and config_map[cache_key].is_valid():
+                config = config_map[cache_key]
             else:
-                configs.append(config)
-                warnings = validation_warning_str(config)
-                if warnings:
-                    LOGGER.warning("Warnings in course config: %s", course.key)
-                    LOGGER.warning(warnings)
-                    errors.append(f"Course {course.key} has validation warnings")
+                try:
+                    config = CourseConfig.load(key, source)
+                except ConfigError as e:
+                    LOGGER.exception("Failed to load course: %s", key)
+                    errors.append(f"Failed to load course {key}: {str(e)}")
+                    continue
+                except ValidationError as e:
+                    LOGGER.exception("Failed to load course: %s", key)
+                    LOGGER.exception(validation_error_str(e))
+                    errors.append(f"Failed to load course {key} due to a validation error")
+                    continue
+                else:
+                    loaded_configs[cache_key] = config
+
+            configs.append(config)
+            warnings = validation_warning_str(config)
+            if warnings:
+                LOGGER.warning(f"Warnings in course '{key}' config:")
+                LOGGER.warning(warnings)
+                errors.append(f"Course '{key}' has validation warnings")
+
+        cache.set_many(loaded_configs)
 
         return configs, errors
 
     @staticmethod
-    def all(courses: Optional[Iterable[Course]] = None):
+    def all():
         '''
         Gets all course configs.
 
         @rtype: C{list}
         @return: course configurations
         '''
+        return CourseConfig.get_many(CourseModel.objects.values_list("key", flat=True))
 
-        # Find all courses if exercises directory is modified.
-        t = os.path.getmtime(settings.COURSES_PATH)
-        if CourseConfig._dir_mtime < t:
-            CourseConfig._courses.clear()
-
-            CourseConfig.get_for(CourseModel.objects.all())
-
-            CourseConfig._dir_mtime = t
-
-        return CourseConfig._courses.values()
+    @staticmethod
+    def cache_key(course_key: str, source: ConfigSource = ConfigSource.PUBLISH):
+        return f"{source.value}|{course_key}"
 
     @staticmethod
     def get_or_none(course_key: str, source: ConfigSource = ConfigSource.PUBLISH) -> Optional[CourseConfig]:
@@ -291,22 +311,27 @@ class CourseConfig:
         @param course_key: a course key
         @return: course config
         '''
+        cache_key = CourseConfig.cache_key(course_key, source)
 
         # Try cached version.
-        if source == ConfigSource.PUBLISH and course_key in CourseConfig._courses:
-            config = CourseConfig._courses[course_key]
-            try:
-                if config.mtime >= os.path.getmtime(config.file):
-                    return config
-            except OSError:
-                pass
+        try:
+            config = cache.get(cache_key)
+        except ValueError as e:
+            LOGGER.error(f"Failed to get config from cache: {e}")
+        else:
+            if config and config.is_valid():
+                return config
 
         LOGGER.debug('Loading course "%s"' % (course_key))
 
         config = CourseConfig.load(course_key, source)
 
+        try:
+            cache.set(cache_key, config)
+        except ValueError as e:
+            LOGGER.error(f"Failed to set config to cache: {e}")
+
         if source == ConfigSource.PUBLISH:
-            CourseConfig._courses[course_key] = config
             if not static_path(config).exists():
                 symbolic_link(config)
 
@@ -371,14 +396,11 @@ class CourseConfig:
             for ex in course.exercises()
         }
 
-        try:
-            with open(CourseConfig._version_id_path(root_dir, course_key)) as file:
-                version_id = file.read()
-        except:
-            version_id = None
+        version_id = CourseConfig.read_version_id(root_dir, course_key)
 
         return CourseConfig(
             key = course_key,
+            root_dir = root_dir,
             dir = course_dir,
             grader_config_dir = grader_config_dir,
             meta = meta,
@@ -391,7 +413,6 @@ class CourseConfig:
             exercises = exercises,
         )
 
-
     @staticmethod
     def course_and_exercise_configs(course_key: str, exercise_key: str) -> Tuple[Optional[CourseConfig], Optional[ExerciseConfig]]:
         course = CourseConfig.get_or_none(course_key)
@@ -400,20 +421,13 @@ class CourseConfig:
         exercise = course.exercise_config(exercise_key)
         return course, exercise
 
-
     @staticmethod
-    def course_meta(course_key):
-        # Try cached version.
-        if course_key in CourseConfig._courses:
-            course_root = CourseConfig._courses[course_key]
-            try:
-                if course_root.mtime >= os.path.getmtime(course_root.file):
-                    return course_root.meta
-            except OSError:
-                pass
-
-        return load_meta(CourseConfig.path_to(course_key))
-
+    def read_version_id(root_dir: str, key: str) -> Optional[str]:
+        try:
+            with open(CourseConfig._version_id_path(root_dir, key)) as file:
+                return file.read()
+        except:
+            return None
 
     @staticmethod
     def _conf_dir(course_dir, meta):

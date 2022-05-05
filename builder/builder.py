@@ -436,7 +436,7 @@ def push_event(
 
         # try loading the configs to validate them
         try:
-            config = CourseConfig.load(course_key, ConfigSource.BUILD)
+            config = CourseConfig.get(course_key, ConfigSource.BUILD)
             config.get_exercise_list()
         except ConfigError as e:
             build_logger.warning("Failed to load config")

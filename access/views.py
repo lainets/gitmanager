@@ -33,9 +33,9 @@ def index(request):
     Signals that Git Manager is ready and lists available courses.
     '''
     # Only show courses user has access to
-    courses = (course for course in Course.objects.all() if course.has_read_access(request, True))
+    course_keys = (course.key for course in Course.objects.all() if course.has_read_access(request, True))
 
-    course_configs, errors = CourseConfig.get_for(courses)
+    course_configs, errors = CourseConfig.get_many(course_keys)
 
     if request.is_ajax():
         return JsonResponse({
