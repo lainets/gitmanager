@@ -245,9 +245,7 @@ def store(config: CourseConfig) -> bool:
             build_logger.error(e)
         return False
 
-    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
-    store_defaults_path = CourseConfig.path_to(course_key + ".defaults.json", source=ConfigSource.STORE)
-    store_version_path = CourseConfig.version_id_path(CourseConfig.path_to(source=ConfigSource.STORE), course_key)
+    store_path, store_defaults_path, store_version_path = CourseConfig.file_paths(course_key, source=ConfigSource.STORE)
 
     build_logger.info("Acquiring file lock...")
     with FileLock(store_path, timeout=settings.BUILD_FILELOCK_TIMEOUT):
@@ -328,12 +326,8 @@ def publish(course_key: str) -> List[str]:
 
     Raises an exception if an error occurs before anything could be published.
     """
-    prod_path = CourseConfig.path_to(course_key)
-    prod_defaults_path = CourseConfig.path_to(course_key + ".defaults.json")
-    prod_version_path = CourseConfig.version_id_path(CourseConfig.path_to(), course_key)
-    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
-    store_defaults_path = CourseConfig.path_to(course_key + ".defaults.json", source=ConfigSource.STORE)
-    store_version_path = CourseConfig.version_id_path(CourseConfig.path_to(source=ConfigSource.STORE), course_key)
+    prod_path, prod_defaults_path, prod_version_path = CourseConfig.file_paths(course_key, source=ConfigSource.PUBLISH)
+    store_path, store_defaults_path, store_version_path = CourseConfig.file_paths(course_key, source=ConfigSource.STORE)
 
     config = None
     errors = []
@@ -436,7 +430,7 @@ def push_event(
             build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
 
-        id_path = CourseConfig.version_id_path(CourseConfig.path_to(source=ConfigSource.BUILD), course_key)
+        id_path = CourseConfig.version_id_path(course_key, source=ConfigSource.BUILD)
         with open(id_path, "w") as f:
             f.write(_get_version_id(build_path))
 

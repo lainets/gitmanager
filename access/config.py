@@ -174,19 +174,50 @@ class CourseConfig:
         Returns the path to a file under a course.
         Leave 'key' empty to get a path relative to the root directory instead of the course directory.
         """
-        relative_path = CourseConfig.relative_path_to(key, *paths)
         if source == ConfigSource.PUBLISH:
-            return os.path.join(settings.COURSES_PATH, relative_path)
+            return CourseConfig._path_to(settings.COURSES_PATH, key, *paths)
         elif source == ConfigSource.STORE:
-            return os.path.join(settings.STORE_PATH, relative_path)
+            return CourseConfig._path_to(settings.STORE_PATH, key, *paths)
         elif source == ConfigSource.BUILD:
-            return os.path.join(settings.BUILD_PATH, relative_path)
+            return CourseConfig._path_to(settings.BUILD_PATH, key, *paths)
         else:
             raise ValueError(f"Unknown config source '{source}'")
 
     @staticmethod
-    def version_id_path(root: str, key: str = "") -> str:
+    def _path_to(root_dir: str, key: str = "", *paths: str) -> str:
+        """
+        Returns the path to a file under a course.
+        Leave 'key' empty to get a path relative to the root directory instead of the course directory.
+        """
+        relative_path = CourseConfig.relative_path_to(key, *paths)
+        return os.path.join(root_dir, relative_path)
+
+    @staticmethod
+    def version_id_path(key: str, source: ConfigSource = ConfigSource.PUBLISH) -> str:
+        return CourseConfig._version_id_path(CourseConfig.path_to(source=source), key)
+
+    @staticmethod
+    def _version_id_path(root: str, key: str) -> str:
         return os.path.join(root, key + ".version")
+
+    @staticmethod
+    def defaults_path(key: str, source: ConfigSource = ConfigSource.PUBLISH) -> str:
+        return CourseConfig._defaults_path(CourseConfig.path_to(source=source), key)
+
+    @staticmethod
+    def _defaults_path(root: str, key: str) -> str:
+        return os.path.join(root, key + ".defaults.json")
+
+    @staticmethod
+    def file_paths(key: str, source: ConfigSource = ConfigSource.PUBLISH) -> Tuple[str, str, str]:
+        """
+        Returns paths to the course directory, defaults file and version id file.
+        """
+        return (
+            CourseConfig.path_to(key, source=source),
+            CourseConfig.defaults_path(key, source=source),
+            CourseConfig.version_id_path(key, source=source),
+        )
 
     def static_path_to(self, *paths: str) -> Optional[str]:
         if self.data.static_dir is Undefined:
@@ -283,7 +314,7 @@ class CourseConfig:
     @staticmethod
     def _load(root_dir: str, course_key: str) -> CourseConfig:
         """Loads a course config from the given root directory"""
-        course_dir = os.path.join(root_dir, course_key)
+        course_dir = CourseConfig._path_to(root_dir, course_key)
 
         meta = load_meta(course_dir)
         f = ConfigParser.get_config(os.path.join(CourseConfig._conf_dir(course_dir, meta), INDEX))
@@ -342,7 +373,7 @@ class CourseConfig:
                 gather_exercises(module)
 
         try:
-            with open(CourseConfig.version_id_path(root_dir, course_key)) as file:
+            with open(CourseConfig._version_id_path(root_dir, course_key)) as file:
                 version_id = file.read()
         except:
             version_id = None
