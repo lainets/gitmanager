@@ -334,7 +334,7 @@ def publish(course_key: str) -> List[str]:
     if Path(store_path).exists():
         with FileLock(store_path):
             try:
-                config = CourseConfig.get(course_key, source=ConfigSource.STORE, raise_on_error=True)
+                config = CourseConfig.get(course_key, source=ConfigSource.STORE)
             except ConfigError as e:
                 errors.append(f"Failed to load newly built course for this reason: {e}")
             else:
@@ -347,7 +347,7 @@ def publish(course_key: str) -> List[str]:
     if config is None and Path(prod_path).exists():
         with FileLock(prod_path):
             try:
-                config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH, raise_on_error=True)
+                config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
             except ConfigError as e:
                 errors.append(f"Failed to load already published config: {e}")
 

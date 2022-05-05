@@ -230,7 +230,7 @@ class CourseConfig:
         errors = []
         for course in courses:
             try:
-                config = CourseConfig.get(course.key, raise_on_error=True)
+                config = CourseConfig.get(course.key)
             except ConfigError as e:
                 LOGGER.exception("Failed to load course: %s", course.key)
                 errors.append(f"Failed to load course {course.key}: {str(e)}")
@@ -269,15 +269,27 @@ class CourseConfig:
         return CourseConfig._courses.values()
 
     @staticmethod
-    def get(course_key: str, source: ConfigSource = ConfigSource.PUBLISH, *, raise_on_error: bool = False) -> Optional[CourseConfig]:
+    def get_or_none(course_key: str, source: ConfigSource = ConfigSource.PUBLISH) -> Optional[CourseConfig]:
         '''
         Gets course config.
 
         @type course_key: C{str}
         @param course_key: a course key
-        @type raise_on_error: bool
-        @param raise_on_error: whether to raise an exception or return None on error
         @return: course config or None
+        '''
+        try:
+            return CourseConfig.get(course_key, source)
+        except ConfigError:
+            return None
+
+    @staticmethod
+    def get(course_key: str, source: ConfigSource = ConfigSource.PUBLISH) -> CourseConfig:
+        '''
+        Gets course config. May raises ConfigError.
+
+        @type course_key: C{str}
+        @param course_key: a course key
+        @return: course config
         '''
 
         # Try cached version.
@@ -291,13 +303,7 @@ class CourseConfig:
 
         LOGGER.debug('Loading course "%s"' % (course_key))
 
-        try:
-            config = CourseConfig.load(course_key, source)
-        except ConfigError:
-            if raise_on_error:
-                raise
-            else:
-                return None
+        config = CourseConfig.load(course_key, source)
 
         if source == ConfigSource.PUBLISH:
             CourseConfig._courses[course_key] = config
@@ -395,7 +401,7 @@ class CourseConfig:
 
     @staticmethod
     def course_and_exercise_configs(course_key: str, exercise_key: str) -> Tuple[Optional[CourseConfig], Optional[ExerciseConfig]]:
-        course = CourseConfig.get(course_key)
+        course = CourseConfig.get_or_none(course_key)
         if course is None:
             return course, None
         exercise = course.exercise_config(exercise_key)

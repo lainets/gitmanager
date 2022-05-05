@@ -103,7 +103,7 @@ def protected(request: Request, course_key: str, path: str):
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
 
-    config = CourseConfig.get(course_key)
+    config = CourseConfig.get_or_none(course_key)
     if config is None:
         raise Http404()
 
@@ -186,7 +186,7 @@ def aplus_json(request: HttpRequest, course_key: str):
     defaults_path = ""
     if os.path.exists(CourseConfig.path_to(course_key, source=ConfigSource.STORE)):
         try:
-            config = CourseConfig.get(course_key, source=ConfigSource.STORE, raise_on_error=True)
+            config = CourseConfig.get(course_key, source=ConfigSource.STORE)
         except ConfigError as e:
             errors.append(f"Failed to load newly built course due to this error: {e}")
             errors.append("Attempting to load previous version of the course...")
@@ -195,7 +195,7 @@ def aplus_json(request: HttpRequest, course_key: str):
 
     if config is None:
         try:
-            config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH, raise_on_error=True)
+            config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
         except ConfigError as e:
             try:
                 Course.objects.get(key=course_key)
@@ -272,7 +272,7 @@ def publish(request: HttpRequest, course_key: str) -> HttpResponse:
         return JsonResponse({"errors": str(e), "success": False})
 
     # link static dir and check correctness
-    prodconfig = CourseConfig.get(course_key)
+    prodconfig = CourseConfig.get_or_none(course_key)
     if prodconfig is None:
         err = "Failed to read config after publishing. This shouldn't happen. You can try rebuilding the course"
         logger.error(err)
@@ -305,7 +305,7 @@ def _get_course_exercise_lang(
     # Keep only "en" from "en-gb" if the long language format is used.
     if lang_code:
         lang_code = lang_code[:2]
-    config = CourseConfig.get(course_key)
+    config = CourseConfig.get_or_none(course_key)
     if config is None:
         raise Http404()
     exercise = config.exercise_data(exercise_key, lang=lang_code)
