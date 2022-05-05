@@ -18,6 +18,9 @@ class UndefinedType:
     # make the objects immutable, so the Undefined global isn't changed
     __slots__ = ()
 
+    def __new__(cls) -> "UndefinedType":
+        return Undefined
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
@@ -31,7 +34,7 @@ class UndefinedType:
     def __bool__(self):
         return False
 
-Undefined = UndefinedType()
+Undefined = object.__new__(UndefinedType)
 
 
 # default_factory is required, so that pydantic doesn't make a copy of the
