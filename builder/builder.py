@@ -296,6 +296,7 @@ def store(config: CourseConfig) -> bool:
         dst = CourseConfig.path_to(course_key, index_file, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(config.file, dst)
+        shutil.copystat(config.file, dst)
 
         for file in copy_files:
             src = CourseConfig.path_to(course_key, file, source=ConfigSource.BUILD)
@@ -307,6 +308,7 @@ def store(config: CourseConfig) -> bool:
             Path(dst).parent.mkdir(parents=True, exist_ok=True)
 
             shutil.copyfile(src, dst)
+            shutil.copystat(src, dst)
 
         with open(store_defaults_path, "w") as f:
             json.dump(exercise_defaults, f)
@@ -314,6 +316,8 @@ def store(config: CourseConfig) -> bool:
         if config.version_id is not None:
             with open(store_version_path, "w") as f:
                 f.write(config.version_id)
+
+    config.save_to_cache(ConfigSource.STORE)
 
     return True
 
@@ -343,6 +347,7 @@ def publish(course_key: str) -> List[str]:
                     (store_defaults_path, prod_defaults_path),
                     (store_version_path, prod_version_path),
                 ])
+                config.save_to_cache(ConfigSource.PUBLISH)
 
     if config is None and Path(prod_path).exists():
         with FileLock(prod_path):

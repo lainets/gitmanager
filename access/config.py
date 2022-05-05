@@ -151,6 +151,22 @@ class CourseConfig:
 
         return exercise._config_obj
 
+    def transformed_for(self, destination: ConfigSource) -> CourseConfig:
+        """Returns a copy of self but with filepaths corrected to 'destination' source."""
+        config = copy.deepcopy(self)
+        config.root_dir = CourseConfig.path_to(source=destination)
+        config.dir = CourseConfig.path_to(self.key, source=destination)
+        config.file = os.path.join(config.dir, os.path.relpath(self.file, self.dir))
+        config.grader_config_dir = os.path.join(config.dir, os.path.relpath(self.grader_config_dir, self.dir))
+
+        for exercise in config.exercises.values():
+            if not exercise._config_obj:
+                continue
+
+            exercise._config_obj.file = os.path.join(config.dir, os.path.relpath(exercise._config_obj.file, self.dir))
+
+        return config
+
     def is_valid(self) -> bool:
         """Checks whether the config is still valid"""
         version_id = CourseConfig.read_version_id(self.root_dir, self.key)
@@ -172,6 +188,22 @@ class CourseConfig:
     @property
     def course_name(self) -> str:
         return self.get_course_name()
+
+    def save_to_cache(self, destination: ConfigSource, *, transform: bool = True) -> None:
+        """
+        Saves the config to the cache for 'destination'.
+
+        If 'transform' is True, the config paths are first transformed to reside under
+        the destination directory. This should only be False if the config was already
+        transformed or was originally loaded from the destination directory.
+        """
+        if transform:
+            config = self.transformed_for(destination)
+        else:
+            config = self
+
+        destination_key = CourseConfig.cache_key(config.key, destination)
+        cache.set(destination_key, config)
 
     @staticmethod
     def relative_path_to(key: str = "", *paths: str) -> str:
