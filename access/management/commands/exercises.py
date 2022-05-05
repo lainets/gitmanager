@@ -14,7 +14,7 @@ class Command(BaseCommand):
             else:
                 course_key = args[0]
                 exercise_key = None
-            course = config.get(course_key)
+            course = config.get_or_none(course_key)
             if course is None:
                 raise CommandError("Course not found for key: %s" % (course_key))
             self.stdout.write("Configuration syntax ok for: %s" % (course_key))
