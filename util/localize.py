@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Callable, Dict, Generic, Iterable, Optional, TypeVar, Union, TYPE_CHECKING
+from typing import Callable, Dict, Generic, Iterable, Optional, TypeVar, Union, TYPE_CHECKING, get_args
 from copy import deepcopy
 
 from pydantic.class_validators import root_validator
@@ -12,6 +12,12 @@ DEFAULT_LANG = "en"
 
 T = TypeVar('T')
 R = TypeVar('R')
+
+
+def _instance_creator(cls, type):
+    """Creates an instance of 'cls[type]' without calling __init__"""
+    return cls[type].__new__(cls[type])
+
 
 class _Base(Generic[T]):
     @abstractmethod
@@ -57,6 +63,15 @@ class _Differ(GenericModel, _Base[T]):
             for k,v in self.__root__.items()
         }
 
+    def __reduce__(self):
+        # Says that to unpickle this instance, call
+        # _instance_creator(_Differ, get_args(self.__annotations__["__root__"])[1])
+        # and set the state to self.__getstate__()
+        # (which is the the state pickling uses by default when __reduce__ isn't specified).
+        # This is required because GenericModel doesn't unpickle correctly due
+        # to the type specializations.
+        return (_instance_creator, (_Differ, get_args(self.__annotations__["__root__"])[1]), self.__getstate__())
+
 
 class _Default(GenericModel, _Base[T]):
     __root__ : T
@@ -70,6 +85,10 @@ class _Default(GenericModel, _Base[T]):
 
     def map(self, fn: Callable[[T], R]) -> R:
         return fn(self.__root__)
+
+    def __reduce__(self):
+        # see _Differ.__reduce__ for an explanation
+        return (_instance_creator, (_Default, self.__annotations__["__root__"]), self.__getstate__())
 
 
 if TYPE_CHECKING:
