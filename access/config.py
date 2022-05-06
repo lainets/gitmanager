@@ -366,17 +366,10 @@ class CourseConfig:
             default_lang = default_lang,
         )
 
-        exercises: Dict[str, Exercise] = {}
-        if course.modules:
-            def gather_exercises(parent: Parent):
-                for obj in parent.children:
-                    if isinstance(obj, Exercise):
-                        exercises[obj.key] = obj
-
-                    if isinstance(obj, Parent):
-                        gather_exercises(obj)
-            for module in course.modules:
-                gather_exercises(module)
+        exercises = {
+            ex.key: ex
+            for ex in course.exercises()
+        }
 
         try:
             with open(CourseConfig._version_id_path(root_dir, course_key)) as file:
