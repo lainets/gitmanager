@@ -125,7 +125,7 @@ class CourseConfig:
         @rtype: C{dict}
         @return: exercise root or None
         '''
-        if not self.exercises[exercise_key].config:
+        if exercise_key not in self.exercises or not self.exercises[exercise_key].config:
             return None
 
         # Try cached version.
