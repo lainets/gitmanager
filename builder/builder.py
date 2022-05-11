@@ -139,7 +139,7 @@ def send_error_mail(course: Course, subject: str, message: str) -> bool:
         "message": message,
     }
     try:
-        response = post(email_url, permissions=permissions, data=data, headers={"Application": "application/json, application/*"})
+        response = post(email_url, permissions=permissions, data=data, headers={"Accept": "application/json, application/*"})
     except:
         logger.exception(f"Failed to send email for {course.key}")
         build_logger.exception(f"Failed to send error email")
@@ -160,7 +160,7 @@ def notify_update(course: Course):
         notification_url = urllib.parse.urljoin(settings.FRONTEND_URL, f"api/v2/courses/{course.remote_id}/notify_update/")
         permissions = Permissions()
         permissions.instances.add(Permission.WRITE, id=course.remote_id)
-        response = post(notification_url, permissions=permissions, data={"email_on_error": course.email_on_error}, headers={"Application": "application/json, application/*"})
+        response = post(notification_url, permissions=permissions, data={"email_on_error": course.email_on_error}, headers={"Accept": "application/json, application/*"})
     except Exception as e:
         logger.exception(f"Failed to notify_update for course id {course.remote_id}")
         errors.append(str(e))
