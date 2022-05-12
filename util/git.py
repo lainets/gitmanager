@@ -12,15 +12,24 @@ from util.typing import PathLike
 
 default_logger = getLogger("util.git")
 
+# Copy the environment for use in git calls. In particular, the HOME variable is needed to find the .gitconfig file
+# in case it contains something necessary (like safe.directories)
+git_env = os.environ.copy()
+git_env["GIT_SSH_COMMAND"] = f"ssh -i {settings.SSH_KEY_PATH}"
+
 
 def git_call(path: str, command: str, cmd: List[str], include_cmd_string: bool = True) -> Tuple[bool, str]:
+    global git_env
+    
     if include_cmd_string:
         cmd_str = " ".join(["git", *cmd]) + "\n"
     else:
         cmd_str = ""
-    response = subprocess.run(["git", "-C", path] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8', env={"GIT_SSH_COMMAND": f"ssh -i {settings.SSH_KEY_PATH}"})
+
+    response = subprocess.run(["git", "-C", path] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8', env=git_env)
     if response.returncode != 0:
         return False, f"{cmd_str}Git {command}: returncode: {response.returncode}\nstdout: {response.stdout}\n"
+
     return True, cmd_str + response.stdout
 
 
