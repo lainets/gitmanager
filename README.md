@@ -151,3 +151,12 @@ The redis connection parameters can also be set there, or you can specify
 `REDIS_HOST` and `REDIS_HOST` environment variables. To run the builder process:
 
     python manage.py run_huey
+
+For performance reasons, you may want to enable an interprocess cache in the settings.py `CACHES`
+setting. Memcached is a good option for this. You may need to increase the cache total and
+object size for it to work properly. The default object size of 1MB will work fine for small to
+medium size courses but larger courses may require more space, 5MB should be fine for all but the
+most exceptional cases. The total size needed depends on the number of courses and their sizes,
+a surefire way is to take the maximum object size and multiply it by the number of courses. Note 
+that you need to install the appropriate python package for the cache, see 
+https://docs.djangoproject.com/en/3.2/topics/cache
