@@ -159,4 +159,5 @@ medium size courses but larger courses may require more space, 5MB should be fin
 most exceptional cases. The total size needed depends on the number of courses and their sizes,
 a surefire way is to take the maximum object size and multiply it by the number of courses. Note 
 that you need to install the appropriate python package for the cache, see 
-https://docs.djangoproject.com/en/3.2/topics/cache
+https://docs.djangoproject.com/en/3.2/topics/cache/. The requirements_prod.txt file contains the
+python package for memcached.
