@@ -22,7 +22,8 @@ LOGGER = logging.getLogger('main')
 
 class ConfigureOptions(PydanticModel):
     files: Dict[str,str] = {}
-    url: str
+    # ellipsis (...) makes the field required in the case that a default url isn't specified
+    url: str = settings.DEFAULT_GRADER_URL or ... # type: ignore
 
 
 class ExerciseConfig(PydanticModel):
@@ -211,9 +212,6 @@ class Exercise(Item):
         # DEPRECATED: default configure settings
         # this is for backwards compatibility and should be removed in the future
         if not self.configure and self._config_obj and settings.DEFAULT_GRADER_URL is not None:
-            configure = {
-                "url": settings.DEFAULT_GRADER_URL,
-            }
             files = {}
             for lang_data in self._config_obj.data.values():
                 mount = lang_data.get("container", {}).get("mount")
@@ -252,9 +250,7 @@ class Exercise(Item):
                         else:
                             files[path] = path
 
-            configure["files"] = files
-
-            self.configure = ConfigureOptions.parse_obj(configure)
+            self.configure = ConfigureOptions.parse_obj({"files": files})
 
 
     @root_validator(allow_reuse=True, skip_on_failure=True)
