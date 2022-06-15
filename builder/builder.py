@@ -402,8 +402,6 @@ def push_event(
 
     update = updates[-1]
 
-    path = CourseConfig.path_to(course_key)
-
     log_stream = StringIO()
     log_handler = logging.StreamHandler(log_stream)
     build_logger.addHandler(log_handler)
@@ -419,6 +417,18 @@ def push_event(
             pull_status = pull(str(build_path), course.git_origin, course.git_branch, logger=build_logger)
             if not pull_status:
                 return
+        elif settings.LOCAL_COURSE_SOURCE_PATH:
+            path = CourseConfig.local_source_path_to(course_key)
+            build_logger.debug(f"Course origin not set: copying the course sources from {path} to the build directory.")
+
+            def ignore_func(directory, contents):
+                # Do not copy the .git directory in shutil.copytree().
+                if '.git' in contents:
+                    return ('.git',)
+                return ()
+
+            shutil.rmtree(build_path, ignore_errors=True)
+            shutil.copytree(path, build_path, symlinks=True, ignore=ignore_func)
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
 

@@ -51,8 +51,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/aplus:/tmp/aplus
       - coursebuild:/srv/courses
-      - .:/srv/courseshuey/default:ro
-      - .:/srv/courses/git_repo/default:ro
+      - .:/srv/courses/source/default:ro
       #- $HOME/gitmanager/:/srv/gitmanager/:ro
     depends_on:
       - gitmanager

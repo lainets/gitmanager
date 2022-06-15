@@ -263,6 +263,10 @@ class CourseConfig:
             CourseConfig.version_id_path(key, source=source),
         )
 
+    @staticmethod
+    def local_source_path_to(key: str, *paths: str) -> str:
+        return CourseConfig._path_to(settings.LOCAL_COURSE_SOURCE_PATH, key, *paths)
+
     def static_path_to(self, *paths: str) -> Optional[str]:
         if self.data.static_dir is Undefined:
             return None

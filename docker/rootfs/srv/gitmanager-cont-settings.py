@@ -26,6 +26,7 @@ DEFAULT_GRADER_URL = 'http://grader:8080/configure'
 STORE_PATH = '/srv/courses/course_store'
 COURSES_PATH = '/srv/courses/publish'
 BUILD_PATH = '/tmp/aplus/gitmanager/build'
+LOCAL_COURSE_SOURCE_PATH = '/srv/courses/source'
 # See the BUILD_MODULE script for details
 BUILD_MODULE_SETTINGS = {
     'HOST_BUILD_PATH': BUILD_PATH,

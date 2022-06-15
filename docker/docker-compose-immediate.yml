@@ -7,9 +7,7 @@ version: '3'
 # The gitmanager container runs the build tasks immediately
 # with an in-memory storage (no Redis needed).
 # The course git repo is mounted to the gitmanager container and
-# gitmanager git-clones the course for the build.
-# The disadvantage is that git-cloning includes only committed changes, that is,
-# uncommitted changes are not part of the build in this configuration.
+# gitmanager copies the course for the build.
 
 volumes:
   data:
@@ -38,7 +36,7 @@ services:
       - data:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/aplus:/tmp/aplus
-      - .:/srv/courses/git_repo/default:ro
+      - .:/srv/courses/source/default:ro
       #- $HOME/gitmanager/:/srv/gitmanager/:ro
     ports:
       - "8070:8070"

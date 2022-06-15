@@ -10,7 +10,7 @@ def create_default_courses():
     course = Course.objects.create(
         key='default',
         remote_id=1,
-        git_origin='/srv/courses/git_repo/default',
+        git_origin='',
         git_branch='master',
         webhook_secret='',
     )

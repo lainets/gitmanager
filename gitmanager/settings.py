@@ -55,6 +55,8 @@ STORE_PATH = join(BASE_DIR, "course_store")
 BUILD_MODULE_SETTINGS = {
   "HOST_BUILD_PATH": BUILD_PATH,
 }
+# local course source directory for testing the build without cloning anything from git
+LOCAL_COURSE_SOURCE_PATH = None
 
 # Whether to use the X-SendFile
 USE_X_SENDFILE = False
