@@ -11,6 +11,7 @@ from pydantic.class_validators import root_validator, validator
 from pydantic.fields import PrivateAttr
 from pydantic.types import NonNegativeInt, PositiveInt, confloat
 
+from util.files import is_subpath
 from util.localize import Localized, DEFAULT_LANG
 from util.pydantic import PydanticModel, NotRequired, Undefined, add_warnings_to_values_dict
 from util.static import static_url
@@ -434,6 +435,11 @@ class Course(PydanticModel):
 
     @validator('unprotected_paths', allow_reuse=True)
     def validate_unprotected_paths(cls, paths: Set[Path]) -> Set[Path]:
+        for path in paths:
+            if path.is_absolute():
+                raise ValueError("Unprotected paths must be relative to the static directory (i.e. they cannot start with /)")
+            if not is_subpath(path):
+                raise ValueError("Unprotected paths must be under the static directory (paths cannot navigate outside it with ../)")
         return paths.union(Path(p) for p in ("_downloads", "_static", "_images"))
 
     @root_validator(allow_reuse=True, skip_on_failure=True)

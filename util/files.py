@@ -46,9 +46,23 @@ def rm_path(path: Union[str, Path]) -> None:
         path.unlink()
 
 
-def is_subpath(child: str, parent: str):
+def is_subpath(child: PathLike, parent: Optional[PathLike] = None) -> bool:
+    """
+    If parent is not None, returns whether child is a subpath of (contained in)
+    parent.
+    If parent is None, check that child is a relative subpath i.e.
+    is_subpath(Path(<location>, child), <location>) is True for every <location>.
+    """
+    child = os.path.normpath(child)
+
+    if parent is None:
+        return not os.path.isabs(child) and not child.startswith("../")
+
+    parent = os.path.normpath(parent)
+
     if child == parent:
         return True
+
     return len(child) > len(parent) and child[len(parent)] == "/" and child.startswith(parent)
 
 
