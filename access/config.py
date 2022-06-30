@@ -311,12 +311,9 @@ class CourseConfig:
         return configs, errors
 
     @staticmethod
-    def all():
+    def all() -> Tuple[List[CourseConfig], List[str]]:
         '''
         Gets all course configs.
-
-        @rtype: C{list}
-        @return: course configurations
         '''
         return CourseConfig.get_many(CourseModel.objects.values_list("key", flat=True))
 
