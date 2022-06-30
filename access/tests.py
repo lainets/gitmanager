@@ -36,7 +36,7 @@ class ConfigTestCase(TestCase):
         )
 
     def get_course_key(self):
-        course_configs = list(CourseConfig.all())
+        course_configs, errors = CourseConfig.all()
         self.assertGreater(len(course_configs), 0, "No courses configured")
         return course_configs[0].key
 
