@@ -170,7 +170,7 @@ def exercise_template(request, course_key, exercise_key, basename):
 
 
 @login_required
-def aplus_json(request: HttpRequest, course_key: str):
+def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     '''
     Delivers the configuration as JSON for A+.
     '''
@@ -221,13 +221,13 @@ def aplus_json(request: HttpRequest, course_key: str):
         errors.append("Could not find exercise defaults file. Try rebuilding the course")
         exercise_defaults = {}
 
-    data = config.data.dict(exclude={"modules", "static_dir", "unprotected_paths"})
+    data = config.data.dict(exclude={"modules", "static_dir", "unprotected_paths"}, by_alias=True)
 
     # TODO: this should really be done before the course validation happens
     def children_recursion(config: CourseConfig, parent: Parent) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
         for o in parent.children:
-            of = o.dict(exclude={"children"})
+            of = o.dict(exclude={"children"}, by_alias=True)
             if isinstance(o, Exercise) and o.config:
                 try:
                     exercise = config.exercise_config(o.key)
@@ -246,7 +246,7 @@ def aplus_json(request: HttpRequest, course_key: str):
 
     modules = []
     for m in config.data.modules:
-        mf = m.dict(exclude={"children"})
+        mf = m.dict(exclude={"children"}, by_alias=True)
         mf["children"] = children_recursion(config, m)
         modules.append(mf)
     data["modules"] = modules

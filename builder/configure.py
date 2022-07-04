@@ -93,7 +93,7 @@ def configure_url(
     return response, None
 
 
-def configure_graders(config: CourseConfig):
+def configure_graders(config: CourseConfig) -> Tuple[Dict[str, Any], List[Union[str, Dict[str,str]]]]:
     course_key = config.key
 
     configures: Dict[str, Tuple[Dict[str,str], List[Exercise]]] = {}
@@ -115,16 +115,16 @@ def configure_graders(config: CourseConfig):
     if course_id is None and configures:
         raise ValueError("Remote id not set: cannot configure")
 
-    course_spec = config.data.dict(exclude={"static_dir", "configures", "unprotected_paths"})
+    course_spec = config.data.dict(exclude={"static_dir", "configures", "unprotected_paths"}, by_alias=True)
 
     exercise_defaults: Dict[str, Any] = {}
-    errors = []
+    errors: List[Union[str, Dict[str,str]]] = []
     for url, (course_files, exercises) in configures.items():
         exercise_data: List[Dict[str, Any]] = []
         for exercise in exercises:
             exercise_data.append({
                 "key": exercise.key,
-                "spec": exercise.dict(exclude={"config", "configure"}),
+                "spec": exercise.dict(exclude={"config", "configure"}, by_alias=True),
                 "config": exercise._config_obj.data if exercise._config_obj else None,
                 "files": list(exercise.configure.files.keys()),
             })
