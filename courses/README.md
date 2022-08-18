@@ -87,7 +87,7 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 	* `modules`: a list of
 		* `key`: part of the url
 		* `name`,`title`: (optional/a+) The name of the course module
-    	* `order`: (optional/a+) the order number of the module
+	* `order`: (optional/a+) the order number of the module
 		* `status`: (optional/a+) ready/hidden/maintenance
 		* `points_to_pass`: (optional/a+) limit to get passed marks
 		* `introduction`: (optional/a+) introduction
@@ -109,7 +109,7 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 				(they have a student number and should log-in with internal accounts)
 				* `external`: only external students (no student number and login with Google accounts)
 				* `all`: internal and external students
-    		* `order`: (optional/a+) the order number of the exercise
+			* `order`: (optional/a+) the order number of the exercise
 			* `model_answer`
 			* `exercise_template`
 			* `exercise_info`
@@ -118,30 +118,30 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 			* `use_wide_column`: (optional/a+) true to loose third column
 			* `description`: (optional/a+) exercise description
 			* `type`: (optional/a+) a key name in 'exercise_types'
-  			* `children`: (optional/a+) list recursion
+			* `children`: (optional/a+) list recursion
 			* Extended with of these:
 			* Chapter:
 				* `static_content`: a localized path to the static content directory
-        		* `generate_table_of_contents`: (optional/a+) whether to
+				* `generate_table_of_contents`: (optional/a+) whether to
 				generate the table of contents
 			* Exercise:
-    			* `config`: (optional) a path to exercise configuration. Must
+				* `config`: (optional) a path to exercise configuration. Must
 				be either a json or a yaml file. See <grader_config>/<config path>
 				specification below.
-    			* `max_submissions`: (optional/a+)
-    			* `max_points`: (optional/a+)
-    			* `points_to_pass`: (optional/a+) limit to get passed marks
-    			* `min_group_size`: (optional/a+)
-    			* `max_group_size`: (optional/a+)
-    			* `allow_assistant_viewing`: (optional/a+) true or false
-    			* `allow_assistant_grading`: (optional/a+) true or false
-    			* `generate_table_of_contents`: (optional/a+) show index of children
-    			* `configure`: external configuration settings
-    				* `url`: where to send the exercise configuration
-    				* `files`: what files to send. A list of <name>: <path>
+				* `max_submissions`: (optional/a+)
+				* `max_points`: (optional/a+)
+				* `points_to_pass`: (optional/a+) limit to get passed marks
+				* `min_group_size`: (optional/a+)
+				* `max_group_size`: (optional/a+)
+				* `allow_assistant_viewing`: (optional/a+) true or false
+				* `allow_assistant_grading`: (optional/a+) true or false
+				* `generate_table_of_contents`: (optional/a+) show index of children
+				* `configure`: external configuration settings
+					* `url`: where to send the exercise configuration
+					* `files`: what files to send. A list of <name>: <path>
 					dicts. The file/directory at <path> is sent to url with
 					name <name>.
-  			* LTI exercise (extends Exercise):
+			* LTI exercise (extends Exercise):
 				* `lti`: the label used in A+ for the LTI service
 				* `lti_context_id`: LTI context id
 				* `lti_resource_link_id`: LTI resource link id
