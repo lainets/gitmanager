@@ -88,7 +88,7 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 	* `modules`: a list of
 		* `key`: part of the url
 		* `name`,`title`: (optional/a+) The name of the course module
-	* `order`: (optional/a+) the order number of the module
+		* `order`: (optional/a+) the order number of the module
 		* `status`: (optional/a+) ready/hidden/maintenance
 		* `points_to_pass`: (optional/a+) limit to get passed marks
 		* `introduction`: (optional/a+) introduction
