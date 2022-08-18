@@ -79,10 +79,11 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 	* `course_description`: HTML text for the course front page
 	* `course_footer`: HTML text for the footer of the front page
 	* `configures`: list of external configuration settings. A list of
-		* `url`: where to send the course configuration
-		* `files`: what files to send. A list of <name>: <path>
-		dicts. The file/directory at <path> is sent to url with
-		name <name>.
+		* `url`: where to send the course configuration (optional).
+		If missing, the service uses the default grader configured by the server admins.
+		* `files`: what files to send. A dict of `<name>: <path>`
+		pairs. The file/directory at `<path>` is sent to the url with
+		the name `<name>`.
 	* `exercises`: (deprecated, see modules) A list of active exercise keys
 	* `modules`: a list of
 		* `key`: part of the url
@@ -137,10 +138,11 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 				* `allow_assistant_grading`: (optional/a+) true or false
 				* `generate_table_of_contents`: (optional/a+) show index of children
 				* `configure`: external configuration settings
-					* `url`: where to send the exercise configuration
-					* `files`: what files to send. A list of <name>: <path>
-					dicts. The file/directory at <path> is sent to url with
-					name <name>.
+					* `url`: where to send the exercise configuration (optional).
+					If missing, the service uses the default grader configured by the server admins.
+					* `files`: what files to send. A dict of `<name>: <path>`
+					pairs. The file/directory at `<path>` is sent to the url with
+					the name `<name>`.
 			* LTI exercise (extends Exercise):
 				* `lti`: the label used in A+ for the LTI service
 				* `lti_context_id`: LTI context id
