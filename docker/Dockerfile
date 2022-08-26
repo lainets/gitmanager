@@ -1,4 +1,4 @@
-FROM apluslms/service-base:django-1.14
+FROM apluslms/service-base:django-1.15
 
 # Set container related configuration via environment variables.
 ENV CONTAINER_TYPE="gitmanager" \
