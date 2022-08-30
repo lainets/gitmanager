@@ -157,7 +157,11 @@ setting. Memcached is a good option for this. You may need to increase the cache
 object size for it to work properly. The default object size of 1MB will work fine for small to
 medium size courses but larger courses may require more space, 5MB should be fine for all but the
 most exceptional cases. The total size needed depends on the number of courses and their sizes,
-a surefire way is to take the maximum object size and multiply it by the number of courses. Note 
-that you need to install the appropriate python package for the cache, see 
+a surefire way is to take the maximum object size and multiply it by the number of courses. Note
+that you need to install the appropriate python package for the cache, see
 https://docs.djangoproject.com/en/3.2/topics/cache/. The requirements_prod.txt file contains the
 python package for memcached.
+
+If a course build is stuck locked (can be seen in huey logs (repeated locked messages), and the
+build is stuck in RUNNING and PENDING states), the task lock can be flushed with the flush_huye
+django admin command.
