@@ -74,6 +74,8 @@ redis_host = environ.get("REDIS_HOST", "localhost")
 redis_port = environ.get("REDIS_PORT", 6379)
 ##########################################################################
 
+BUILD_RETRY_DELAY = 30
+
 APLUS_AUTH: Dict[str, Any] = {
     "UID": "gitmanager",
     "AUTH_CLASS": "access.auth.Authentication",
@@ -249,7 +251,7 @@ HUEY = {
       'connection_pool': pool,
     },
     'consumer': {
-        'workers': 1, # at the moment the build process blocks all other builds, so no need for more
+        'workers': 5, # maximum number of concurrent builds
         'worker_type': 'process',
         'initial_delay': 1,  # Smallest polling interval, same as -d.
         'backoff': 1.15,  # Exponential backoff using this rate, -b.

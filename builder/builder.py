@@ -19,6 +19,7 @@ import urllib.parse
 from django.conf import settings
 from django.db.models.functions import Now
 from huey.contrib.djhuey import db_task, lock_task
+from huey.exceptions import RetryTask, TaskLockedException
 from pydantic.error_wrappers import ValidationError
 
 from aplus_auth.payload import Permission, Permissions
@@ -367,11 +368,15 @@ def publish(course_key: str) -> List[str]:
     return errors + publish_graders(config)
 
 
-# lock_task to make sure that two updates don't happen at the same
-# time. Would be better to lock it for each repo separately but it isn't really
-# needed
-@db_task()
-@lock_task("push_event")
+# the task locks can get stuck if the program suddenly shuts down,
+# so flush them when debugging. We dont want to flush otherwise because
+# there may be a queued task left that would also get flushed.
+if settings.DEBUG:
+    from huey.contrib.djhuey import HUEY
+    HUEY.flush()
+
+
+@db_task(retry_delay=settings.BUILD_RETRY_DELAY)
 def push_event(
         course_key: str,
         skip_git: bool = False,
@@ -382,6 +387,29 @@ def push_event(
         ) -> None:
     logger.debug(f"push_event: {course_key}")
 
+    try:
+        # lock_task to make sure that two updates don't happen at the
+        # same time.
+        with lock_task(f"build-{course_key}"):
+            build_course(
+                course_key,
+                skip_git,
+                skip_build,
+                skip_notify,
+                build_image,
+                build_command,
+            )
+    except TaskLockedException:
+        raise RetryTask()
+
+def build_course(
+        course_key: str,
+        skip_git: bool = False,
+        skip_build: bool = False,
+        skip_notify: bool = False,
+        build_image: Optional[str] = None,
+        build_command: Optional[str] = None,
+        ) -> None:
     course: Course = Course.objects.get(key=course_key)
 
     # delete all but latest 10 updates
