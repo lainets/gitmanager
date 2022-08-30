@@ -409,7 +409,12 @@ def push_event(
         update.status = CourseUpdate.Status.RUNNING
         update.save()
 
-        build_path = CourseConfig.path_to(course_key, source=ConfigSource.BUILD)
+        if course.skip_build_failsafes:
+            build_config_source = ConfigSource.PUBLISH
+        else:
+            build_config_source = ConfigSource.BUILD
+
+        build_path = CourseConfig.path_to(course_key, source=build_config_source)
 
         if skip_git:
             build_logger.info("Skipping git update.")
@@ -445,13 +450,13 @@ def push_event(
             build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
 
-        id_path = CourseConfig.version_id_path(course_key, source=ConfigSource.BUILD)
+        id_path = CourseConfig.version_id_path(course_key, source=build_config_source)
         with open(id_path, "w") as f:
             f.write(_get_version_id(build_path))
 
         # try loading the configs to validate them
         try:
-            config = CourseConfig.get(course_key, ConfigSource.BUILD)
+            config = CourseConfig.get(course_key, build_config_source)
             config.get_exercise_list()
         except ConfigError as e:
             build_logger.warning("Failed to load config")
@@ -465,9 +470,10 @@ def push_event(
             build_logger.warning(warning_str + "\n")
 
         # copy the course material to store
-        if not store(config):
-            build_logger.error("Failed to store built course")
-            return
+        if not course.skip_build_failsafes:
+            if not store(config):
+                build_logger.error("Failed to store built course")
+                return
 
         # all went well
         update.status = CourseUpdate.Status.SUCCESS

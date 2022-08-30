@@ -24,6 +24,9 @@ class Course(models.Model):
     update_hook = models.URLField(blank=True)
     email_on_error = models.BooleanField(default=True)
     update_automatically = models.BooleanField(default=True)
+    # Builds the course directly into the publish folder, removing the failsafe of having separate
+    # build/store folders
+    skip_build_failsafes = models.BooleanField(default=False)
     # Do NOT set this to None, null values are only allowed for backwards compatibility
     # nullness should be removed in the future when possible
     webhook_secret = models.CharField(unique=True, null=True, max_length=64, default=generate_secret)

@@ -17,9 +17,10 @@ from access.config import ConfigSource, CourseConfig
 from access.course import Exercise, Chapter, Parent
 from access.parser import ConfigError
 from builder import builder
+from builder.configure import configure_graders
 from builder.models import Course
 from util import export
-from util.files import FileResponse
+from util.files import FileLock, FileResponse
 from util.log import SecurityLog
 from util.login_required import login_required
 
@@ -209,6 +210,20 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
 
         defaults_path = CourseConfig.defaults_path(course_key, source=ConfigSource.PUBLISH)
 
+    # configure graders if it was skipped during the build
+    if course.skip_build_failsafes:
+        # send configs to graders' stores
+        exercise_defaults, errors = configure_graders(config)
+        if errors:
+            logger.exception(errors)
+            return JsonResponse({"errors": errors, "success": False})
+
+        path, defaults_path, _ = CourseConfig.file_paths(course_key, source=ConfigSource.PUBLISH)
+
+        with FileLock(path):
+            with open(defaults_path, "w") as f:
+                json.dump(exercise_defaults, f)
+    
     if Path(defaults_path).exists():
         try:
             exercise_defaults = json.load(open(defaults_path, "r"))

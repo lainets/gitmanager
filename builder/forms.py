@@ -19,6 +19,7 @@ class CourseForm(forms.ModelForm):
             'remote_id',
             'update_automatically',
             'email_on_error',
+            'skip_build_failsafes',
             'git_origin',
             'git_branch',
             'webhook_secret',
@@ -29,7 +30,7 @@ class CourseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         for name in self.fields:
-            if name not in ("email_on_error", "update_automatically"):
+            if name not in ("email_on_error", "update_automatically", "skip_build_failsafes"):
                 self.fields[name].widget.attrs = {'class': 'form-control'}
 
     def save(self, request):

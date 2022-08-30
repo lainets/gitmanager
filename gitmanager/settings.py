@@ -48,12 +48,19 @@ DEFAULT_IMAGE="apluslms/compile-rst:1.6"
 # default command passed to container. set to None to use the image default
 DEFAULT_CMD="legacy_build"
 BUILD_MODULE = join(BASE_DIR, "scripts/docker_build.py")
+
+# Course configuration path:
+# Every directory under this directory is expected to be a course configuration
+COURSES_PATH = join(BASE_DIR, 'courses')
 BUILD_PATH = "/tmp/gitmanager"
 # this MUST be on the same device as COURSES_PATH
 STORE_PATH = join(BASE_DIR, "course_store")
 # See the BUILD_MODULE script for details
 BUILD_MODULE_SETTINGS = {
   "HOST_BUILD_PATH": BUILD_PATH,
+  "CONTAINER_BUILD_PATH": BUILD_PATH,
+  "HOST_PUBLISH_PATH": COURSES_PATH,
+  "CONTAINER_PUBLISH_PATH": COURSES_PATH,
 }
 # local course source directory for testing the build without cloning anything from git
 LOCAL_COURSE_SOURCE_PATH = None
@@ -184,10 +191,6 @@ STATIC_ROOT = join(BASE_DIR, 'static')
 # HTTP
 DEFAULT_EXPIRY_MINUTES = 15
 
-
-# Course configuration path:
-# Every directory under this directory is expected to be a course configuration
-COURSES_PATH = join(BASE_DIR, 'courses')
 
 # How long (in seconds) to wait for a lock to the course store directory when trying to
 # store built course. Makes sure that the build process doesn't get stuck on
