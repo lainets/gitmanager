@@ -30,6 +30,7 @@ Durations are given in (int)(unit), where units are y, m, d, h or w.
 	value set by the service administrators.
 	* `build_cmd`: command passed to the container image above. If not specified,
 	the image default is used.
+	* `exlude_patterns`: a list of exclude patterns for paths to ignore when cleaning the git directory. E.g. `exclude_patterns = _build exercises` makes sure that _build and exercises folders that were left over from last build are not removed before rebuilding. See git clean command's exclude flag for more information.
 
 2. ### <grader_config>/index.[json|yaml]
 	* The directory name acts as a course key, which is used in

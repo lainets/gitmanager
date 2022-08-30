@@ -28,7 +28,7 @@ from access.config import INDEX, ConfigSource, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, FileLock
-from util.git import get_commit_hash, pull
+from util.git import checkout, clone_if_doesnt_exist, get_commit_hash, get_commit_metadata
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
 from util.typing import PathLike
@@ -419,9 +419,27 @@ def push_event(
         if skip_git:
             build_logger.info("Skipping git update.")
         elif course.git_origin:
-            pull_status = pull(str(build_path), course.git_origin, course.git_branch, logger=build_logger)
-            if not pull_status:
+            clone_status = clone_if_doesnt_exist(build_path, course.git_origin, course.git_branch, logger=build_logger)
+            if clone_status is None:
+                meta = load_meta(build_path)
+                if "exclude_patterns" in meta:
+                    exclude_patterns = shlex.split(meta["exclude_patterns"])
+                else:
+                    exclude_patterns = []
+
+                checkout_status = checkout(build_path, course.git_origin, course.git_branch, exclude_patterns, logger=build_logger)
+                if not checkout_status:
+                    build_logger.info("------------\nFailed to checkout repository\n------------\n\n")
+                    return
+            elif not clone_status:
+                build_logger.info("------------\nFailed to clone repository\n------------\n\n")
                 return
+
+            log_status, logstr = get_commit_metadata(build_path)
+            if log_status:
+                build_logger.info(logstr)
+            else:
+                build_logger.error(f"Failed to get commit metadata: \n{logstr}")
         elif settings.LOCAL_COURSE_SOURCE_PATH:
             path = CourseConfig.local_source_path_to(course_key)
             build_logger.debug(f"Course origin not set: copying the course sources from {path} to the build directory.")

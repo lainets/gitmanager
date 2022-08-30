@@ -2,7 +2,7 @@ from logging import Logger, getLogger
 from pathlib import Path
 import os
 import subprocess
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from django.conf import settings
 
@@ -20,7 +20,7 @@ git_env["GIT_SSH_COMMAND"] = f"ssh -i {settings.SSH_KEY_PATH}"
 
 def git_call(path: str, command: str, cmd: List[str], include_cmd_string: bool = True) -> Tuple[bool, str]:
     global git_env
-    
+
     if include_cmd_string:
         cmd_str = " ".join(["git", *cmd]) + "\n"
     else:
@@ -41,7 +41,7 @@ def clone(path: str, origin: str, branch: str, *, logger: Logger = default_logge
     return success
 
 
-def checkout(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> bool:
+def checkout(path: str, origin: str, branch: str, exclude_patterns: List[str] = [], *, logger: Logger = default_logger) -> bool:
     success = True
     # set the path beforehand, and handle logging
     def git(command: str, cmd: List[str]):
@@ -52,7 +52,7 @@ def checkout(path: str, origin: str, branch: str, *, logger: Logger = default_lo
         logger.info(output)
 
     git("fetch", ["fetch", "origin", branch])
-    git("clean", ["clean", "-xfd"])
+    git("clean", ["clean", "-xfd"] + [e for f in exclude_patterns for e in ["-e", f]])
     git("reset", ["reset", "-q", "--hard", f"origin/{branch}"])
     git("submodule sync", ["submodule", "sync", "--recursive"])
     git("submodule clean", ["submodule", "foreach", "--recursive", "git", "clean", "-xfd"])
@@ -67,28 +67,23 @@ def has_origin(path: str, origin: str) -> bool:
     return origin == origin_url.strip()
 
 
-def pull(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> bool:
+def clone_if_doesnt_exist(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> Optional[bool]:
+    """
+    Clones a repo to <path> if it hasnt been already.
+
+    Returns None if the repo already exists, otherwise returns whether the clone was successful.
+    """
     success = False
-    do_clone = True
     if Path(path, ".git").exists():
         if has_origin(path, origin):
-            do_clone = False
-            success = checkout(path, origin, branch, logger=logger)
-        else:
-            logger.info("Wrong origin in repo, recloning\n\n")
+            return None
 
-    if do_clone:
-        rm_path(path)
-        success = clone(path, origin, branch, logger=logger)
+        logger.info("Wrong origin in repo, recloning\n\n")
 
-    if (Path(path) / ".git").exists():
-        success2, logstr = git_call(path, "log", ["--no-pager", "log", '--pretty=format:------------\nCommit metadata\n\nHash:\n%H\nSubject:\n%s\nBody:\n%b\nCommitter:\n%ai\n%ae\nAuthor:\n%ci\n%cn\n%ce\n------------\n', "-1"], include_cmd_string=False)
-        logger.info(logstr)
-        return success and success2
-    else:
-        logger.info("------------\nFailed to clone repository\n------------\n\n")
-        return success
+    rm_path(path)
+    success = clone(path, origin, branch, logger=logger)
 
+    return success and (Path(path) / ".git").exists()
 
 def get_commit_hash(path: PathLike) -> str:
     success, hash_or_error = git_call(os.fspath(path), "rev-parse", ["HEAD"], include_cmd_string = False)
@@ -96,3 +91,6 @@ def get_commit_hash(path: PathLike) -> str:
         return hash_or_error
     else:
         raise RuntimeError(hash_or_error)
+
+def get_commit_metadata(path: PathLike) -> Tuple[bool, str]:
+    return git_call(os.fspath(path), "log", ["--no-pager", "log", '--pretty=format:------------\nCommit metadata\n\nHash:\n%H\nSubject:\n%s\nBody:\n%b\nCommitter:\n%ai\n%ae\nAuthor:\n%ci\n%cn\n%ce\n------------\n', "-1"], include_cmd_string=False)
