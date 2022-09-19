@@ -30,6 +30,9 @@ LOCAL_COURSE_SOURCE_PATH = '/srv/courses/source'
 # See the BUILD_MODULE script for details
 BUILD_MODULE_SETTINGS = {
     'HOST_BUILD_PATH': BUILD_PATH,
+    'CONTAINER_BUILD_PATH': BUILD_PATH,
+    'HOST_PUBLISH_PATH': COURSES_PATH,
+    'CONTAINER_PUBLISH_PATH': COURSES_PATH,
 }
 
 # Local messaging library settings
