@@ -28,7 +28,7 @@ from aplus_auth.requests import post
 from access.config import INDEX, ConfigSource, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
-from util.files import is_subpath, renames, rm_path, FileLock
+from util.files import is_subpath, renames, rm_path, rm_paths, FileLock
 from util.git import checkout, clone_if_doesnt_exist, get_commit_hash, get_commit_metadata
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
@@ -336,14 +336,16 @@ def publish(course_key: str) -> List[str]:
 
     config = None
     errors = []
+    tmpfiles = []
     if Path(store_path).exists():
         with FileLock(store_path):
             try:
                 config = CourseConfig.get(course_key, source=ConfigSource.STORE)
             except ConfigError as e:
                 errors.append(f"Failed to load newly built course for this reason: {e}")
+                logger.warn(f"Failed to load newly built course for this reason: {e}")
             else:
-                renames([
+                tmpfiles = renames([
                     (store_path, prod_path),
                     (store_defaults_path, prod_defaults_path),
                     (store_version_path, prod_version_path),
@@ -356,6 +358,7 @@ def publish(course_key: str) -> List[str]:
                 config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
             except ConfigError as e:
                 errors.append(f"Failed to load already published config: {e}")
+                logger.error(f"Failed to load already published config: {e}")
 
     if config is None:
         if errors:
@@ -364,8 +367,13 @@ def publish(course_key: str) -> List[str]:
             raise Exception(f"Course directory not found for {course_key} - the course probably has not been built")
 
     symbolic_link(config)
+    errors = errors + publish_graders(config)
 
-    return errors + publish_graders(config)
+    # Remove temporary files that were created during renaming.
+    # This may block the execution for a while on courses with many files.
+    rm_paths(tmpfiles)
+
+    return errors
 
 
 # the task locks can get stuck if the program suddenly shuts down,

@@ -191,6 +191,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
         except ConfigError as e:
             errors.append(f"Failed to load newly built course due to this error: {e}")
             errors.append("Attempting to load previous version of the course...")
+            logger.warn(f"Failed to load newly built course due to this error: {e}")
         else:
             defaults_path = CourseConfig.defaults_path(course_key, source=ConfigSource.STORE)
 
@@ -198,6 +199,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
         try:
             config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
         except ConfigError as e:
+            logger.error(f"aplus_json: failed to get config for {course_key}")
             try:
                 Course.objects.get(key=course_key)
             except:

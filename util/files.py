@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import time
 from types import TracebackType
-from typing import Dict, Generator, Iterable, Optional, Tuple, Type, Union
+from typing import Dict, Generator, Iterable, Optional, Tuple, Type, Union, List
 
 from django.conf import settings
 from django.http.response import FileResponse as DjangoFileResponse, HttpResponse
@@ -44,6 +44,12 @@ def rm_path(path: Union[str, Path]) -> None:
         shutil.rmtree(path)
     else:
         path.unlink()
+
+
+def rm_paths(paths: Iterable[Union[str, Path]]) -> None:
+    for path in paths:
+        if path is not None:
+            rm_path(path)
 
 
 def is_subpath(child: PathLike, parent: Optional[PathLike] = None) -> bool:
@@ -168,9 +174,10 @@ def rename(src: PathLike, dst: PathLike, keep_tmp=False) -> Optional[str]:
     return tmpdst
 
 
-def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> None:
+def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> List[str]:
     """
     Renames multiple files and directories while making sure that either all or none succeed.
+    Returns a list of generated tmp directories (for later removal).
     """
     done = set()
     try:
@@ -183,10 +190,8 @@ def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> None:
             if os.path.exists(tmp):
                 rename(tmp, dst)
         raise
-    else:
-        for _, _, tmp in done:
-            if tmp is not None:
-                rm_path(tmp)
+
+    return list(map(lambda x: x[2], done))
 
 
 def _try_lockf(lockfile, flags) -> Optional[OSError]:
