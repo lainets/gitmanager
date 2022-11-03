@@ -71,6 +71,17 @@ def exercise(
     if 'url' in exercise:
         of['url'] = exercise['url']
 
+    if 'lti' in exercise:
+        for k in (
+            'lti',
+            'lti_context_id',
+            'lti_resource_link_id',
+            'lti_aplus_get_and_post',
+            'lti_open_in_iframe',
+        ):
+            if k in exercise:
+                of[k] = exercise[k]
+
     if 'exercise_info' in exercise:
         of['exercise_info'] = exercise['exercise_info']
     else:
