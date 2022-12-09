@@ -87,4 +87,16 @@ qwIDAQAB
     "REMOTE_AUTHENTICATOR_UID": "aplus",
     "DISABLE_LOGIN_CHECKS": False,
     "DISABLE_JWT_SIGNING": False,
+    "UID_TO_KEY": {
+        "radar": """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvddPdRsfeYjTK/aVnX/J
+52exmXiu7ZXLx2W83brLmxaOGR1Zb0qFt+0rtvBAx+s9KjlRj8rmMBLpTUTWWeai
+MpVHkhMH+MHAcL8jCfM8G5nLqcg2j50VBfXEiKT0QtonkOH+HVLYrtR0ZRQt4i9/
+8XLi1z+oITlH30yqs19PvZVksIJjReLqRDI1bxdzs6296i2Js5PyvGNKY1cn52dq
+MgMysg9P3HeuwAQW2jXQwxPn4HhNoKlQL2SpNvInWwmpS1PrXgIhEvEq+T79GcxI
+eGJ1Rjhi6HY9jhFMYBh23EirAa+HRBAbcyQ01Cc8hUa2YoNoolD/3oadsfQshps8
+8wIDAQAB
+-----END PUBLIC KEY-----""",
+     },
+     "TRUSTED_UIDS": ["radar", "aplus"],
 }
