@@ -30,10 +30,46 @@ def _get_datetime(value: Any) -> Optional[datetime]:
     return value
 
 
+class SimpleDuration(PydanticModel):
+    __root__: str
+
+    @root_validator
+    def simple_duration(cls, values: dict):
+        delta = values.get('__root__')
+        if not isinstance(delta, str):
+            raise ValueError("A duration must be a string")
+        if not delta:
+            raise ValueError("An empty string cannot be turned into a duration")
+
+        try:
+            int(delta[:-1])
+        except:
+            raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
+
+        if delta[-1] in ("y", "m", "w", "d", "h"):
+            return values
+        else:
+            raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
+
+AnyDuration = Union[timedelta, SimpleDuration]
+AnyDate = Union[datetime, date, str]
+# FIXME: str in AnyDate passes invalid dates and any strings.
+# str should be removed. However, removing it causes crashes with the Undefined type.
+
+
+Float0to1 = confloat(ge=0, le=1)
+
+
 class ConfigureOptions(PydanticModel):
     files: Dict[str,str] = {}
     # ellipsis (...) makes the field required in the case that a default url isn't specified
     url: str = settings.DEFAULT_GRADER_URL or ... # type: ignore
+
+
+class RevealRuleOptions(PydanticModel):
+    trigger: Literal["immediate", "manual", "time", "deadline", "deadline_all", "completion"]
+    time: NotRequired[AnyDate]
+    delay_minutes: NotRequired[NonNegativeInt]
 
 
 class ExerciseConfig(PydanticModel):
@@ -180,6 +216,8 @@ class Exercise(Item):
     max_group_size: NotRequired[NonNegativeInt]
     max_points: NotRequired[NonNegativeInt]
     points_to_pass: NotRequired[NonNegativeInt]
+    reveal_submission_feedback: NotRequired[RevealRuleOptions]
+    reveal_model_solutions: NotRequired[RevealRuleOptions]
     _config_obj: Optional[ExerciseConfig] = PrivateAttr(default=None)
 
     def config_file_info(self, course_dir: str, grader_config_dir: str) -> Optional[Tuple[str, str]]:
@@ -307,36 +345,6 @@ Exercise.update_forward_refs()
 LTIExercise.update_forward_refs()
 ExerciseCollection.update_forward_refs()
 Chapter.update_forward_refs()
-
-
-class SimpleDuration(PydanticModel):
-    __root__: str
-
-    @root_validator
-    def simple_duration(cls, values: dict):
-        delta = values.get('__root__')
-        if not isinstance(delta, str):
-            raise ValueError("A duration must be a string")
-        if not delta:
-            raise ValueError("An empty string cannot be turned into a duration")
-
-        try:
-            int(delta[:-1])
-        except:
-            raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
-
-        if delta[-1] in ("y", "m", "w", "d", "h"):
-            return values
-        else:
-            raise ValueError("Format: <integer>(y|m|d|h|w) e.g. 3d")
-
-AnyDuration = Union[timedelta, SimpleDuration]
-AnyDate = Union[datetime, date, str]
-# FIXME: str in AnyDate passes invalid dates and any strings.
-# str should be removed. However, removing it causes crashes with the Undefined type.
-
-
-Float0to1 = confloat(ge=0, le=1)
 
 
 class Module(Parent):
