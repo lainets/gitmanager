@@ -218,6 +218,7 @@ class Exercise(Item):
     points_to_pass: NotRequired[NonNegativeInt]
     reveal_submission_feedback: NotRequired[RevealRuleOptions]
     reveal_model_solutions: NotRequired[RevealRuleOptions]
+    grading_mode: NotRequired[Literal["best", "last"]]
     _config_obj: Optional[ExerciseConfig] = PrivateAttr(default=None)
 
     def config_file_info(self, course_dir: str, grader_config_dir: str) -> Optional[Tuple[str, str]]:
