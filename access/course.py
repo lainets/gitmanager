@@ -135,7 +135,7 @@ class ExerciseConfig(PydanticModel):
 
 
 class Parent(PydanticModel):
-    children: List[Union["Chapter", "Exercise", "LTIExercise", "ExerciseCollection"]] = []
+    children: List[Union["Chapter", "Exercise", "LTIExercise", "LTI1p3Exercise", "ExerciseCollection"]] = []
 
     def postprocess(self, **kwargs: Any):
         for c in self.children:
@@ -317,6 +317,12 @@ class LTIExercise(Exercise):
     lti_open_in_iframe: NotRequired[bool]
 
 
+class LTI1p3Exercise(Exercise):
+    lti1p3: str
+    lti_open_in_iframe: NotRequired[bool]
+    lti_custom: NotRequired[str]
+
+
 class ExerciseCollection(Item):
     target_category: str
     target_url: str
@@ -344,6 +350,7 @@ class Chapter(Item):
 Parent.update_forward_refs()
 Exercise.update_forward_refs()
 LTIExercise.update_forward_refs()
+LTI1p3Exercise.update_forward_refs()
 ExerciseCollection.update_forward_refs()
 Chapter.update_forward_refs()
 

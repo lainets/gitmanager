@@ -82,6 +82,15 @@ def exercise(
             if k in exercise:
                 of[k] = exercise[k]
 
+    if 'lti1p3' in exercise:
+        for k in (
+            'lti1p3',
+            'lti_open_in_iframe',
+            'lti_custom',
+        ):
+            if k in exercise:
+                of[k] = exercise[k]
+
     if 'exercise_info' in exercise:
         of['exercise_info'] = exercise['exercise_info']
     else:
