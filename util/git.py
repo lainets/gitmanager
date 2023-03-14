@@ -41,7 +41,7 @@ def clone(path: str, origin: str, branch: str, *, logger: Logger = default_logge
     return success
 
 
-def checkout(path: str, origin: str, branch: str, exclude_patterns: List[str] = [], *, logger: Logger = default_logger) -> bool:
+def checkout(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> bool:
     success = True
     # set the path beforehand, and handle logging
     def git(command: str, cmd: List[str]):
@@ -52,12 +52,26 @@ def checkout(path: str, origin: str, branch: str, exclude_patterns: List[str] = 
         logger.info(output)
 
     git("fetch", ["fetch", "origin", branch])
-    git("clean", ["clean", "-xfd"] + [e for f in exclude_patterns for e in ["-e", f]])
     git("reset", ["reset", "-q", "--hard", f"origin/{branch}"])
     git("submodule sync", ["submodule", "sync", "--recursive"])
-    git("submodule clean", ["submodule", "foreach", "--recursive", "git", "clean", "-xfd"])
     git("submodule reset", ["submodule", "foreach", "--recursive", "git", "reset", "-q", "--hard"])
     git("submodule update", ["submodule", "update", "--init", "--recursive"])
+
+    return success
+
+
+def clean(path: str, origin: str, branch: str, exclude_patterns: List[str] = [], *, logger: Logger = default_logger) -> bool:
+    success = True
+    # set the path beforehand, and handle logging
+    def git(command: str, cmd: List[str]):
+        nonlocal success
+        if not success: # dont run the other commands if one fails
+            return
+        success, output = git_call(path, command, cmd)
+        logger.info(output)
+
+    git("clean", ["clean", "-xfd"] + [e for f in exclude_patterns for e in ["-e", f]])
+    git("submodule clean", ["submodule", "foreach", "--recursive", "git", "clean", "-xfd"])
 
     return success
 

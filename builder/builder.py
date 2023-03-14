@@ -29,7 +29,7 @@ from access.config import INDEX, ConfigSource, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
 from util.files import is_subpath, renames, rm_path, rm_paths, FileLock
-from util.git import checkout, clone_if_doesnt_exist, get_commit_hash, get_commit_metadata
+from util.git import checkout, clean, clone_if_doesnt_exist, get_commit_hash, get_commit_metadata
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
 from util.typing import PathLike
@@ -457,13 +457,7 @@ def build_course(
         elif course.git_origin:
             clone_status = clone_if_doesnt_exist(build_path, course.git_origin, course.git_branch, logger=build_logger)
             if clone_status is None:
-                meta = load_meta(build_path)
-                if "exclude_patterns" in meta:
-                    exclude_patterns = shlex.split(meta["exclude_patterns"])
-                else:
-                    exclude_patterns = []
-
-                checkout_status = checkout(build_path, course.git_origin, course.git_branch, exclude_patterns, logger=build_logger)
+                checkout_status = checkout(build_path, course.git_origin, course.git_branch, logger=build_logger)
                 if not checkout_status:
                     build_logger.info("------------\nFailed to checkout repository\n------------\n\n")
                     return
@@ -554,7 +548,23 @@ def build_course(
                 send_error_mail(course, f"Course {course_key} build failed", log_stream.getvalue())
 
         update.log = log_stream.getvalue()
-        build_logger.removeHandler(log_handler)
 
         update.updated_time = Now()
         update.save()
+
+        try:
+            meta = load_meta(build_path)
+            exclude_patterns = shlex.split(meta.get("exclude_patterns", ""))
+
+            clean_status = clean(build_path, course.git_origin, course.git_branch, exclude_patterns, logger=build_logger)
+            if not clean_status:
+                build_logger.info("------------\nFailed to clean repository\n------------\n\n")
+                return
+        except:
+            build_logger.error("Clean failed.\n")
+            build_logger.error(traceback.format_exc() + "\n")
+        finally:
+            update.log = log_stream.getvalue()
+            update.save(update_fields=["log"])
+
+            build_logger.removeHandler(log_handler)
