@@ -70,6 +70,11 @@ def _get_version_id(course_dir: PathLike) -> str:
         return "".join(random.choices(string.ascii_letters + string.digits, k=20))
 
 
+def log_progress_update(update: CourseUpdate, log_stream: StringIO) -> None:
+    update.log = log_stream.getvalue() + "\n\n..."
+    update.save(update_fields=["log"])
+
+
 def build(course: Course, path: Path, image: Optional[str] = None, command: Optional[str] = None) -> bool:
     meta = load_meta(path)
 
@@ -485,6 +490,8 @@ def build_course(
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
 
+        log_progress_update(update, log_stream)
+
         if not skip_build:
             # build in build_path folder
             build_status = build(course, Path(build_path), image = build_image, command = build_command)
@@ -493,10 +500,14 @@ def build_course(
         else:
             build_logger.info("Skipping build.")
 
+        log_progress_update(update, log_stream)
+
         value, error = is_self_contained(build_path)
         if not value:
             build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
+
+        log_progress_update(update, log_stream)
 
         id_path = CourseConfig.version_id_path(course_key, source=build_config_source)
         with open(id_path, "w") as f:
@@ -513,15 +524,21 @@ def build_course(
             build_logger.error(validation_error_str(e))
             return
 
+        log_progress_update(update, log_stream)
+
         warning_str = validation_warning_str(config.data)
         if warning_str:
             build_logger.warning(warning_str + "\n")
+
+        log_progress_update(update, log_stream)
 
         # copy the course material to store
         if not course.skip_build_failsafes:
             if not store(config):
                 build_logger.error("Failed to store built course")
                 return
+
+        log_progress_update(update, log_stream)
 
         # all went well
         update.status = CourseUpdate.Status.SUCCESS
