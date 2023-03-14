@@ -78,6 +78,12 @@ def rm_except(dir: PathLike, exclude: PathLike) -> None:
     inner(dir, exclude, exclude_parents)
 
 
+@task(retries=2, retry_delay=3)
+def rm_paths_async(paths: List[Union[str, Path]]) -> None:
+    """Removes paths asynchronously."""
+    rm_paths(paths)
+
+
 @task()
 def copys_async(pairs: List[Tuple[PathLike, PathLike]], *, lock_path: Optional[PathLike] = None) -> None:
     """Copies a list of files and directories asynchronously.
@@ -259,10 +265,10 @@ def rename(src: PathLike, dst: PathLike, keep_tmp=False) -> Optional[str]:
     return tmpdst
 
 
-def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> List[str]:
+def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> None:
     """
     Renames multiple files and directories while making sure that either all or none succeed.
-    Returns a list of generated tmp directories (for later removal).
+    Removes temporary files asynchronously using Huey.
     """
     done = set()
     try:
@@ -275,8 +281,8 @@ def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> List[str]:
             if os.path.exists(tmp):
                 rename(tmp, dst)
         raise
-
-    return list(map(lambda x: x[2], done))
+    else:
+        rm_paths_async([tmp for _, _, tmp in done if tmp is not None])
 
 
 def readfile(path: PathLike) -> str:

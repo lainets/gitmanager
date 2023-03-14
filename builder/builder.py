@@ -34,7 +34,6 @@ from util.files import (
     readfile,
     renames,
     rm_except,
-    rm_paths,
     FileLock,
     rsync
 )
@@ -336,7 +335,6 @@ def publish(course_key: str) -> List[str]:
 
     config = None
     errors = []
-    tmpfiles = []
     if Path(store_path).exists():
         if not os.path.exists(prod_version_path) or not os.path.exists(store_version_path) or readfile(prod_version_path) != readfile(store_version_path):
             with FileLock(store_path):
@@ -346,7 +344,7 @@ def publish(course_key: str) -> List[str]:
                     errors.append(f"Failed to load newly built course for this reason: {e}")
                     logger.warn(f"Failed to load newly built course for this reason: {e}")
                 else:
-                    tmpfiles = renames([
+                    renames([
                         (store_path, prod_path),
                         (store_defaults_path, prod_defaults_path),
                         (store_version_path, prod_version_path),
@@ -378,11 +376,9 @@ def publish(course_key: str) -> List[str]:
             raise Exception(f"Course directory not found for {course_key} - the course probably has not been built")
 
     symbolic_link(config)
+    
     errors = errors + publish_graders(config)
-
-    # Remove temporary files that were created during renaming.
-    # This may block the execution for a while on courses with many files.
-    rm_paths(tmpfiles)
+    
 
     return errors
 
