@@ -9,7 +9,6 @@ import random
 import shlex
 import shutil
 import string
-import subprocess
 import sys
 import traceback
 from types import ModuleType
@@ -28,7 +27,17 @@ from aplus_auth.requests import post
 from access.config import INDEX, ConfigSource, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
-from util.files import is_subpath, renames, rm_path, rm_paths, FileLock
+from util.files import (
+    copyfile,
+    copys_async,
+    is_subpath,
+    readfile,
+    renames,
+    rm_except,
+    rm_paths,
+    FileLock,
+    rsync
+)
 from util.git import checkout, clean, clone_if_doesnt_exist, get_commit_hash, get_commit_metadata
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
@@ -219,20 +228,6 @@ def is_self_contained(path: PathLike) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-def copytree(src: PathLike, dst: PathLike) -> None:
-    """
-    Uses cp command to copy a directory tree in order to preserve hard- and symlinks.
-    """
-    process = subprocess.run(
-        ["cp", "-a", os.fspath(src), os.fspath(dst)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        encoding="utf-8"
-    )
-    if process.returncode != 0:
-        raise RuntimeError(f"Failed to copy built course files: {process.stdout}")
-
-
 def store(config: CourseConfig) -> bool:
     """
     Stores the built course files and sends the configs to the graders.
@@ -259,12 +254,14 @@ def store(config: CourseConfig) -> bool:
 
         build_logger.info("Copying the built materials")
 
-        rm_path(store_path)
+        static_dir = config.data.static_dir or ""
 
-        dst = CourseConfig.path_to(course_key, config.data.static_dir or "", source=ConfigSource.STORE)
+        rm_except(store_path, CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE))
+
+        dst = CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
-        copytree(
-            CourseConfig.path_to(course_key, config.data.static_dir or "", source=ConfigSource.BUILD),
+        rsync(
+            CourseConfig.path_to(course_key, static_dir, source=ConfigSource.BUILD),
             dst,
         )
 
@@ -301,8 +298,7 @@ def store(config: CourseConfig) -> bool:
         index_file = str(Path(config.file).relative_to(config.dir))
         dst = CourseConfig.path_to(course_key, index_file, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(config.file, dst)
-        shutil.copystat(config.file, dst)
+        copyfile(config.file, dst)
 
         for file in copy_files:
             src = CourseConfig.path_to(course_key, file, source=ConfigSource.BUILD)
@@ -313,8 +309,7 @@ def store(config: CourseConfig) -> bool:
             dst = CourseConfig.path_to(course_key, file, source=ConfigSource.STORE)
             Path(dst).parent.mkdir(parents=True, exist_ok=True)
 
-            shutil.copyfile(src, dst)
-            shutil.copystat(src, dst)
+            copyfile(src, dst)
 
         with open(store_defaults_path, "w") as f:
             json.dump(exercise_defaults, f)
@@ -343,19 +338,30 @@ def publish(course_key: str) -> List[str]:
     errors = []
     tmpfiles = []
     if Path(store_path).exists():
-        with FileLock(store_path):
-            try:
-                config = CourseConfig.get(course_key, source=ConfigSource.STORE)
-            except ConfigError as e:
-                errors.append(f"Failed to load newly built course for this reason: {e}")
-                logger.warn(f"Failed to load newly built course for this reason: {e}")
-            else:
-                tmpfiles = renames([
-                    (store_path, prod_path),
-                    (store_defaults_path, prod_defaults_path),
-                    (store_version_path, prod_version_path),
-                ])
-                config.save_to_cache(ConfigSource.PUBLISH)
+        if not os.path.exists(prod_version_path) or not os.path.exists(store_version_path) or readfile(prod_version_path) != readfile(store_version_path):
+            with FileLock(store_path):
+                try:
+                    config = CourseConfig.get(course_key, source=ConfigSource.STORE)
+                except ConfigError as e:
+                    errors.append(f"Failed to load newly built course for this reason: {e}")
+                    logger.warn(f"Failed to load newly built course for this reason: {e}")
+                else:
+                    tmpfiles = renames([
+                        (store_path, prod_path),
+                        (store_defaults_path, prod_defaults_path),
+                        (store_version_path, prod_version_path),
+                    ])
+
+                    config.save_to_cache(ConfigSource.PUBLISH)
+
+                    # Copy files back to store so that rsync has files to compare against
+                    copys_async([
+                            (prod_path, store_path),
+                            (prod_defaults_path, store_defaults_path),
+                            (prod_version_path, store_version_path),
+                        ],
+                        lock_path=store_path
+                    )
 
     if config is None and Path(prod_path).exists():
         with FileLock(prod_path):

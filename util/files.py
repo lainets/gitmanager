@@ -2,17 +2,20 @@
 Utility functions for exercise files.
 
 '''
+from contextlib import nullcontext
 import fcntl
 from pathlib import Path
 import os
 import shutil
+import subprocess
 import tempfile
 import time
 from types import TracebackType
-from typing import Dict, Generator, Iterable, Optional, Tuple, Type, Union, List
+from typing import Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from django.conf import settings
 from django.http.response import FileResponse as DjangoFileResponse, HttpResponse
+from huey.contrib.djhuey import task
 
 from util.typing import PathLike
 
@@ -50,6 +53,88 @@ def rm_paths(paths: Iterable[Union[str, Path]]) -> None:
     for path in paths:
         if path is not None:
             rm_path(path)
+
+
+def rm_except(dir: PathLike, exclude: PathLike) -> None:
+    """Remove directory contents except for <exclude>"""
+    def inner(dir: PathLike, exclude: PathLike, exclude_parents: Set[Path]):
+        with os.scandir(dir) as it:
+            for direntry in it:
+                if exclude == direntry.path:
+                    continue
+                elif direntry.path in exclude_parents:
+                    inner(direntry.path, exclude, exclude_parents)
+                elif direntry.is_symlink():
+                    Path(direntry.path).unlink()
+                elif direntry.is_dir():
+                    shutil.rmtree(direntry.path)
+                else:
+                    Path(direntry.path).unlink()
+
+    if not os.path.exists(dir):
+        return
+
+    exclude_parents = {str(p) for p in Path(exclude).parents}
+    inner(dir, exclude, exclude_parents)
+
+
+@task()
+def copys_async(pairs: List[Tuple[PathLike, PathLike]], *, lock_path: Optional[PathLike] = None) -> None:
+    """Copies a list of files and directories asynchronously.
+
+    Note that the copying might fail, and the caller wont know about it
+    due to the asynchronousity"""
+    with FileLock(lock_path) if lock_path is not None else nullcontext():
+        for src, dst in pairs:
+            if os.path.isdir(src):
+                copytree(src, dst)
+            else:
+                copyfile(src, dst)
+
+
+def rsync(src: PathLike, dst: PathLike) -> None:
+    """
+    Uses rsync command to copy a directory tree for speed and to preserve hard- and symlinks.
+    """
+    src, dst = os.fspath(src), os.fspath(dst)
+    if not os.path.isdir(src):
+        raise NotADirectoryError(f"'{src}' is not a directory")
+
+    if src[-1] != "/":
+        src = src + "/"
+    if dst[-1] != "/":
+        dst = dst + "/"
+
+    process = subprocess.run(
+        ["rsync", "-crlH", "--delete", "--out-format", "%n", os.fspath(src), os.fspath(dst)],
+        #["rsync", "-trlH", "--delete-excluded", "--include-from", "-", "--exclude", "**", "--out-format", "%n", os.fspath(src), os.fspath(dst)],
+        #input="\n".join("/" + f for f in files),
+        #text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        encoding="utf-8"
+    )
+    if process.returncode != 0:
+        raise RuntimeError(f"Failed to copy built course files: {process.stdout}")
+
+
+def copyfile(src: PathLike, dst: PathLike) -> None:
+    shutil.copyfile(src, dst)
+    shutil.copystat(src, dst)
+
+
+def copytree(src: PathLike, dst: PathLike) -> None:
+    """
+    Uses cp command to copy a directory tree in order to preserve hard- and symlinks.
+    """
+    process = subprocess.run(
+        ["cp", "-a", os.fspath(src), os.fspath(dst)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        encoding="utf-8"
+    )
+    if process.returncode != 0:
+        raise RuntimeError(f"Failed to copy built course files: {process.stdout}")
 
 
 def is_subpath(child: PathLike, parent: Optional[PathLike] = None) -> bool:
@@ -192,6 +277,11 @@ def renames(pairs: Iterable[Tuple[PathLike, PathLike]]) -> List[str]:
         raise
 
     return list(map(lambda x: x[2], done))
+
+
+def readfile(path: PathLike) -> str:
+    with open(path) as file:
+        return file.read()
 
 
 def _try_lockf(lockfile, flags) -> Optional[OSError]:
