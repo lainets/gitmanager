@@ -78,6 +78,28 @@ def _get_version_id(course_dir: PathLike) -> str:
         return "".join(random.choices(string.ascii_letters + string.digits, k=20))
 
 
+def update_from_git(build_path: str, course: Course) -> bool:
+    """Updates course directory at <build_path> using git. Returns tuple of whether it was successful and
+     a list of files that were changed since the last succesfull update (or None if the files are unknown)"""
+    clone_status = clone_if_doesnt_exist(build_path, course.git_origin, course.git_branch, logger=build_logger)
+    if clone_status is None:
+        checkout_status = checkout(build_path, course.git_origin, course.git_branch, logger=build_logger)
+        if not checkout_status:
+            build_logger.info("------------\nFailed to checkout repository\n------------\n\n")
+            return False
+    elif not clone_status:
+        build_logger.info("------------\nFailed to clone repository\n------------\n\n")
+        return False
+
+    log_status, logstr = get_commit_metadata(build_path)
+    if log_status:
+        build_logger.info(logstr)
+    else:
+        build_logger.error(f"Failed to get commit metadata: \n{logstr}")
+
+    return True
+
+
 def log_progress_update(update: CourseUpdate, log_stream: StringIO) -> None:
     update.log = log_stream.getvalue() + "\n\n..."
     update.save(update_fields=["log"])
@@ -376,9 +398,8 @@ def publish(course_key: str) -> List[str]:
             raise Exception(f"Course directory not found for {course_key} - the course probably has not been built")
 
     symbolic_link(config)
-    
+
     errors = errors + publish_graders(config)
-    
 
     return errors
 
@@ -462,21 +483,9 @@ def build_course(
         if skip_git:
             build_logger.info("Skipping git update.")
         elif course.git_origin:
-            clone_status = clone_if_doesnt_exist(build_path, course.git_origin, course.git_branch, logger=build_logger)
-            if clone_status is None:
-                checkout_status = checkout(build_path, course.git_origin, course.git_branch, logger=build_logger)
-                if not checkout_status:
-                    build_logger.info("------------\nFailed to checkout repository\n------------\n\n")
-                    return
-            elif not clone_status:
-                build_logger.info("------------\nFailed to clone repository\n------------\n\n")
+            success = update_from_git(build_path, course)
+            if not success:
                 return
-
-            log_status, logstr = get_commit_metadata(build_path)
-            if log_status:
-                build_logger.info(logstr)
-            else:
-                build_logger.error(f"Failed to get commit metadata: \n{logstr}")
         elif settings.LOCAL_COURSE_SOURCE_PATH:
             path = CourseConfig.local_source_path_to(course_key)
             build_logger.debug(f"Course origin not set: copying the course sources from {path} to the build directory.")
