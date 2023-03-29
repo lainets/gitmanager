@@ -169,8 +169,9 @@ class CourseConfig:
 
     def is_valid(self) -> bool:
         """Checks whether the config is still valid"""
-        version_id = CourseConfig.read_version_id(self.root_dir, self.key)
-        if version_id != self.version_id:
+        if self.version_id is not None:
+            return self.version_id == CourseConfig.read_version_id(self.root_dir, self.key)
+        elif CourseConfig.read_version_id(self.root_dir, self.key) is not None:
             return False
 
         try:
