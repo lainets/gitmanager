@@ -5,15 +5,22 @@ This module holds unit tests.
 import copy
 import os
 import time
+import tempfile
 
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from access.config import CourseConfig
 from access.parser import ConfigParser
 from builder.models import Course as CourseModel
+from util.files import rm_path
 
 
+@override_settings(
+    COURSES_PATH=os.path.abspath(settings.TESTDATADIR),
+    # Set static root to a tmp dir so it wont affect anything, and we can easily delete it afterwards
+    STATIC_ROOT=tempfile.mkdtemp(prefix="static_root_test", dir=settings.TESTDATADIR),
+)
 class ConfigTestCase(TestCase):
 
     TEST_DATA = {
@@ -27,13 +34,17 @@ class ConfigTestCase(TestCase):
     }
 
     def setUp(self):
-        settings.COURSES_PATH = os.path.join(os.path.dirname(__file__), 'test_data')
-        settings.STATIC_ROOT = os.path.join(settings.BASE_DIR, 'static')
         self.course = CourseModel.objects.create(
             key='test_course',
             email_on_error=False,
             update_automatically=False,
         )
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # Remove the temporary static root
+        rm_path(settings.STATIC_ROOT)
+        return super().tearDownClass()
 
     def get_course_key(self):
         course_configs, errors = CourseConfig.all()
