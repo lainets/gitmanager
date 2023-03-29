@@ -200,7 +200,7 @@ DEFAULT_EXPIRY_MINUTES = 15
 BUILD_FILELOCK_TIMEOUT = 30
 
 # Location of test files
-TESTDATADIR = "access/test_data"
+TESTDATADIR = "test_data"
 
 # Logging
 # https://docs.djangoproject.com/en/1.7/topics/logging/
