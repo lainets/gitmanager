@@ -313,7 +313,11 @@ def hook(request: Request, key: str, **kwargs) -> HttpResponse:
     request_params = request.POST.dict()
     request_params.update(request.GET.dict())
 
-    params = {k: request_params[k] == "on" or request_params[k] == "true" for k in ("skip_git", "skip_build", "skip_notify") if k in request_params}
+    params = {
+        k: request_params[k] in ("on", "true")
+        for k in ("skip_git", "skip_build", "skip_notify", "rebuild_all")
+        if k in request_params
+    }
     if request_params.get("build_image"):
         params["build_image"] = request_params["build_image"]
     if request_params.get("build_command"):

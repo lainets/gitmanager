@@ -433,6 +433,7 @@ def push_event(
         skip_git: bool = False,
         skip_build: bool = False,
         skip_notify: bool = False,
+        rebuild_all: bool = False,
         build_image: Optional[str] = None,
         build_command: Optional[str] = None,
         ) -> None:
@@ -447,6 +448,7 @@ def push_event(
                 skip_git,
                 skip_build,
                 skip_notify,
+                rebuild_all,
                 build_image,
                 build_command,
             )
@@ -458,6 +460,7 @@ def build_course(
         skip_git: bool = False,
         skip_build: bool = False,
         skip_notify: bool = False,
+        rebuild_all: bool = False,
         build_image: Optional[str] = None,
         build_command: Optional[str] = None,
         ) -> None:
@@ -523,7 +526,10 @@ def build_course(
         log_progress_update(update, log_stream)
 
         if not skip_build:
-            if changed_files is None:
+            if rebuild_all:
+                build_logger.info("Rebuild all specified: setting CHANGED_FILES to *\n\n")
+                changed_files = ["*"]
+            elif changed_files is None:
                 build_logger.info("Failed to detect changed files: setting CHANGED_FILES to *\n\n")
                 changed_files = ["*"]
             elif len(changed_files) > 10:
