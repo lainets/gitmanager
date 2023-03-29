@@ -17,7 +17,7 @@ from util.files import rm_path
 
 
 @override_settings(
-    COURSES_PATH=os.path.abspath(settings.TESTDATADIR),
+    COURSES_PATH=os.path.abspath(os.path.join(settings.TESTDATADIR, "build")),
     # Set static root to a tmp dir so it wont affect anything, and we can easily delete it afterwards
     STATIC_ROOT=tempfile.mkdtemp(prefix="static_root_test", dir=settings.TESTDATADIR),
 )
