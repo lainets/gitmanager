@@ -26,7 +26,7 @@ def git_call(path: str, command: str, cmd: List[str], include_cmd_string: bool =
     else:
         cmd_str = ""
 
-    response = subprocess.run(["git", "-C", path] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8', env=git_env)
+    response = subprocess.run(["git", "-C", path, *settings.GIT_OPTIONS] + cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8', env=git_env)
     if response.returncode != 0:
         return False, f"{cmd_str}Git {command}: returncode: {response.returncode}\nstdout: {response.stdout}\n"
 

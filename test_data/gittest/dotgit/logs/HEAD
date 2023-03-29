@@ -1,0 +1,11 @@
+0000000000000000000000000000000000000000 1020b05551acd01f1baf2618a6cdad079b72247c Tuomas Laine <tuomaslaine97@gmail.com> 1680009969 +0000	commit (initial): commit1
+1020b05551acd01f1baf2618a6cdad079b72247c 7466cd6b25b14bffa81da961a1fe31fde90f96cb Tuomas Laine <tuomaslaine97@gmail.com> 1680010014 +0000	commit: commit2
+7466cd6b25b14bffa81da961a1fe31fde90f96cb 38d1ddd300f2bde3337e64c4a4ad8d40095c5ac1 Tuomas Laine <tuomaslaine97@gmail.com> 1680010040 +0000	commit: commit3
+38d1ddd300f2bde3337e64c4a4ad8d40095c5ac1 1bfd20062367f1e1606af258c3961870f02e5184 Tuomas Laine <tuomaslaine97@gmail.com> 1680010052 +0000	commit: commit4
+1bfd20062367f1e1606af258c3961870f02e5184 1020b05551acd01f1baf2618a6cdad079b72247c Tuomas Laine <tuomaslaine97@gmail.com> 1680010058 +0000	checkout: moving from master to otherbranch
+1020b05551acd01f1baf2618a6cdad079b72247c 401e50bb10b588e414e8a530e69b0f81aec6d062 Tuomas Laine <tuomaslaine97@gmail.com> 1680010084 +0000	commit: branch2 commit2
+401e50bb10b588e414e8a530e69b0f81aec6d062 1bfd20062367f1e1606af258c3961870f02e5184 Tuomas Laine <tuomaslaine97@gmail.com> 1680010092 +0000	checkout: moving from otherbranch to master
+1bfd20062367f1e1606af258c3961870f02e5184 401e50bb10b588e414e8a530e69b0f81aec6d062 Tuomas Laine <tuomaslaine97@gmail.com> 1680010493 +0000	checkout: moving from master to otherbranch
+401e50bb10b588e414e8a530e69b0f81aec6d062 7fdd342b16edda0639e31a54642deac16c6cbc04 Tuomas Laine <tuomaslaine97@gmail.com> 1680010548 +0000	commit (amend): branch2 commit2
+7fdd342b16edda0639e31a54642deac16c6cbc04 1037396259bd979d097cd98102e688d95cea0441 Tuomas Laine <tuomaslaine97@gmail.com> 1680010565 +0000	commit: branch2 commit3
+1037396259bd979d097cd98102e688d95cea0441 1bfd20062367f1e1606af258c3961870f02e5184 Tuomas Laine <tuomaslaine97@gmail.com> 1680010572 +0000	checkout: moving from otherbranch to master

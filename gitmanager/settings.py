@@ -199,6 +199,9 @@ DEFAULT_EXPIRY_MINUTES = 15
 # some strange issue
 BUILD_FILELOCK_TIMEOUT = 30
 
+# Extra options applied to all git commands
+GIT_OPTIONS = []
+
 # Location of test files
 TESTDATADIR = "test_data"
 

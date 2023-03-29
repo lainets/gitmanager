@@ -1,0 +1,7 @@
+This folder is used for unit testing the git functions in util/git.py.
+
+The dotgit folder is the .git folder normally seen in a git repo. It has been
+renamed so that it can be committed to the git manager repo. In order to
+modify that repo, use `--git-dir dotgit` in the git commands, or rename the
+directory to .git, run your commands and then rename it back to dotgit when
+you are done.
