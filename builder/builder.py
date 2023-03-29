@@ -424,7 +424,10 @@ def publish(course_key: str) -> List[str]:
 # there may be a queued task left that would also get flushed.
 if settings.DEBUG:
     from huey.contrib.djhuey import HUEY
-    HUEY.flush()
+    try:
+        HUEY.flush()
+    except:
+        logger.error("Failed to flush HUEY storage")
 
 
 @db_task(retry_delay=settings.BUILD_RETRY_DELAY)
