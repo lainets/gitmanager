@@ -99,12 +99,33 @@ def clone_if_doesnt_exist(path: str, origin: str, branch: str, *, logger: Logger
 
     return success and (Path(path) / ".git").exists()
 
-def get_commit_hash(path: PathLike) -> str:
-    success, hash_or_error = git_call(os.fspath(path), "rev-parse", ["HEAD"], include_cmd_string = False)
+
+def diff_names(path: PathLike, sha: str) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Gets the changed files since commit <sha>. Returns (error, files)-tuple, where either error or files is None"""
+    success, files_or_error = git_call(os.fspath(path), "diff", ["diff", "--name-only", sha, "HEAD"], include_cmd_string = False)
     if success:
-        return hash_or_error
+        return None, [f for f in files_or_error.split("\n") if f]
+    else:
+        return files_or_error, None
+
+
+def _get_commit_hash(path: PathLike) -> Tuple[bool, str]:
+    """Returns (success, hash_or_error) where the hash has a newline at the end"""
+    return git_call(os.fspath(path), "rev-parse", ["rev-parse", "HEAD"], include_cmd_string = False)
+
+
+def get_commit_hash_or_none(path: PathLike) -> Optional[str]:
+    success, hash_or_error = _get_commit_hash(path)
+    return hash_or_error.strip() if success else None
+
+
+def get_commit_hash(path: PathLike) -> str:
+    success, hash_or_error = _get_commit_hash(path)
+    if success:
+        return hash_or_error.strip()
     else:
         raise RuntimeError(hash_or_error)
+
 
 def get_commit_metadata(path: PathLike) -> Tuple[bool, str]:
     return git_call(os.fspath(path), "log", ["--no-pager", "log", '--pretty=format:------------\nCommit metadata\n\nHash:\n%H\nSubject:\n%s\nBody:\n%b\nCommitter:\n%ai\n%ae\nAuthor:\n%ci\n%cn\n%ce\n------------\n', "-1"], include_cmd_string=False)

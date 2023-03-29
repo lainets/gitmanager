@@ -52,20 +52,22 @@
 <table class="table table-bordered">
 	<tr>
 		<th>Request IP</th>
-		<th>Created</th>
+		<th>Commit hash</th>
 		<th>Status</th>
+		<th>Created</th>
 		<th>Updated</th>
 	</tr>
 	{% for update in updates %}
 		<tr>
 			<td>{{ update.request_ip }}</td>
-			<td>{{ update.request_time }}</td>
+			<td>{{ update.commit_hash|default:"-" }}</td>
 			<td>{{ update.status }}</td>
+			<td>{{ update.request_time }}</td>
 			<td>{% if update.updated_time %}{{ update.updated_time }}{% endif %}</td>
 		</tr>
 		{% if update.log %}
 			<tr>
-				<td colspan="4">
+				<td colspan="5">
 					<pre>{{ update.log }}</pre>
 				</td>
 			</tr>

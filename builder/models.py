@@ -79,6 +79,7 @@ class CourseUpdate(models.Model):
         SKIPPED = "SKIPPED", "SKIPPED"
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='updates')
+    commit_hash = models.CharField(max_length=40, blank=True, null=True)
     request_ip = models.CharField(max_length=40)
     request_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(default=None, null=True, blank=True)

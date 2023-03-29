@@ -37,7 +37,7 @@ from util.files import (
     FileLock,
     rsync
 )
-from util.git import checkout, clean, clone_if_doesnt_exist, get_commit_hash, get_commit_metadata
+from util.git import checkout, clean, clone_if_doesnt_exist, diff_names, get_commit_hash, get_commit_hash_or_none, get_commit_metadata
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
 from util.typing import PathLike
@@ -78,18 +78,26 @@ def _get_version_id(course_dir: PathLike) -> str:
         return "".join(random.choices(string.ascii_letters + string.digits, k=20))
 
 
-def update_from_git(build_path: str, course: Course) -> bool:
+def update_from_git(build_path: str, course: Course) -> Tuple[bool, Optional[List[str]]]:
     """Updates course directory at <build_path> using git. Returns tuple of whether it was successful and
      a list of files that were changed since the last succesfull update (or None if the files are unknown)"""
+    changed_files = None
+
     clone_status = clone_if_doesnt_exist(build_path, course.git_origin, course.git_branch, logger=build_logger)
     if clone_status is None:
         checkout_status = checkout(build_path, course.git_origin, course.git_branch, logger=build_logger)
         if not checkout_status:
             build_logger.info("------------\nFailed to checkout repository\n------------\n\n")
-            return False
+            return False, None
+
+        last_successful_update = CourseUpdate.objects.filter(course=course, status=CourseUpdate.Status.SUCCESS).order_by("-request_time").first()
+        if last_successful_update is not None and last_successful_update.commit_hash is not None:
+            diff_error, changed_files = diff_names(build_path, last_successful_update.commit_hash)
+            if diff_error is not None:
+                build_logger.error(diff_error)
     elif not clone_status:
         build_logger.info("------------\nFailed to clone repository\n------------\n\n")
-        return False
+        return False, None
 
     log_status, logstr = get_commit_metadata(build_path)
     if log_status:
@@ -97,7 +105,7 @@ def update_from_git(build_path: str, course: Course) -> bool:
     else:
         build_logger.error(f"Failed to get commit metadata: \n{logstr}")
 
-    return True
+    return True, changed_files
 
 
 def log_progress_update(update: CourseUpdate, log_stream: StringIO) -> None:
@@ -105,7 +113,13 @@ def log_progress_update(update: CourseUpdate, log_stream: StringIO) -> None:
     update.save(update_fields=["log"])
 
 
-def build(course: Course, path: Path, image: Optional[str] = None, command: Optional[str] = None) -> bool:
+def build(
+        course: Course,
+        path: Path,
+        image: Optional[str] = None,
+        command: Optional[str] = None,
+        changed_files: List[str] = ["*"],
+        ) -> bool:
     meta = load_meta(path)
 
     if image is not None:
@@ -146,6 +160,7 @@ def build(course: Course, path: Path, image: Optional[str] = None, command: Opti
         "COURSE_ID": str(course.remote_id),
         "STATIC_URL_PATH": static_url_path(course.key),
         "STATIC_CONTENT_HOST": static_url(course.key),
+        "CHANGED_FILES": "\n".join(changed_files),
     }
 
     if build_command is not None:
@@ -480,10 +495,11 @@ def build_course(
 
         build_path = CourseConfig.path_to(course_key, source=build_config_source)
 
+        changed_files = None
         if skip_git:
             build_logger.info("Skipping git update.")
         elif course.git_origin:
-            success = update_from_git(build_path, course)
+            success, changed_files = update_from_git(build_path, course)
             if not success:
                 return
         elif settings.LOCAL_COURSE_SOURCE_PATH:
@@ -501,11 +517,22 @@ def build_course(
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
 
+        update.commit_hash = get_commit_hash_or_none(build_path)
+        update.save(update_fields=["commit_hash"])
+
         log_progress_update(update, log_stream)
 
         if not skip_build:
+            if changed_files is None:
+                build_logger.info("Failed to detect changed files: setting CHANGED_FILES to *\n\n")
+                changed_files = ["*"]
+            elif len(changed_files) > 10:
+                build_logger.info(f"Detected over 10 changed files (too many to show)\n\n")
+            else:
+                build_logger.info(f"Detected changed files: {', '.join(changed_files)}\n\n")
+
             # build in build_path folder
-            build_status = build(course, Path(build_path), image = build_image, command = build_command)
+            build_status = build(course, Path(build_path), image = build_image, command = build_command, changed_files = changed_files)
             if not build_status:
                 return
         else:

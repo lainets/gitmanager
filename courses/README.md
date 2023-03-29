@@ -12,6 +12,8 @@ c1234_2021
 E.g. /static/default or /static/aplus_manual_master
 - STATIC_CONTENT_HOST: full static file URL (including scheme and host).
 E.g. https://gitmanager.cs.aalto.fi/static/default
+- CHANGED_FILES: files changed since last successful build, separated
+by a newline (\\n). This can be used to optimize build steps.
 
 ## Configuration files
 
