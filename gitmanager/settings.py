@@ -74,6 +74,8 @@ redis_host = environ.get("REDIS_HOST", "localhost")
 redis_port = environ.get("REDIS_PORT", 6379)
 ##########################################################################
 
+ENABLE_PERFORMANCE_MONITORING = False
+
 BUILD_RETRY_DELAY = 30
 
 APLUS_AUTH: Dict[str, Any] = {

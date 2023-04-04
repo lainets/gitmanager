@@ -38,6 +38,7 @@ from util.files import (
     rsync
 )
 from util.git import checkout, clean, clone_if_doesnt_exist, diff_names, get_commit_hash, get_commit_hash_or_none, get_commit_metadata
+from util.perfmonitor import PerfMonitor
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
 from util.typing import PathLike
@@ -264,7 +265,7 @@ def is_self_contained(path: PathLike) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-def store(config: CourseConfig) -> bool:
+def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
     """
     Stores the built course files and sends the configs to the graders.
 
@@ -282,6 +283,8 @@ def store(config: CourseConfig) -> bool:
             build_logger.error(e)
         return False
 
+    perfmonitor.checkpoint("Configure graders")
+
     store_path, store_defaults_path, store_version_path = CourseConfig.file_paths(course_key, source=ConfigSource.STORE)
 
     build_logger.info("Acquiring file lock...")
@@ -294,12 +297,16 @@ def store(config: CourseConfig) -> bool:
 
         rm_except(store_path, CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE))
 
+        perfmonitor.checkpoint("Remove old stored files")
+
         dst = CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
         rsync(
             CourseConfig.path_to(course_key, static_dir, source=ConfigSource.BUILD),
             dst,
         )
+
+        perfmonitor.checkpoint("Copy static files")
 
         grader_config_dir = str(Path(config.grader_config_dir).relative_to(config.dir))
 
@@ -353,6 +360,8 @@ def store(config: CourseConfig) -> bool:
         if config.version_id is not None:
             with open(store_version_path, "w") as f:
                 f.write(config.version_id)
+
+        perfmonitor.checkpoint("Copy other files")
 
     config.save_to_cache(ConfigSource.STORE)
 
@@ -487,6 +496,8 @@ def build_course(
 
     update = updates[-1]
 
+    perfmonitor = PerfMonitor()
+
     log_stream = StringIO()
     log_handler = logging.StreamHandler(log_stream)
     build_logger.addHandler(log_handler)
@@ -528,6 +539,8 @@ def build_course(
 
         log_progress_update(update, log_stream)
 
+        perfmonitor.checkpoint("Git clone/checkout")
+
         if not skip_build:
             if rebuild_all:
                 build_logger.info("Rebuild all specified: setting CHANGED_FILES to *\n\n")
@@ -549,12 +562,16 @@ def build_course(
 
         log_progress_update(update, log_stream)
 
+        perfmonitor.checkpoint("Course build script")
+
         value, error = is_self_contained(build_path)
         if not value:
             build_logger.error(f"Course {course_key} is not self contained: {error}")
             return
 
         log_progress_update(update, log_stream)
+
+        perfmonitor.checkpoint("Symlink containment check")
 
         id_path = CourseConfig.version_id_path(course_key, source=build_config_source)
         with open(id_path, "w") as f:
@@ -573,6 +590,8 @@ def build_course(
 
         log_progress_update(update, log_stream)
 
+        perfmonitor.checkpoint("Load config")
+
         warning_str = validation_warning_str(config.data)
         if warning_str:
             build_logger.warning(warning_str + "\n")
@@ -581,7 +600,7 @@ def build_course(
 
         # copy the course material to store
         if not course.skip_build_failsafes:
-            if not store(config):
+            if not store(perfmonitor, config):
                 build_logger.error("Failed to store built course")
                 return
 
@@ -604,6 +623,8 @@ def build_course(
         else:
             build_logger.info("Doing an automatic update...")
             notify_update(course)
+
+            perfmonitor.checkpoint("Automatic update")
     finally:
         if update.status != CourseUpdate.Status.SUCCESS:
             update.status = CourseUpdate.Status.FAILED
@@ -624,10 +645,15 @@ def build_course(
             if not clean_status:
                 build_logger.info("------------\nFailed to clean repository\n------------\n\n")
                 return
+
+            perfmonitor.checkpoint("Git clean")
         except:
             build_logger.error("Clean failed.\n")
             build_logger.error(traceback.format_exc() + "\n")
         finally:
+            build_logger.info("\nTime taken for each step in seconds:")
+            build_logger.info(perfmonitor.formatted())
+
             update.log = log_stream.getvalue()
             update.save(update_fields=["log"])
 
