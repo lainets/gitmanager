@@ -1,0 +1,8 @@
+table.fitted th:not(:last-child) {
+    white-space: nowrap
+}
+
+table.fitted td:not(:last-child) {
+    width: 0px;
+    white-space: nowrap
+}

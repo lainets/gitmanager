@@ -50,7 +50,7 @@
 	</div>
 </form>
 </p>
-<table class="table table-bordered">
+<table class="table table-bordered fitted">
 	<tr>
 		<th>Request IP</th>
 		<th>Commit hash</th>
@@ -75,4 +75,9 @@
 		{% endif %}
 	{% endfor %}
 </table>
+<!-- A hacky way to add styles. Link it normally if there ever is enough static files
+	to warrant the extra setting up -->
+<style>
+	{% include "builder/updates.css" %}
+</style>
 {% endblock %}
