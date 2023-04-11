@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from tarfile import PAX_FORMAT, TarFile
 
 from aplus_auth.payload import Permission, Permissions
-from aplus_auth.requests import Session
+from aplus_auth.requests import RemoteTokenError, Session
 from requests.models import Response
 from requests.packages.urllib3.util.retry import Retry
 from requests.sessions import HTTPAdapter
@@ -83,6 +83,9 @@ def configure_url(
 
             headers = {"Prefer": "respond-async", "Content-Type": data.content_type}
             response = session.post(url, headers=headers, data=data, permissions=permissions)
+    except RemoteTokenError as e:
+        logger.warn(f"Failed to get access token from remote: {e}")
+        return None, {"url": url, "error": f"Couldn't access {url} due to failing to get access token from remote (are the permissions in order?)"}
     except Exception as e:
         logger.warn(f"Failed to configure: {e}")
         return None, {"url": url, "error": f"Couldn't access {url}"}
