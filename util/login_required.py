@@ -1,5 +1,5 @@
 from functools import partial, wraps
-from typing import Callable
+from typing import Callable, Optional
 import urllib.parse
 
 from aplus_auth import settings as auth_settings
@@ -31,7 +31,7 @@ def login_required_method(func: ViewType = None, *, redirect_url=login_redirect_
     return wrapper
 
 
-def has_access(request: HttpRequest, permission: Permission, instance_id: int) -> bool:
+def has_access(request: HttpRequest, permission: Permission, instance_id: Optional[int], default: bool = False) -> bool:
     if auth_settings().DISABLE_LOGIN_CHECKS:
         return True
 
@@ -43,5 +43,8 @@ def has_access(request: HttpRequest, permission: Permission, instance_id: int) -
     has_empty_perms = next(iter(request.auth.permissions), None) is None
     if has_empty_perms and request.auth.iss == auth_settings().UID:
         return True
+
+    if instance_id is None:
+        return default
 
     return request.auth.permissions.instances.has(permission, id=instance_id)

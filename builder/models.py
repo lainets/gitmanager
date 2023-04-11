@@ -35,10 +35,7 @@ class Course(models.Model):
         ordering = ['key']
 
     def has_access(self, request: HttpRequest, permission: Permission, default: bool = False) -> bool:
-        if self.remote_id is None:
-            return default
-
-        return has_access(request, permission, self.remote_id)
+        return has_access(request, permission, self.remote_id, default)
 
     def has_write_access(self, request: HttpRequest, default: bool = False) -> bool:
         return self.has_access(request, Permission.WRITE, default)
