@@ -301,10 +301,12 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
 
         dst = CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
-        rsync(
+        num_changed = rsync(
             CourseConfig.path_to(course_key, static_dir, source=ConfigSource.BUILD),
             dst,
         )
+
+        build_logger.info(f"Rsync: {num_changed} files in {static_dir} changed")
 
         perfmonitor.checkpoint("Copy static files")
 

@@ -98,7 +98,7 @@ def copys_async(pairs: List[Tuple[PathLike, PathLike]], *, lock_path: Optional[P
                 copyfile(src, dst)
 
 
-def rsync(src: PathLike, dst: PathLike) -> None:
+def rsync(src: PathLike, dst: PathLike) -> int:
     """
     Uses rsync command to copy a directory tree for speed and to preserve hard- and symlinks.
     """
@@ -122,6 +122,8 @@ def rsync(src: PathLike, dst: PathLike) -> None:
     )
     if process.returncode != 0:
         raise RuntimeError(f"Failed to copy built course files: {process.stdout}")
+
+    return process.stdout.count("\n")
 
 
 def copyfile(src: PathLike, dst: PathLike) -> None:
