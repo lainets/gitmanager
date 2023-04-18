@@ -72,11 +72,8 @@ if not callable(getattr(build_module, "build")):
     raise AttributeError(f"build attribute in {settings.BUILD_MODULE} is not callable")
 
 
-def _get_version_id(course_dir: PathLike) -> str:
-    try:
-        return get_commit_hash(course_dir)
-    except:
-        return "".join(random.choices(string.ascii_letters + string.digits, k=20))
+def _get_version_id() -> str:
+    return "".join(random.choices(string.ascii_letters + string.digits, k=30))
 
 
 def update_from_git(build_path: str, course: Course) -> Tuple[bool, Optional[List[str]]]:
@@ -577,7 +574,7 @@ def build_course(
 
         id_path = CourseConfig.version_id_path(course_key, source=build_config_source)
         with open(id_path, "w") as f:
-            f.write(_get_version_id(build_path))
+            f.write(_get_version_id())
 
         # try loading the configs to validate them
         try:
