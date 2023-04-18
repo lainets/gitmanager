@@ -30,6 +30,7 @@ def get_args(argspec: FullArgSpec, mock: Mock, index: int = -1):
     BUILD_PATH=os.path.abspath(os.path.join(settings.TESTDATADIR, "build")),
     STORE_PATH=os.path.abspath(os.path.join(settings.TESTDATADIR, "store")),
     GIT_OPTIONS=["--git-dir", "dotgit"],
+    STATIC_CONTENT_HOST="http://example.com",
 )
 class BuildTest(TestCase):
     def setUp(self):
