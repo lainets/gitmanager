@@ -12,10 +12,26 @@ def create_default_courses():
         remote_id=1,
         git_origin='',
         git_branch='master',
-        webhook_secret='',
+        webhook_secret='xyz',
+    )
+    manual_course = Course.objects.create(
+        key='aplus-manual',
+        remote_id=2,
+        git_origin='',
+        git_branch='master',
+        webhook_secret='abc',
+    )
+    test_course = Course.objects.create(
+        key='test-course-master',
+        remote_id=3,
+        git_origin='',
+        git_branch='master',
+        webhook_secret='qwerty',
     )
     return {
         'default': course,
+        'aplus-manual': manual_course,
+        'test-course-master': test_course,
     }
 
 

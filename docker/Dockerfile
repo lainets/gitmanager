@@ -1,4 +1,4 @@
-FROM apluslms/service-base:django-1.15
+FROM apluslms/service-base:django-1.17
 
 # Set container related configuration via environment variables.
 ENV CONTAINER_TYPE="gitmanager" \
@@ -10,6 +10,7 @@ ENV CONTAINER_TYPE="gitmanager" \
 RUN : \
  && apt_install \
       apt-transport-https \
+      rsync \
       # temp
       gnupg curl \
   # install docker-ce
