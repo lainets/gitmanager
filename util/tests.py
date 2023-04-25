@@ -3,7 +3,7 @@ import os.path
 from django.conf import settings
 from django.test import TestCase, override_settings
 
-from .git import diff_names, git_call
+from .git import get_diff_names, git_call
 
 
 # commits in the test git dir
@@ -48,25 +48,25 @@ class GitTest(TestCase):
         self.assertRegex(response, "git rev-parse HEAD\n[0-9a-z]{40}\n")
 
     def test_diff_names(self) -> None:
-        _, changed_files = diff_names(self.git_dir, commits["master"][0])
+        _, changed_files = get_diff_names(self.git_dir, commits["master"][0])
         self.assertIsNotNone(changed_files)
         self.assertEqual(set(changed_files or []), {"file1"})
 
-        _, changed_files = diff_names(self.git_dir, commits["master"][1])
+        _, changed_files = get_diff_names(self.git_dir, commits["master"][1])
         self.assertIsNotNone(changed_files)
         self.assertEqual(set(changed_files or []), {"file1", "file2"})
 
-        _, changed_files = diff_names(self.git_dir, commits["master"][2])
+        _, changed_files = get_diff_names(self.git_dir, commits["master"][2])
         self.assertIsNotNone(changed_files)
         self.assertEqual(set(changed_files or []), {"file2"})
 
-        _, changed_files = diff_names(self.git_dir, commits["otherbranch"][1])
+        _, changed_files = get_diff_names(self.git_dir, commits["otherbranch"][1])
         self.assertIsNotNone(changed_files)
         self.assertEqual(set(changed_files or []), {"file1", "file3"})
 
-        _, changed_files = diff_names(self.git_dir, commits["otherbranch"][2])
+        _, changed_files = get_diff_names(self.git_dir, commits["otherbranch"][2])
         self.assertIsNotNone(changed_files)
         self.assertEqual(set(changed_files or []), {"file3"})
 
-        _, changed_files = diff_names(self.git_dir, "nonexistentcommit")
+        _, changed_files = get_diff_names(self.git_dir, "nonexistentcommit")
         self.assertIsNone(changed_files)
