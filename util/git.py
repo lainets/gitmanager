@@ -33,15 +33,15 @@ def git_call(path: str, command: str, cmd: List[str], include_cmd_string: bool =
     return True, cmd_str + response.stdout
 
 
-def clone(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> bool:
+def clone(path: str, remote_url: str, branch: str, *, logger: Logger = default_logger) -> bool:
     Path(path).mkdir(parents=True, exist_ok=True)
 
-    success, logstr = git_call(".", "clone", ["clone", "-b", branch, "--recursive", origin, path])
+    success, logstr = git_call(".", "clone", ["clone", "-b", branch, "--recursive", remote_url, path])
     logger.info(logstr)
     return success
 
 
-def checkout(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> bool:
+def checkout(path: str, remote_url: str, branch: str, *, logger: Logger = default_logger) -> bool:
     success = True
     # set the path beforehand, and handle logging
     def git(command: str, cmd: List[str]):
@@ -76,12 +76,12 @@ def clean(path: str, origin: str, branch: str, exclude_patterns: List[str] = [],
     return success
 
 
-def has_origin(path: str, origin: str) -> bool:
+def has_remote_url(path: str, remote_url: str) -> bool:
     success, origin_url = git_call(path, "remote", ["remote", "get-url", "origin"], include_cmd_string=False)
-    return origin == origin_url.strip()
+    return remote_url == origin_url.strip()
 
 
-def clone_if_doesnt_exist(path: str, origin: str, branch: str, *, logger: Logger = default_logger) -> Optional[bool]:
+def clone_if_doesnt_exist(path: str, remote_url: str, branch: str, *, logger: Logger = default_logger) -> Optional[bool]:
     """
     Clones a repo to <path> if it hasnt been already.
 
@@ -89,13 +89,13 @@ def clone_if_doesnt_exist(path: str, origin: str, branch: str, *, logger: Logger
     """
     success = False
     if Path(path, ".git").exists():
-        if has_origin(path, origin):
+        if has_remote_url(path, remote_url):
             return None
 
         logger.info("Wrong origin in repo, recloning\n\n")
 
     rm_path(path)
-    success = clone(path, origin, branch, logger=logger)
+    success = clone(path, remote_url, branch, logger=logger)
 
     return success and (Path(path) / ".git").exists()
 
