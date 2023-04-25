@@ -1,1 +1,4 @@
 0000000000000000000000000000000000000000 f8f13733b97cbf321c67566d2aaa9a7e27fd45e7 Tuomas Laine <tuomaslaine97@gmail.com> 1680086200 +0000	commit (initial): initial commit
+f8f13733b97cbf321c67566d2aaa9a7e27fd45e7 b1a4eee5904dc5c3e4c695126a84aa4b336f83eb Tuomas Laine <tuomaslaine97@gmail.com> 1682427115 +0000	commit: Breaking change
+b1a4eee5904dc5c3e4c695126a84aa4b336f83eb 53dd20510ce986ac7adfc79784350392b5120878 Tuomas Laine <tuomaslaine97@gmail.com> 1682427128 +0000	commit: Revert breaking change
+53dd20510ce986ac7adfc79784350392b5120878 06a47655bfa6029af6b6484026381fc61872b0db Tuomas Laine <tuomaslaine97@gmail.com> 1682427149 +0000	commit: Random change

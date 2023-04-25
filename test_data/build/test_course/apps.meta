@@ -1,3 +1,4 @@
 build_image=testimage
 build_command=testcommand
 extrastuff
+pointless

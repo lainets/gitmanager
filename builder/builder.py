@@ -12,7 +12,7 @@ import string
 import sys
 import traceback
 from types import ModuleType
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 import urllib.parse
 
 from django.conf import settings
@@ -37,7 +37,7 @@ from util.files import (
     FileLock,
     rsync
 )
-from util.git import checkout, clean, clone_if_doesnt_exist, diff_names, get_commit_hash, get_commit_hash_or_none, get_commit_metadata
+from util.git import checkout, clean, clone_if_doesnt_exist, get_diff_names, get_commit_hash_or_none, get_commit_metadata
 from util.perfmonitor import PerfMonitor
 from util.pydantic import validation_error_str, validation_warning_str
 from util.static import static_url, static_url_path, symbolic_link
@@ -76,7 +76,7 @@ def _get_version_id() -> str:
     return "".join(random.choices(string.ascii_letters + string.digits, k=30))
 
 
-def update_from_git(build_path: str, course: Course) -> Tuple[bool, Optional[List[str]]]:
+def update_from_git(build_path: str, course: Course) -> Tuple[bool, Optional[Set[str]]]:
     """Updates course directory at <build_path> using git. Returns tuple of whether it was successful and
      a list of files that were changed since the last succesfull update (or None if the files are unknown)"""
     changed_files = None
@@ -88,11 +88,37 @@ def update_from_git(build_path: str, course: Course) -> Tuple[bool, Optional[Lis
             build_logger.info("------------\nFailed to checkout repository\n------------\n\n")
             return False, None
 
-        last_successful_update = CourseUpdate.objects.filter(course=course, status=CourseUpdate.Status.SUCCESS).order_by("-request_time").first()
-        if last_successful_update is not None and last_successful_update.commit_hash is not None:
-            diff_error, changed_files = diff_names(build_path, last_successful_update.commit_hash)
-            if diff_error is not None:
+        # Get changed files since last successful update.
+        # A failed update may mess up an output file, so we also need to include any changes that
+        # were part of failed updates but may have been reverted later
+
+        updates = CourseUpdate.objects.filter(
+                course=course,
+                status__in=(CourseUpdate.Status.SUCCESS, CourseUpdate.Status.FAILED)
+            ).order_by("-request_time")
+
+        changed_files = set()
+        last_commit_hash = None
+        for update in updates:
+            # If any update in the chain doesn't have a commit hash, we can't reliably detect the changed files
+            if update.commit_hash is None:
+                changed_files = None
+                break
+
+            diff_error, changed = get_diff_names(build_path, update.commit_hash, last_commit_hash)
+            if diff_error:
                 build_logger.error(diff_error)
+                changed_files = None
+                break
+            changed_files.update(changed)
+
+            last_commit_hash = update.commit_hash
+
+            if update.status == CourseUpdate.Status.SUCCESS:
+                break
+        else:
+            # None of the previous updates were successful: cannot detect changes since last successful update
+            changed_files = None
     elif not clone_status:
         build_logger.info("------------\nFailed to clone repository\n------------\n\n")
         return False, None
@@ -116,7 +142,7 @@ def build(
         path: Path,
         image: Optional[str] = None,
         command: Optional[str] = None,
-        changed_files: List[str] = ["*"],
+        changed_files: Set[str] = ["*"],
         ) -> bool:
     meta = load_meta(path)
 
@@ -543,10 +569,10 @@ def build_course(
         if not skip_build:
             if rebuild_all:
                 build_logger.info("Rebuild all specified: setting CHANGED_FILES to *\n\n")
-                changed_files = ["*"]
+                changed_files = set(["*"])
             elif changed_files is None:
                 build_logger.info("Failed to detect changed files: setting CHANGED_FILES to *\n\n")
-                changed_files = ["*"]
+                changed_files = set(["*"])
             elif len(changed_files) > 10:
                 build_logger.info(f"Detected over 10 changed files (too many to show)\n\n")
             else:

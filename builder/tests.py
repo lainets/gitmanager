@@ -11,11 +11,16 @@ from django.test import TestCase, override_settings
 from .builder import build_course, build_module
 from .models import Course, CourseUpdate
 from access.config import CourseConfig, ConfigSource
-from util.git import diff_names
+from util.git import get_diff_names
 from util.files import rm_path
 
 
-test_course_commit_hash = "f8f13733b97cbf321c67566d2aaa9a7e27fd45e7"
+test_course_commits = [
+    "f8f13733b97cbf321c67566d2aaa9a7e27fd45e7",
+    "b1a4eee5904dc5c3e4c695126a84aa4b336f83eb",
+    "53dd20510ce986ac7adfc79784350392b5120878",
+    "06a47655bfa6029af6b6484026381fc61872b0db",
+]
 
 
 def get_args(argspec: FullArgSpec, mock: Mock, index: int = -1):
@@ -37,7 +42,7 @@ class BuildTest(TestCase):
         self.course_key = "test_course"
         self.course = Course(
             key=self.course_key,
-            git_origin="dummy",
+            git_origin="dummyurl",
         )
         self.course.save()
 
@@ -54,16 +59,13 @@ class BuildTest(TestCase):
         static_url_path = os.path.join(settings.STATIC_URL, self.course_key)
 
         build_argspec = getfullargspec(build_module.build)
-        diff_names_argspec = getfullargspec(diff_names)
 
         with patch("builder.builder.build_module.build") as build_mock, \
-                patch("builder.builder.clone_if_doesnt_exist") as clone_mock, \
                 patch("builder.builder.checkout") as checkout_mock, \
                 patch("builder.builder.clean") as clean_mock, \
                 patch("builder.builder.configure_graders") as configure_mock:
 
             build_mock.return_value = True
-            clone_mock.return_value = None
             checkout_mock.return_value = True
             clean_mock.return_value = True
             configure_mock.return_value = ({}, [])
@@ -71,7 +73,7 @@ class BuildTest(TestCase):
 
             update = self.build_course()
             self.assertEqual(update.status, CourseUpdate.Status.SUCCESS)
-            self.assertEqual(update.commit_hash, test_course_commit_hash)
+            self.assertEqual(update.commit_hash, test_course_commits[-1])
 
             expected_build_args = {
                 "course_key": self.course_key,
@@ -90,29 +92,26 @@ class BuildTest(TestCase):
             self.assert_args(expected_build_args, get_args(build_argspec, build_mock))
 
 
-            with patch("builder.builder.diff_names") as diff_names_mock:
-                changed_files = ["file1", "file2"]
-                diff_names_mock.return_value = (True, changed_files)
+            CourseUpdate(
+                course=self.course,
+                request_ip="0.0.0.0",
+                status=CourseUpdate.Status.SUCCESS,
+                commit_hash=test_course_commits[0],
+            ).save()
 
-                CourseUpdate(
-                    course=self.course,
-                    request_ip="0.0.0.0",
-                    status=CourseUpdate.Status.SUCCESS,
-                    commit_hash="test hash",
-                ).save()
+            CourseUpdate(
+                course=self.course,
+                request_ip="0.0.0.0",
+                status=CourseUpdate.Status.FAILED,
+                commit_hash=test_course_commits[1],
+            ).save()
 
-                update = self.build_course()
-                self.assertEqual(update.status, CourseUpdate.Status.SUCCESS)
-                self.assertEqual(update.commit_hash, test_course_commit_hash)
+            update = self.build_course()
+            self.assertEqual(update.status, CourseUpdate.Status.SUCCESS)
+            self.assertEqual(update.commit_hash, test_course_commits[-1])
 
-                expected_build_args["env"]["CHANGED_FILES"] = "\n".join(changed_files)
-                self.assert_args(expected_build_args, get_args(build_argspec, build_mock))
-
-                expected_diff_names_args = {"path": build_dir, "sha": "test hash"}
-                self.assert_args(
-                    expected_diff_names_args,
-                    get_args(diff_names_argspec, diff_names_mock)
-                )
+            expected_build_args["env"]["CHANGED_FILES"] = "\n".join(["index.yaml", "apps.meta"])
+            self.assert_args(expected_build_args, get_args(build_argspec, build_mock))
 
     def build_course(self, *args, **kwargs) -> CourseUpdate:
         update = CourseUpdate(

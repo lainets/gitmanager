@@ -81,6 +81,11 @@ def has_remote_url(path: str, remote_url: str) -> bool:
     return remote_url == origin_url.strip()
 
 
+def repo_exists_at(path: PathLike) -> bool:
+    success, true_or_error = git_call(os.fspath(path), "rev-parse", ["rev-parse", "--is-inside-work-tree"], include_cmd_string = False)
+    return success and true_or_error.strip() == "true"
+
+
 def clone_if_doesnt_exist(path: str, remote_url: str, branch: str, *, logger: Logger = default_logger) -> Optional[bool]:
     """
     Clones a repo to <path> if it hasnt been already.
@@ -88,7 +93,7 @@ def clone_if_doesnt_exist(path: str, remote_url: str, branch: str, *, logger: Lo
     Returns None if the repo already exists, otherwise returns whether the clone was successful.
     """
     success = False
-    if Path(path, ".git").exists():
+    if repo_exists_at(path):
         if has_remote_url(path, remote_url):
             return None
 
@@ -100,9 +105,11 @@ def clone_if_doesnt_exist(path: str, remote_url: str, branch: str, *, logger: Lo
     return success and (Path(path) / ".git").exists()
 
 
-def diff_names(path: PathLike, sha: str) -> Tuple[Optional[str], Optional[List[str]]]:
-    """Gets the changed files since commit <sha>. Returns (error, files)-tuple, where either error or files is None"""
-    success, files_or_error = git_call(os.fspath(path), "diff", ["diff", "--name-only", sha, "HEAD"], include_cmd_string = False)
+def get_diff_names(path: PathLike, sha1: str, sha2: Optional[str] = None) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Gets the changed files between commits <sha1> and <sha2> (or HEAD if None). Returns (error, files)-tuple, where either error or files is None"""
+    if sha2 is None:
+        sha2 = "HEAD"
+    success, files_or_error = git_call(os.fspath(path), "diff", ["diff", "--name-only", sha1, sha2], include_cmd_string = False)
     if success:
         return None, [f for f in files_or_error.split("\n") if f]
     else:
