@@ -85,7 +85,7 @@ class BuildTest(TestCase):
                     "COURSE_ID": "None",
                     "STATIC_URL_PATH": static_url_path,
                     "STATIC_CONTENT_HOST": urllib.parse.urljoin(settings.STATIC_CONTENT_HOST, static_url_path),
-                    "CHANGED_FILES": "*",
+                    "CHANGED_FILES": {"*"},
                 },
                 "settings": settings.BUILD_MODULE_SETTINGS,
             }
@@ -110,7 +110,7 @@ class BuildTest(TestCase):
             self.assertEqual(update.status, CourseUpdate.Status.SUCCESS)
             self.assertEqual(update.commit_hash, test_course_commits[-1])
 
-            expected_build_args["env"]["CHANGED_FILES"] = "\n".join(["index.yaml", "apps.meta"])
+            expected_build_args["env"]["CHANGED_FILES"] = {"index.yaml", "apps.meta"}
             self.assert_args(expected_build_args, get_args(build_argspec, build_mock))
 
     def build_course(self, *args, **kwargs) -> CourseUpdate:
@@ -131,5 +131,7 @@ class BuildTest(TestCase):
             self.assertTrue(k in args)
             if isinstance(v, dict):
                 self.assert_args(v, args[k])
+            elif k == "CHANGED_FILES":
+                self.assertEqual(v, {f for f in args[k].split("\n") if f}, f"k = {k}")
             else:
                 self.assertEqual(v, args[k], f"k = {k}")
