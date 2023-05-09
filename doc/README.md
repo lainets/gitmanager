@@ -7,7 +7,7 @@
 
 * `/gitmanager`: Django project settings, urls and wsgi accessor.
 
-* `/builder`: Git functionality, course building and exercise configuring.
+* `/builder`: Course building and exercise configuring.
 
 * `/templates`: Base templates for default Git Manager pages.
 
@@ -21,7 +21,7 @@
 
 	* `management`: Commandline interface for testing configured exercises.
 
-* `/util`: Utility modules for HTTP, shell, filesystem access etc.
+* `/util`: Utility modules for HTTP, shell, git, filesystem access etc.
 
 * `/courses`: Default COURSES_PATH for holding course exercise configuration and material.
 

@@ -129,39 +129,6 @@ Operate the workers:
     # Configure based on doc/etc-apache2-sites-available-gitmanager
     a2enmod headers
 
-## Django application settings for deployment
+## Deployment
 
-When deploying, overwrite necessary configurations in `gitmanager/gitmanager/local_settings.py`.
-
-The application uses a database. If `sqlite3` is used (in `settings.py`), it must be installed:
-
-    sudo apt-get install sqlite3 libsqlite3-dev
-
-Django must install the database schema (Python virtual environment must be activated):
-
-    python manage.py migrate
-
-To build courses synchronously with the HTTP requests, set `immediate = True`
-in the `HUEY` dict in `gitmanager/gitmanager/local_settings.py`.
-
-To build courses asynchronously from the HTTP requests, a separate builder
-process and a message broker are need. The message broker is configured to be
-redis by default but it can be changed in `gitmanager/gitmanager/local_settings.py`.
-The redis connection parameters can also be set there, or you can specify
-`REDIS_HOST` and `REDIS_HOST` environment variables. To run the builder process:
-
-    python manage.py run_huey
-
-For performance reasons, you may want to enable an interprocess cache in the settings.py `CACHES`
-setting. Memcached is a good option for this. You may need to increase the cache total and
-object size for it to work properly. The default object size of 1MB will work fine for small to
-medium size courses but larger courses may require more space, 5MB should be fine for all but the
-most exceptional cases. The total size needed depends on the number of courses and their sizes,
-a surefire way is to take the maximum object size and multiply it by the number of courses. Note
-that you need to install the appropriate python package for the cache, see
-https://docs.djangoproject.com/en/3.2/topics/cache/. The requirements_prod.txt file contains the
-python package for memcached.
-
-If a course build is stuck locked (can be seen in huey logs (repeated locked messages), and the
-build is stuck in RUNNING and PENDING states), the task lock can be flushed with the flush_huye
-django admin command.
+See [DEPLOYMENT.md](docs/DEPLOYMENT.md) in the docs folder.
