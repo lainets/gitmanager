@@ -32,6 +32,18 @@ def configure_url(
         files: Optional[Iterable[Tuple[str, str]]],
         **kwargs: Any,
         ) -> Tuple[Optional[Response], Optional[Union[str, Dict[str,str]]]]:
+    """Configure service using the Git Manager configuration protocol.
+
+    :param url: URL of the service
+    :param course_id: the unique (database) id of the course
+    :param course_key: course key
+    :param dir: root directory for the files to be sent
+    :param files: iterable of (name, path) tuples where path is the location of a file or folder
+    relative to dir and name is the name of the file or folder that is sent to the service
+
+    Returns a (request lib response, error string/dict) tuple. Response is None if connecting failed
+    and error is None if no error occurred.
+    """
 
     tmp_file = None
     if files is not None:
@@ -97,13 +109,16 @@ def configure_url(
 
 
 def configure_graders(config: CourseConfig) -> Tuple[Dict[str, Any], List[Union[str, Dict[str,str]]]]:
+    """Configures services based on the given course config"""
     course_key = config.key
 
+    # Collect configuration files for course level services
     configures: Dict[str, Tuple[Dict[str,str], List[Exercise]]] = {}
     for conf in config.data.configures:
         url = conf.url
         configures[url] = (conf.files,[])
 
+    # Collect configuration files for exercise level services
     for exercise in config.exercises.values():
         conf = exercise.configure
         if not conf:
@@ -122,6 +137,7 @@ def configure_graders(config: CourseConfig) -> Tuple[Dict[str, Any], List[Union[
 
     exercise_defaults: Dict[str, Any] = {}
     errors: List[Union[str, Dict[str,str]]] = []
+    # Send configurations for each service
     for url, (course_files, exercises) in configures.items():
         exercise_data: List[Dict[str, Any]] = []
         for exercise in exercises:
@@ -167,7 +183,10 @@ def configure_graders(config: CourseConfig) -> Tuple[Dict[str, Any], List[Union[
 
 
 def publish_graders(config: CourseConfig) -> List[str]:
+    """Sends publish notifications to the course's services"""
+    # Course wide configurations
     configure_urls = {c.url for c in config.data.configures}
+    # Exercise specific configurations
     configure_urls.update(
         {ex.configure.url for ex in config.exercises.values() if ex.configure}
     )

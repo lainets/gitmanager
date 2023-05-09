@@ -90,7 +90,9 @@ def update_from_git(build_path: str, course: Course) -> Tuple[bool, Optional[Set
 
         # Get changed files since last successful update.
         # A failed update may mess up an output file, so we also need to include any changes that
-        # were part of failed updates but may have been reverted later
+        # were part of failed updates but may have been reverted later. This is why we need to
+        # call get_diff_names for each consecutive update pair instead of just comparing to the last
+        # successful one.
 
         updates = CourseUpdate.objects.filter(
                 course=course,
@@ -202,6 +204,7 @@ def build(
 
 
 def send_error_mail(course: Course, subject: str, message: str) -> bool:
+    """Send an error email to the course staff using A+ API"""
     if course.remote_id is None:
         build_logger.error(f"Remote id not set: cannot send error email")
         return False
@@ -229,6 +232,7 @@ def send_error_mail(course: Course, subject: str, message: str) -> bool:
 
 
 def notify_update(course: Course):
+    """Send an update notification to A+. This initiates the course import on A+."""
     errors = []
     success = False
     try:
@@ -299,8 +303,9 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
     course_key = config.key
 
     build_logger.info("Configuring graders...")
-    # send configs to graders' stores
+    # Send configs to graders' stores
     exercise_defaults, errors = configure_graders(config)
+    # Abort the build if any errors happened
     if errors:
         for e in errors:
             build_logger.error(e)
@@ -311,6 +316,11 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
     store_path, store_defaults_path, store_version_path = CourseConfig.file_paths(course_key, source=ConfigSource.STORE)
 
     build_logger.info("Acquiring file lock...")
+    # Lock the course folder in store so that no other process modifies it at the same time.
+    # If any other process already has a lock to the course folder, this will block until
+    # the lock is released or BUILD_FILELOCK_TIMEOUT seconds has passed (in which case
+    # the build fails). The likely situation for this blocking is that the copys_async function
+    # called from the publish function has the lock.
     with FileLock(store_path, timeout=settings.BUILD_FILELOCK_TIMEOUT):
         build_logger.info("File lock acquired.")
 
@@ -318,12 +328,14 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
 
         static_dir = config.data.static_dir or ""
 
+        # Remove all stored files (for the course) exept the static directory which we will rsync over.
         rm_except(store_path, CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE))
 
         perfmonitor.checkpoint("Remove old stored files")
 
         dst = CourseConfig.path_to(course_key, static_dir, source=ConfigSource.STORE)
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
+        # rsync the static directory
         num_changed = rsync(
             CourseConfig.path_to(course_key, static_dir, source=ConfigSource.BUILD),
             dst,
@@ -337,9 +349,11 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
 
         copy_files = set()
 
+        # Add the metafile to the files to be copied if it exists
         if os.path.exists(CourseConfig.path_to(course_key, META, source=ConfigSource.BUILD)):
             copy_files.add(META)
 
+        # Find other (not static directory) required files
         for exercise in config.data.exercises():
             config_file_info = exercise.config_file_info(
                 "",
@@ -368,6 +382,7 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
         Path(dst).parent.mkdir(parents=True, exist_ok=True)
         copyfile(config.file, dst)
 
+        # Copy the other files
         for file in copy_files:
             src = CourseConfig.path_to(course_key, file, source=ConfigSource.BUILD)
             if not os.path.exists(src):
@@ -379,15 +394,18 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
 
             copyfile(src, dst)
 
+        # Copy exercise defaults
         with open(store_defaults_path, "w") as f:
             json.dump(exercise_defaults, f)
 
+        # Copy version file
         if config.version_id is not None:
             with open(store_version_path, "w") as f:
                 f.write(config.version_id)
 
         perfmonitor.checkpoint("Copy other files")
 
+    # Save the config to the store cache
     config.save_to_cache(ConfigSource.STORE)
 
     return True
@@ -406,6 +424,7 @@ def publish(course_key: str) -> List[str]:
 
     config = None
     errors = []
+    # Try loading from store first. Skip if the stored version has already been published
     if Path(store_path).exists():
         if not os.path.exists(prod_version_path) or not os.path.exists(store_version_path) or readfile(prod_version_path) != readfile(store_version_path):
             with FileLock(store_path):
@@ -422,8 +441,9 @@ def publish(course_key: str) -> List[str]:
                     ])
 
                     config.save_to_cache(ConfigSource.PUBLISH)
-
-                    # Copy files back to store so that rsync has files to compare against
+                    # Copy files back to store so that rsync has files to compare against.
+                    # This is done asyncronously: the copying might still be ongoing even
+                    # after the publishing is done.
                     copys_async([
                             (prod_path, store_path),
                             (prod_defaults_path, store_defaults_path),
@@ -432,6 +452,7 @@ def publish(course_key: str) -> List[str]:
                         lock_path=store_path
                     )
 
+    # If loading the store version failed or was skipped, try loading from the publish directory
     if config is None and Path(prod_path).exists():
         with FileLock(prod_path):
             try:
@@ -446,8 +467,10 @@ def publish(course_key: str) -> List[str]:
         else:
             raise Exception(f"Course directory not found for {course_key} - the course probably has not been built")
 
+    # Create symbolic links to the course files
     symbolic_link(config)
 
+    # Publish version on graders
     errors = errors + publish_graders(config)
 
     return errors
