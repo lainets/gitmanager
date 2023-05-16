@@ -23,11 +23,11 @@ LOGGER = logging.getLogger('main')
 
 def _get_datetime(value: Any) -> Optional[datetime]:
     """Turns date/datetime into a datetime and returns None if given anything else"""
+    if isinstance(value, datetime):
+        return value
     if isinstance(value, date):
         return datetime.combine(value, datetime.max.time())
-    elif not isinstance(value, datetime):
-        return None
-    return value
+    return None
 
 
 class SimpleDuration(PydanticModel):
