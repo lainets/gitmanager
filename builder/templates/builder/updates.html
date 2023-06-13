@@ -52,6 +52,7 @@
 </p>
 <table class="table table-bordered fitted">
 	<tr>
+		<th></th>
 		<th>Request IP</th>
 		<th>Commit hash</th>
 		<th>Status</th>
@@ -60,6 +61,7 @@
 	</tr>
 	{% for update in updates %}
 		<tr>
+			<td><button class="scroll-button">Scroll to end</button></td>
 			<td>{{ update.request_ip }}</td>
 			<td>{{ update.commit_hash|default:"-" }}</td>
 			<td>{{ update.status }}</td>
@@ -68,7 +70,7 @@
 		</tr>
 		{% if update.log %}
 			<tr>
-				<td colspan="5">
+				<td colspan="6">
 					<pre>{{ update.log }}</pre>
 				</td>
 			</tr>
@@ -80,4 +82,7 @@
 <style>
 	{% include "builder/updates.css" %}
 </style>
+<script type="text/javascript">
+	{% include "builder/updates.js" %}
+</script>
 {% endblock %}
