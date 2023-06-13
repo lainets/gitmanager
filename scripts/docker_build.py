@@ -32,6 +32,7 @@ def build(
     command = [
         "docker", "run",
         *env_args,
+        "--rm",
         "-v", f"{host_path}:/content",
         "--workdir", "/content",
         image,
