@@ -1,5 +1,9 @@
 #!/bin/sh
 
+docker run --privileged --rm tonistiigi/binfmt --install all
+
+docker buildx create --use default
+
 ver="$DOCKER_TAG"
 
 # Docker Hub builds seem to break if the absolute file path $DOCKERFILE_PATH
@@ -21,12 +25,16 @@ for layer in "" "huey"; do
     echo "### >  -t $DOCKER_REPO:$tag ."
     echo "### PWD=$(pwd)"
 
-    docker build --build-arg "FULL_TAG=$ver" \
-                 -t "$DOCKER_REPO":"$tag" -f "$file" ..
+    docker buildx build \
+    --push \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg "FULL_TAG=$ver" \
+    -t "$DOCKER_REPO":"$tag" \
+    -f "$file" ..
+
     res=$?
     if [ $res -ne 0 ]; then
         echo "Building layer '$layer' returned $res" >&2
         exit $res
     fi
 done
-

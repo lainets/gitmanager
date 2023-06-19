@@ -1,4 +1,4 @@
-FROM apluslms/service-base:django-1.17
+FROM --platform=$TARGETPLATFORM apluslms/service-base:django-1.18
 
 # Set container related configuration via environment variables.
 ENV CONTAINER_TYPE="gitmanager" \
@@ -7,6 +7,8 @@ ENV CONTAINER_TYPE="gitmanager" \
     REDIS_HOST="redis" \
     HUEY_IMMEDIATE="true"
 
+ARG TARGETPLATFORM
+
 RUN : \
  && apt_install \
       apt-transport-https \
@@ -14,8 +16,9 @@ RUN : \
       # temp
       gnupg curl \
   # install docker-ce
+ && if [ "$TARGETPLATFORM" = "linux/amd64" ] ; then ARCH=amd64 ; elif [ "$TARGETPLATFORM" = "linux/arm64" ] ; then ARCH=arm64 ; else exit 1 ; fi \
  && curl -LSs https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg >/dev/null 2>&1 \
- && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" > /etc/apt/sources.list.d/docker.list \
+ && echo "deb [arch=$ARCH signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" > /etc/apt/sources.list.d/docker.list \
  && apt_install docker-ce \
 \
   # create user
