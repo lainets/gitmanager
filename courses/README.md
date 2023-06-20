@@ -38,20 +38,18 @@ checking if the file path starts with the directory path).
 
 If your build script depends on this variable but you wish to trigger a full rebuild,
 you have the following options:
-	1. Make all build steps dependent on a single file that rarely changes. You
-	can then trigger a full rebuild whenever by changing that file (e.g. add/remove an
+1. Make all build steps dependent on a single file that rarely changes. You
+can then trigger a full rebuild whenever by changing that file (e.g. add/remove an
 extra new line). For example, making everything dependent on the main build script
 would most likely be a good idea.
-	2. Check the "Set CHANGED_FILES to *" box in the Git Manager UI and trigger the
+2. Check the "Set CHANGED_FILES to *" box in the Git Manager UI and trigger the
 build manually.
-	3. Temporarily add `rebuild_all=true` to the GET parameters of the git commit hook
+3. Temporarily add `rebuild_all=true` to the GET parameters of the git commit hook
 URL.
-	4. Add a temporary change to the start of your build script that changes the
+4. Add a temporary change to the start of your build script that changes the
 `CHANGED_FILES` variable to `*`.
-	5. Temporarily modify your build script to ignore `CHANGED_FILES`.
-	6. Modify 10+ files.
-
-
+5. Temporarily modify your build script to ignore `CHANGED_FILES`.
+6. Modify 10+ files.
 
 ## Configuration files
 
