@@ -12,7 +12,7 @@ volumes:
   coursebuild:
 services:
   grader:
-    image: apluslms/run-mooc-grader:1.13
+    image: apluslms/run-mooc-grader:1.19
     volumes:
       - data:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -21,7 +21,7 @@ services:
     ports:
       - "8080:8080"
   plus:
-    image: apluslms/run-aplus-front:1.13
+    image: apluslms/run-aplus-front:1.19
     environment:
       USE_GITMANAGER: 'true'
     volumes:
@@ -30,7 +30,7 @@ services:
     ports:
       - "8000:8000"
   gitmanager:
-    image: apluslms/run-gitmanager:1.13
+    image: apluslms/run-gitmanager:1.19
     environment:
       HUEY_IMMEDIATE: 'false'
     volumes:
@@ -45,7 +45,7 @@ services:
       - grader
   huey:
     # consumer of the gitmanager task queue = course builder
-    image: apluslms/run-gitmanager:huey-1.13
+    image: apluslms/run-gitmanager:huey-1.19
     volumes:
       - data:/data
       - /var/run/docker.sock:/var/run/docker.sock
