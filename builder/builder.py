@@ -571,14 +571,8 @@ def build_course(
             path = CourseConfig.local_source_path_to(course_key)
             build_logger.debug(f"Course origin not set: copying the course sources from {path} to the build directory.")
 
-            def ignore_func(directory, contents):
-                # Do not copy the .git directory in shutil.copytree().
-                if '.git' in contents:
-                    return ('.git',)
-                return ()
-
             shutil.rmtree(build_path, ignore_errors=True)
-            shutil.copytree(path, build_path, symlinks=True, ignore=ignore_func)
+            shutil.copytree(path, build_path, symlinks=True)
         else:
             build_logger.warning(f"Course origin not set: skipping git update\n")
 
