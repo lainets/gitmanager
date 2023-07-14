@@ -23,6 +23,7 @@ from util import export
 from util.files import FileLock, FileResponse
 from util.log import SecurityLog
 from util.login_required import login_required
+from util.misc import is_ajax
 
 
 logger = logging.getLogger("access.views")
@@ -38,7 +39,7 @@ def index(request):
 
     course_configs, errors = CourseConfig.get_many(course_keys)
 
-    if request.is_ajax():
+    if is_ajax(request):
         return JsonResponse({
             "ready": True,
             "courses": [{"key": c.key, "name": c.data.name} for c in course_configs]
@@ -71,7 +72,7 @@ def course(request, course_key):
         else:
             exercises = course_config.get_exercise_list()
 
-    if request.is_ajax():
+    if is_ajax(request):
         if course_config is None:
             data = {
                 "ready": False,
