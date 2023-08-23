@@ -67,7 +67,7 @@ class ConfigureOptions(PydanticModel):
 
 
 class RevealRuleOptions(PydanticModel):
-    trigger: Literal["immediate", "manual", "time", "deadline", "deadline_all", "completion"]
+    trigger: Literal["immediate", "manual", "time", "deadline", "deadline_all", "deadline_or_full_points", "completion"]
     time: NotRequired[AnyDate]
     delay_minutes: NotRequired[NonNegativeInt]
 
