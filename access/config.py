@@ -22,7 +22,7 @@ from util.localize import DEFAULT_LANG
 from util.pydantic import Undefined, validation_error_str, validation_warning_str
 from util.static import static_path, symbolic_link
 from builder.models import Course as CourseModel
-from .course import Course, Exercise, Parent, ExerciseConfig
+from .course import Course, Exercise, ExerciseConfig
 from .parser import ConfigParser, ConfigError
 
 META = "apps.meta"

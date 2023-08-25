@@ -57,7 +57,7 @@ def rm_paths(paths: Iterable[Union[str, Path]]) -> None:
 
 def rm_except(dir: PathLike, exclude: PathLike) -> None:
     """Remove directory contents except for <exclude>"""
-    def inner(dir: PathLike, exclude: PathLike, exclude_parents: Set[Path]):
+    def inner(dir: PathLike, exclude: PathLike, exclude_parents: Set[str]):
         with os.scandir(dir) as it:
             for direntry in it:
                 if exclude == direntry.path:

@@ -24,14 +24,13 @@ from pydantic.error_wrappers import ValidationError
 from aplus_auth.payload import Permission, Permissions
 from aplus_auth.requests import post
 
-from access.config import INDEX, ConfigSource, CourseConfig, load_meta, META
+from access.config import ConfigSource, CourseConfig, load_meta, META
 from access.parser import ConfigError
 from builder.configure import configure_graders, publish_graders
 from util.files import (
     copyfile,
     copys_async,
     is_subpath,
-    readfile,
     renames,
     rm_except,
     FileLock,
