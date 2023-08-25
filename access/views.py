@@ -179,6 +179,18 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     '''
     SecurityLog.info(request, "APLUS-JSON", f"{course_key}")
 
+    def load_exercise_defaults(source: ConfigSource) -> Optional[dict]:
+        defaults_path = CourseConfig.defaults_path(course_key, source=source)
+        try:
+            return json.load(open(defaults_path, "r"))
+        except FileNotFoundError:
+            errors.append("Could not find exercise defaults file. Try rebuilding the course")
+            return {}
+        except (JSONDecodeError, OSError) as e:
+            errors.append("Failed to load course exercise defaults JSON: " + str(e))
+
+        return None
+
     errors = []
 
     course = get_object_or_404(Course, key=course_key)
@@ -186,33 +198,54 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
         return HttpResponse(status=403)
 
     config = None
-    defaults_path = ""
-    if os.path.exists(CourseConfig.path_to(course_key, source=ConfigSource.STORE)):
+    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
+    if os.path.exists(store_path):
         try:
-            config = CourseConfig.get(course_key, source=ConfigSource.STORE)
-        except (ConfigError, ValidationError) as e:
-            errors.append(f"Failed to load newly built course due to this error: {e}")
-            errors.append("Attempting to load previous version of the course...")
-            logger.warn(f"Failed to load newly built course due to this error: {e}")
-        else:
-            defaults_path = CourseConfig.defaults_path(course_key, source=ConfigSource.STORE)
+            # We only load from store if it isn't locked for writing. This means that we wont get stuck here
+            # if there is a build/copy going on
+            with FileLock(store_path, timeout=0):
+                try:
+                    config = CourseConfig.get(course_key, source=ConfigSource.STORE)
+                except (ConfigError, ValidationError) as e:
+                    errors.append(f"Failed to load newly built course due to this error: {e}")
+                    errors.append("Attempting to load the already published version of the course...")
+                    logger.warn(f"Failed to load newly built course due to this error: {e}")
+                else:
+                    exercise_defaults = load_exercise_defaults(ConfigSource.STORE)
+                    if exercise_defaults is None:
+                        return JsonResponse({ "success": False, "errors": errors })
+        except BlockingIOError:
+            errors.append(
+                "Skipping loading the stored version as something is writing to it. "
+                "Is a build in progress? "
+                "Attempting to load the already published version of the course..."
+            )
 
     if config is None:
+        publish_path = CourseConfig.path_to(course_key, source=ConfigSource.PUBLISH)
         try:
-            config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
-        except (ConfigError, ValidationError) as e:
-            logger.error(f"aplus_json: failed to get config for {course_key}")
-            try:
-                Course.objects.get(key=course_key)
-            except:
-                raise Http404()
-            else:
-                return JsonResponse({
-                    "success": False,
-                    "errors": errors + [f"Failed to load course (has it been built?) due to this error: {e}"],
-                })
+            with FileLock(publish_path, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
+                try:
+                    config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
+                except (ConfigError, ValidationError) as e:
+                    logger.error(f"aplus_json: failed to get config for {course_key}")
+                    return JsonResponse({
+                        "success": False,
+                        "errors": errors + [f"Failed to load course (has it been built?) due to this error: {e}"],
+                    })
 
-        defaults_path = CourseConfig.defaults_path(course_key, source=ConfigSource.PUBLISH)
+                exercise_defaults = load_exercise_defaults(ConfigSource.PUBLISH)
+                if exercise_defaults is None:
+                    return JsonResponse({ "success": False, "errors": errors })
+        except BlockingIOError:
+            errors.append(
+                "Failed to load the already published config as something "
+                "has a write lock on the directory. Try again later."
+            )
+            return JsonResponse({
+                "success": False,
+                "errors": errors,
+            })
 
     # configure graders if it was skipped during the build
     if course.skip_build_failsafes:
@@ -224,21 +257,14 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
 
         path, defaults_path, _ = CourseConfig.file_paths(course_key, source=ConfigSource.PUBLISH)
 
-        with FileLock(path, write=True):
-            with open(defaults_path, "w") as f:
-                json.dump(exercise_defaults, f)
-    
-    if Path(defaults_path).exists():
         try:
-            exercise_defaults = json.load(open(defaults_path, "r"))
-        except (JSONDecodeError, OSError) as e:
-            return JsonResponse({
-                "success": False,
-                "errors": errors + ["Failed to load course exercise defaults JSON: " + str(e)],
-            })
-    else:
-        errors.append("Could not find exercise defaults file. Try rebuilding the course")
-        exercise_defaults = {}
+            with FileLock(path, write=True, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
+                with open(defaults_path, "w") as f:
+                    json.dump(exercise_defaults, f)
+        except BlockingIOError:
+            errors.append(
+                "Failed to write exercise defaults as something has a lock on the config directory. Try again later."
+            )
 
     data = config.data.dict(exclude={"modules", "static_dir", "unprotected_paths"}, by_alias=True)
 

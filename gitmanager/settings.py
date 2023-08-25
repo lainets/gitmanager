@@ -200,6 +200,8 @@ DEFAULT_EXPIRY_MINUTES = 15
 # store built course. Makes sure that the build process doesn't get stuck on
 # some strange issue
 BUILD_FILELOCK_TIMEOUT = 30
+# Same as above but for aplus_json/publish view. Doesn't really need to be long
+APLUS_JSON_FILELOCK_TIMEOUT = 30
 
 # Extra options applied to all git commands
 GIT_OPTIONS = []

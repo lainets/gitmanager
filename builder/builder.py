@@ -427,14 +427,15 @@ def publish(course_key: str) -> List[str]:
     # Try loading from store first. Skip if the stored version has already been published
     if Path(store_path).exists():
         if not os.path.exists(prod_version_path) or not os.path.exists(store_version_path) or readfile(prod_version_path) != readfile(store_version_path):
-            with FileLock(store_path):
+            with FileLock(store_path, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
                 try:
                     config = CourseConfig.get(course_key, source=ConfigSource.STORE)
                 except ConfigError as e:
                     errors.append(f"Failed to load newly built course for this reason: {e}")
                     logger.warn(f"Failed to load newly built course for this reason: {e}")
                 else:
-                    with FileLock(prod_path, write=True):
+                    with FileLock(prod_path, write=True, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
+                        # version needs to be moved first to make sure that it is available if something tries to read it
                         renames([
                             (store_path, prod_path),
                             (store_defaults_path, prod_defaults_path),
@@ -456,7 +457,7 @@ def publish(course_key: str) -> List[str]:
 
     # If loading the store version failed or was skipped, try loading from the publish directory
     if config is None and Path(prod_path).exists():
-        with FileLock(prod_path):
+        with FileLock(prod_path, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
             try:
                 config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
             except ConfigError as e:
