@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import translation
 from django.urls import reverse
 from django.views import View
+from pydantic.error_wrappers import ValidationError
 
 from access.config import ConfigSource, CourseConfig
 from access.course import Exercise, Chapter, Parent
@@ -189,7 +190,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     if os.path.exists(CourseConfig.path_to(course_key, source=ConfigSource.STORE)):
         try:
             config = CourseConfig.get(course_key, source=ConfigSource.STORE)
-        except ConfigError as e:
+        except (ConfigError, ValidationError) as e:
             errors.append(f"Failed to load newly built course due to this error: {e}")
             errors.append("Attempting to load previous version of the course...")
             logger.warn(f"Failed to load newly built course due to this error: {e}")
@@ -199,7 +200,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     if config is None:
         try:
             config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
-        except ConfigError as e:
+        except (ConfigError, ValidationError) as e:
             logger.error(f"aplus_json: failed to get config for {course_key}")
             try:
                 Course.objects.get(key=course_key)
