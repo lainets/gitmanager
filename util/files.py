@@ -2,7 +2,7 @@
 Utility functions for exercise files.
 
 '''
-from contextlib import nullcontext
+from contextlib import ExitStack
 import fcntl
 from pathlib import Path
 import os
@@ -85,12 +85,21 @@ def rm_paths_async(paths: List[Union[str, Path]]) -> None:
 
 
 @task()
-def copys_async(pairs: List[Tuple[PathLike, PathLike]], *, lock_path: Optional[PathLike] = None) -> None:
+def copys_async(
+        pairs: List[Tuple[PathLike, PathLike]],
+        *,
+        read_lock_path: Optional[PathLike] = None,
+        write_lock_path: Optional[PathLike] = None,
+        ) -> None:
     """Copies a list of files and directories asynchronously.
 
     Note that the copying might fail, and the caller wont know about it
     due to the asynchronousity"""
-    with FileLock(lock_path) if lock_path is not None else nullcontext():
+    with ExitStack() as stack:
+        if write_lock_path is not None:
+            stack.enter_context(FileLock(write_lock_path, write=True))
+        if read_lock_path is not None:
+            stack.enter_context(FileLock(read_lock_path))
         for src, dst in pairs:
             if os.path.isdir(src):
                 copytree(src, dst)
@@ -305,31 +314,31 @@ class FileLock:
     __enter__ may raise OSError for non-blocking access on a locked file
     or TimeoutError if obtaining a lock takes too long.
     """
-    def __init__(self, path: PathLike, timeout: Optional[int] = None):
+    def __init__(self, path: PathLike, write: bool = False, timeout: Optional[int] = None):
         self.path = os.fspath(path) + ".lock"
         self.timeout = timeout
+        self.lock_flag = fcntl.LOCK_EX if write else fcntl.LOCK_SH
 
     def __enter__(self):
         self.lockfile = open(self.path, "w")
 
         if self.timeout is None:
-            fcntl.flock(self.lockfile, fcntl.LOCK_EX)
+            fcntl.flock(self.lockfile, self.lock_flag)
         else:
             # we would use a signal to timeout but it can only be used on the main thread
-            e = _try_flock(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            e = _try_flock(self.lockfile, self.lock_flag | fcntl.LOCK_NB)
             if e:
                 for _ in range(self.timeout):
                     time.sleep(1)
-                    e = _try_flock(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    e = _try_flock(self.lockfile, self.lock_flag | fcntl.LOCK_NB)
                     if not e:
                         break
                 else:
                     raise e
 
-
         return self.lockfile
 
-    def __exit__(self, etype:  Optional[Type[Exception]], e: Optional[Exception], traceback: TracebackType):
+    def __exit__(self, etype: Optional[Type[BaseException]], e: Optional[BaseException], tb: Optional[TracebackType]):
         try:
             os.unlink(self.path)
         except:

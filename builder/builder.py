@@ -321,7 +321,7 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
     # the lock is released or BUILD_FILELOCK_TIMEOUT seconds has passed (in which case
     # the build fails). The likely situation for this blocking is that the copys_async function
     # called from the publish function has the lock.
-    with FileLock(store_path, timeout=settings.BUILD_FILELOCK_TIMEOUT):
+    with FileLock(store_path, write=True, timeout=settings.BUILD_FILELOCK_TIMEOUT):
         build_logger.info("File lock acquired.")
 
         build_logger.info("Copying the built materials")
@@ -434,11 +434,12 @@ def publish(course_key: str) -> List[str]:
                     errors.append(f"Failed to load newly built course for this reason: {e}")
                     logger.warn(f"Failed to load newly built course for this reason: {e}")
                 else:
-                    renames([
-                        (store_path, prod_path),
-                        (store_defaults_path, prod_defaults_path),
-                        (store_version_path, prod_version_path),
-                    ])
+                    with FileLock(prod_path, write=True):
+                        renames([
+                            (store_path, prod_path),
+                            (store_defaults_path, prod_defaults_path),
+                            (store_version_path, prod_version_path),
+                        ])
 
                     config.save_to_cache(ConfigSource.PUBLISH)
                     # Copy files back to store so that rsync has files to compare against.
@@ -449,7 +450,8 @@ def publish(course_key: str) -> List[str]:
                             (prod_defaults_path, store_defaults_path),
                             (prod_version_path, store_version_path),
                         ],
-                        lock_path=store_path
+                        read_lock_path=prod_path,
+                        write_lock_path=store_path,
                     )
 
     # If loading the store version failed or was skipped, try loading from the publish directory

@@ -224,7 +224,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
 
         path, defaults_path, _ = CourseConfig.file_paths(course_key, source=ConfigSource.PUBLISH)
 
-        with FileLock(path):
+        with FileLock(path, write=True):
             with open(defaults_path, "w") as f:
                 json.dump(exercise_defaults, f)
     
