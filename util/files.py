@@ -292,9 +292,9 @@ def readfile(path: PathLike) -> str:
         return file.read()
 
 
-def _try_lockf(lockfile, flags) -> Optional[OSError]:
+def _try_flock(lockfile, flags) -> Optional[OSError]:
     try:
-        fcntl.lockf(lockfile, flags)
+        fcntl.flock(lockfile, flags)
     except OSError as e:
         return e
     return None
@@ -313,14 +313,14 @@ class FileLock:
         self.lockfile = open(self.path, "w")
 
         if self.timeout is None:
-            fcntl.lockf(self.lockfile, fcntl.LOCK_EX)
+            fcntl.flock(self.lockfile, fcntl.LOCK_EX)
         else:
             # we would use a signal to timeout but it can only be used on the main thread
-            e = _try_lockf(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            e = _try_flock(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if e:
                 for _ in range(self.timeout):
                     time.sleep(1)
-                    e = _try_lockf(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    e = _try_flock(self.lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     if not e:
                         break
                 else:
