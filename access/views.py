@@ -197,6 +197,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
 
+    source = None
     config = None
     store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
     if os.path.exists(store_path):
@@ -220,6 +221,8 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
                 "Is a build in progress? "
                 "Attempting to load the already published version of the course..."
             )
+        else:
+            source = ConfigSource.STORE
 
     if config is None:
         publish_path = CourseConfig.path_to(course_key, source=ConfigSource.PUBLISH)
@@ -246,6 +249,8 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
                 "success": False,
                 "errors": errors,
             })
+
+        source = ConfigSource.PUBLISH
 
     # configure graders if it was skipped during the build
     if course.skip_build_failsafes:
@@ -298,12 +303,20 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
 
     data["build_log_url"] = request.build_absolute_uri(reverse("build-log-json", args=(course_key, )))
     data["errors"] = errors
-    data["publish_url"] = request.build_absolute_uri(reverse("publish", args=(course_key, )))
+    if config.version_id is None:
+        data["publish_url"] = request.build_absolute_uri(reverse("publish", args=(course_key, source)))
+    else:
+        data["publish_url"] = request.build_absolute_uri(reverse("publish", args=(course_key, source, config.version_id)))
     return JsonResponse(data, encoder=export.JSONEncoder)
 
 
 @login_required
-def publish(request: HttpRequest, course_key: str) -> HttpResponse:
+def publish(
+        request: HttpRequest,
+        course_key: str,
+        source: ConfigSource,
+        version_id: Optional[str] = None,
+        ) -> HttpResponse:
     SecurityLog.info(request, "PUBLISH", f"{course_key}")
 
     course = get_object_or_404(Course, key=course_key)
@@ -311,7 +324,7 @@ def publish(request: HttpRequest, course_key: str) -> HttpResponse:
         return HttpResponse(status=403)
 
     try:
-        errors = builder.publish(course_key)
+        errors = builder.publish(course_key, source, version_id)
     except Exception as e:
         logger.exception(e)
         return JsonResponse({"errors": str(e), "success": False})

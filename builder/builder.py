@@ -411,7 +411,7 @@ def store(perfmonitor: PerfMonitor, config: CourseConfig) -> bool:
     return True
 
 
-def publish(course_key: str) -> List[str]:
+def publish(course_key: str, source: ConfigSource, version_id: Optional[str]) -> List[str]:
     """
     Publishes the stored course files and tells graders to publish too.
 
@@ -425,17 +425,16 @@ def publish(course_key: str) -> List[str]:
     config = None
     errors = []
     # Try loading from store first. Skip if the stored version has already been published
-    if Path(store_path).exists():
-        if not os.path.exists(prod_version_path) or not os.path.exists(store_version_path) or readfile(prod_version_path) != readfile(store_version_path):
-            with FileLock(store_path, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
-                try:
-                    config = CourseConfig.get(course_key, source=ConfigSource.STORE)
-                except ConfigError as e:
-                    errors.append(f"Failed to load newly built course for this reason: {e}")
-                    logger.warn(f"Failed to load newly built course for this reason: {e}")
-                else:
+    if source == ConfigSource.STORE:
+        with FileLock(store_path, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
+            try:
+                config = CourseConfig.get(course_key, source=ConfigSource.STORE)
+            except ConfigError as e:
+                errors.append(f"Failed to load newly built course for this reason: {e}")
+                logger.warn(f"Failed to load newly built course for this reason: {e}")
+            else:
+                if config.version_id == version_id:
                     with FileLock(prod_path, write=True, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
-                        # version needs to be moved first to make sure that it is available if something tries to read it
                         renames([
                             (store_path, prod_path),
                             (store_defaults_path, prod_defaults_path),
@@ -454,21 +453,27 @@ def publish(course_key: str) -> List[str]:
                         read_lock_path=prod_path,
                         write_lock_path=store_path,
                     )
-
-    # If loading the store version failed or was skipped, try loading from the publish directory
-    if config is None and Path(prod_path).exists():
+    elif source == ConfigSource.PUBLISH:
         with FileLock(prod_path, timeout=settings.APLUS_JSON_FILELOCK_TIMEOUT):
             try:
                 config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
             except ConfigError as e:
                 errors.append(f"Failed to load already published config: {e}")
                 logger.error(f"Failed to load already published config: {e}")
+    else:
+        raise Exception("Publishing from the build directory is not allowed")
 
     if config is None:
         if errors:
             raise Exception("\n".join(errors))
         else:
             raise Exception(f"Course directory not found for {course_key} - the course probably has not been built")
+    elif config.version_id != version_id:
+        errors.append(
+            "Config version doesn't match the given version. Was the course updated while A+ "
+            "was processing the config? Try importing the course again."
+        )
+        raise Exception("\n".join(errors))
 
     # Create symbolic links to the course files
     symbolic_link(config)
