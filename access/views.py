@@ -190,6 +190,8 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
         return None
 
     errors = []
+    def error_response() -> JsonResponse:
+        return JsonResponse({ "success": False, "errors": errors })
 
     course = get_object_or_404(Course, key=course_key)
     if not course.has_read_access(request, True):
@@ -212,7 +214,7 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
                 else:
                     exercise_defaults = load_exercise_defaults(ConfigSource.STORE)
                     if exercise_defaults is None:
-                        return JsonResponse({ "success": False, "errors": errors })
+                        return error_response()
         except BlockingIOError:
             errors.append(
                 "Skipping loading the stored version as something is writing to it. "
@@ -230,33 +232,29 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
                     config = CourseConfig.get(course_key, source=ConfigSource.PUBLISH)
                 except (ConfigError, ValidationError) as e:
                     logger.error(f"aplus_json: failed to get config for {course_key}")
-                    return JsonResponse({
-                        "success": False,
-                        "errors": errors + [f"Failed to load course (has it been built?) due to this error: {e}"],
-                    })
+                    errors.append(f"Failed to load course (has it been built?) due to this error: {e}")
+                    return error_response()
 
                 exercise_defaults = load_exercise_defaults(ConfigSource.PUBLISH)
                 if exercise_defaults is None:
-                    return JsonResponse({ "success": False, "errors": errors })
+                    return error_response()
         except BlockingIOError:
             errors.append(
                 "Failed to load the already published config as something "
                 "has a write lock on the directory. Try again later."
             )
-            return JsonResponse({
-                "success": False,
-                "errors": errors,
-            })
+            return error_response()
 
         source = ConfigSource.PUBLISH
 
     # configure graders if it was skipped during the build
     if course.skip_build_failsafes:
         # send configs to graders' stores
-        exercise_defaults, errors = configure_graders(config)
-        if errors:
-            logger.exception(errors)
-            return JsonResponse({"errors": errors, "success": False})
+        exercise_defaults, configure_errors = configure_graders(config)
+        if configure_errors:
+            errors.extend(configure_errors)
+            logger.error(configure_errors)
+            return error_response()
 
         path, defaults_path, _ = CourseConfig.file_paths(course_key, source=ConfigSource.PUBLISH)
 
@@ -268,6 +266,11 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
             errors.append(
                 "Failed to write exercise defaults as something has a lock on the config directory. Try again later."
             )
+            return error_response()
+        except OSError as e:
+            logger.exception("Failed to save exercise defaults")
+            errors.append(f"Failed to save exercise defaults: {str(e)}")
+            return error_response()
 
     data = config.data.dict(exclude={"modules", "static_dir", "unprotected_paths"}, by_alias=True)
 
