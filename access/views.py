@@ -197,10 +197,15 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     if not course.has_read_access(request, True):
         return HttpResponse(status=403)
 
+    publish_version = CourseConfig.read_version_id(course_key, ConfigSource.PUBLISH)
+    store_version = CourseConfig.read_version_id(course_key, ConfigSource.STORE)
+
+    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
+
     source = None
     config = None
-    store_path = CourseConfig.path_to(course_key, source=ConfigSource.STORE)
-    if os.path.exists(store_path):
+    # No need to load from store if it is the same version as the published one
+    if os.path.exists(store_path) and (store_version is None or store_version != publish_version):
         try:
             # We only load from store if it isn't locked for writing. This means that we wont get stuck here
             # if there is a build/copy going on

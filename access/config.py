@@ -171,8 +171,8 @@ class CourseConfig:
     def is_valid(self) -> bool:
         """Checks whether the config is still valid"""
         if self.version_id is not None:
-            return self.version_id == CourseConfig.read_version_id(self.root_dir, self.key)
-        elif CourseConfig.read_version_id(self.root_dir, self.key) is not None:
+            return self.version_id == CourseConfig._read_version_id(self.root_dir, self.key)
+        elif CourseConfig._read_version_id(self.root_dir, self.key) is not None:
             return False
 
         try:
@@ -431,7 +431,7 @@ class CourseConfig:
             for ex in course.exercises()
         }
 
-        version_id = CourseConfig.read_version_id(root_dir, course_key)
+        version_id = CourseConfig._read_version_id(root_dir, course_key)
 
         return CourseConfig(
             key = course_key,
@@ -457,9 +457,17 @@ class CourseConfig:
         return course, exercise
 
     @staticmethod
-    def read_version_id(root_dir: str, key: str) -> Optional[str]:
+    def _read_version_id(root_dir: str, key: str) -> Optional[str]:
         try:
             with open(CourseConfig._version_id_path(root_dir, key)) as file:
+                return file.read()
+        except:
+            return None
+
+    @staticmethod
+    def read_version_id(key: str, source: ConfigSource = ConfigSource.PUBLISH) -> Optional[str]:
+        try:
+            with open(CourseConfig.version_id_path(key, source)) as file:
                 return file.read()
         except:
             return None
