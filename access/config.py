@@ -6,9 +6,10 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
+import json
 import logging
 import os
+from pathlib import Path
 import time
 from typing import Any, Dict, Iterable, Optional, List, Tuple, Union
 
@@ -462,6 +463,11 @@ class CourseConfig:
                 return file.read()
         except:
             return None
+
+    @staticmethod
+    def read_defaults(key: str, source: ConfigSource = ConfigSource.PUBLISH) -> dict:
+        with open(CourseConfig.defaults_path(key, source)) as file:
+            return json.load(file)
 
     @staticmethod
     def _conf_dir(course_dir, meta):

@@ -180,12 +180,10 @@ def aplus_json(request: HttpRequest, course_key: str) -> HttpResponse:
     SecurityLog.info(request, "APLUS-JSON", f"{course_key}")
 
     def load_exercise_defaults(source: ConfigSource) -> Optional[dict]:
-        defaults_path = CourseConfig.defaults_path(course_key, source=source)
         try:
-            return json.load(open(defaults_path, "r"))
+            return CourseConfig.read_defaults(course_key, source=source)
         except FileNotFoundError:
             errors.append("Could not find exercise defaults file. Try rebuilding the course")
-            return {}
         except (JSONDecodeError, OSError) as e:
             errors.append("Failed to load course exercise defaults JSON: " + str(e))
 
