@@ -301,9 +301,9 @@ def readfile(path: PathLike) -> str:
         return file.read()
 
 
-def _try_flock(lockfile, flags) -> Optional[OSError]:
+def _try_lockf(lockfile, flags) -> Optional[OSError]:
     try:
-        fcntl.flock(lockfile, flags)
+        fcntl.lockf(lockfile, flags)
     except OSError as e:
         return e
     return None
@@ -320,17 +320,17 @@ class FileLock:
         self.lock_flag = fcntl.LOCK_EX if write else fcntl.LOCK_SH
 
     def __enter__(self):
-        self.lockfile = open(self.path, "w")
+        self.lockfile = open(self.path, "w+")
 
         if self.timeout is None:
-            fcntl.flock(self.lockfile, self.lock_flag)
+            fcntl.lockf(self.lockfile, self.lock_flag)
         else:
             # we would use a signal to timeout but it can only be used on the main thread
-            e = _try_flock(self.lockfile, self.lock_flag | fcntl.LOCK_NB)
+            e = _try_lockf(self.lockfile, self.lock_flag | fcntl.LOCK_NB)
             if e:
                 for _ in range(self.timeout):
                     time.sleep(1)
-                    e = _try_flock(self.lockfile, self.lock_flag | fcntl.LOCK_NB)
+                    e = _try_lockf(self.lockfile, self.lock_flag | fcntl.LOCK_NB)
                     if not e:
                         break
                 else:
