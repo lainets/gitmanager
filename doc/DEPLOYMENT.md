@@ -66,6 +66,13 @@ recloned from git afterwards but it is still generally faster to do that than to
 Only the Huey process needs access to the build folder while only the main django process needs
 access to the publish folder. Both processes need access to the store folder.
 
+# Number of threads per process
+
+Each process should only have a single thread as the advisory file locks obtained by the lockf posix
+function are process specific. This means that two threads in the same process accessing the same
+file at the same time can cause issues with the lock being released early or a lock being given when
+it shouldn't (because the other thread had it). This should be very rare but to eliminate the
+possibility, only one thread should be run per process.
 
 # Custom build runners (running builds on something other than locally or on docker containers)
 
